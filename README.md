@@ -16,6 +16,10 @@ npm install
 npm run dev          # Postgres + Go API (:3001) + Vite (:5173), milestones tracked off-chain (preview mode)
 ```
 
+Then open http://localhost:5173. Docker Desktop must be running; `npm run dev` checks for Docker and Go and tells
+you what is missing. Leave that terminal open (Ctrl+C stops everything). If the page says it cannot reach the API,
+the dev command is not running.
+
 ### With a real (local) blockchain
 
 ```sh

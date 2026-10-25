@@ -4,14 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run db && concurrently -k -n api,web -c green,cyan \"npm:api\" \"npm:web\"",
+    "dev": "node scripts/dev.mjs",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "db": "docker compose up -d --wait",
     "api": "cd server && go run .",
     "web": "vite",
-    "dev:chain": "node scripts/dev-chain.mjs",
+    "dev:chain": "node scripts/dev.mjs --chain",
     "contracts:install": "cd contracts && npm install",
     "contracts:compile": "cd contracts && npm run compile",
     "contracts:test": "cd contracts && npm test"
