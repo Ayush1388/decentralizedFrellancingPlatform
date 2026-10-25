@@ -1,45 +1,73 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useState } from "react";
+import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { WagmiProvider } from "wagmi";
+import { config } from "./lib/wagmi";
+import { AuthProvider } from "./context/AuthContext";
+import { ChainConfigProvider } from "./context/ChainConfigContext";
 import NavigationBar from "./Components/NavigationBar";
-import HomePage from "./Pages/HomePage";
-import Developers from "./Pages/developers";
-//import Wallet from "./Pages/wallet";
-import Tasks from "./Pages/tasks";
+import Footer from "./Components/Footer";
+import ApiStatus from "./Components/ApiStatus";
 import LoginPopup from "./Components/LoginPopup";
+import HomePage from "./Pages/HomePage";
+import Developers from "./Pages/Developers";
+import Jobs from "./Pages/Jobs";
+import PostJob from "./Pages/PostJob";
+import JobDetail from "./Pages/JobDetail";
+import Wallet from "./Pages/Wallet";
 import OAuthSuccess from "./Pages/OAuthSuccess";
+import { Button, EmptyState } from "./Components/ui";
 
-import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
-import {
-  WalletModalProvider,
-  WalletDisconnectButton,
-  WalletMultiButton,
-} from "@solana/wallet-adapter-react-ui";
-import "@solana/wallet-adapter-react-ui/styles.css";
+const queryClient = new QueryClient();
 
-function App() {
-  const [showLogin, setShowLogin] = useState(false);
-
-  return (
-    <ConnectionProvider endpoint="https://api.devnet.solana.com">
-      <WalletProvider wallets={[]} autoConnect>
-        <WalletModalProvider>
-          <Router>
-            <NavigationBar setShowLogin={setShowLogin} />
-
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/developers" element={<Developers />} />
-              <Route path="/tasks" element={<Tasks />} />
-              <Route path="/" element={<HomePage />} />
-              <Route path="/oauth-success" element={<OAuthSuccess />} />
-            </Routes>
-
-            {showLogin && <LoginPopup setShowLogin={setShowLogin} />}
-          </Router>
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
-  );
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
 }
 
-export default App;
+export default function App() {
+  return (
+    <WagmiProvider config={config}>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <ChainConfigProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2">
+              Skip to content
+            </a>
+            <ApiStatus />
+            <NavigationBar />
+            <main id="main" className="min-h-[60vh]">
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/developers" element={<Developers />} />
+                <Route path="/jobs" element={<Jobs />} />
+                <Route path="/jobs/new" element={<PostJob />} />
+                <Route path="/jobs/:id" element={<JobDetail />} />
+                <Route path="/wallet" element={<Wallet />} />
+                <Route path="/oauth-success" element={<OAuthSuccess />} />
+                <Route
+                  path="*"
+                  element={
+                    <div className="container-page pt-20">
+                      <EmptyState icon="search" title="Page not found" action={<Button to="/">Go home</Button>}>
+                        The page you are looking for does not exist.
+                      </EmptyState>
+                    </div>
+                  }
+                />
+              </Routes>
+            </main>
+            <Footer />
+            <LoginPopup />
+          </BrowserRouter>
+          </ChainConfigProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}

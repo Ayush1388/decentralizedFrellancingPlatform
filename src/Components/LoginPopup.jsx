@@ -1,174 +1,134 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import { useEffect, useRef, useState } from "react";
+import { api, API } from "../lib/api";
+import { useAuth } from "../context/useAuth";
+import { useWalletAuth } from "../lib/useWalletAuth";
+import { Button, ErrorNote, Field, Icon } from "./ui";
 
-const LoginPopup = ({ setShowLogin }) => {
-  const [currState, setCurrState] = useState("Login"); // Login / Sign Up
+export default function LoginPopup() {
+  const { loginOpen, closeLogin, signIn } = useAuth();
+  const dialogRef = useRef(null);
+  const [mode, setMode] = useState("login");
   const [form, setForm] = useState({ name: "", email: "", password: "" });
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
+  const wallet = useWalletAuth();
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+  useEffect(() => {
+    api("/api/config").then((c) => setGoogleEnabled(c.googleEnabled)).catch(() => {});
+  }, []);
 
-  const handleSubmit = async (e) => {
+  // Native <dialog> gives us a focus trap, Esc to close and a backdrop for free.
+  useEffect(() => {
+    const d = dialogRef.current;
+    if (!d) return;
+    if (loginOpen && !d.open) d.showModal();
+    if (!loginOpen && d.open) d.close();
+  }, [loginOpen]);
+
+  const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+
+  async function submit(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
-
-    const url =
-      currState === "Login"
-        ? "http://localhost:3001/api/auth/login"
-        : "http://localhost:3001/api/auth/signup";
-
     try {
-      const res = await axios.post(url, form);
-      localStorage.setItem("token", res.data.token);
-      setShowLogin(false); // ✅ fixed
+      const body = mode === "login" ? { email: form.email, password: form.password } : form;
+      signIn(await api(`/api/auth/${mode === "login" ? "login" : "signup"}`, { method: "POST", body }));
     } catch (err) {
-      if (err.response?.data?.errors) {
-        setError(err.response.data.errors.map((e) => e.message).join(", "));
-      } else {
-        setError(err.response?.data?.message || "Something went wrong");
-      }
+      setError(err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleGoogleLogin = () => {
-    window.location.href = "http://localhost:3001/api/auth/google";
-  };
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-    if (token) {
-      localStorage.setItem("token", token);
-      setShowLogin(false); // ✅ fixed
-      window.history.replaceState({}, document.title, "/");
-    }
-  }, []);
+  async function walletLogin() {
+    await wallet.run();
+  }
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-      <form
-        className="bg-white border-2 border-gray-300 rounded-xl shadow-lg w-full max-w-md p-6 relative"
-        onSubmit={handleSubmit}
-      >
-        {/* Close button */}
+    <dialog
+      ref={dialogRef}
+      onClose={closeLogin}
+      onClick={(e) => e.target === dialogRef.current && closeLogin()}
+      aria-labelledby="login-title"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-3xl p-0 shadow-2xl backdrop:bg-ink/60 backdrop:backdrop-blur-sm"
+    >
+      <div className="relative p-6 sm:p-8">
         <button
           type="button"
-          onClick={() => setShowLogin(false)} // ✅ fixed
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-xl font-bold"
+          onClick={closeLogin}
+          aria-label="Close"
+          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-muted hover:bg-surface"
         >
-          ✖
+          <Icon name="x" />
         </button>
 
-        {/* Title */}
-        <h2 className="text-2xl font-semibold text-center mb-6">{currState}</h2>
-
-        {/* Inputs */}
-        <div className="space-y-4">
-          {currState === "Sign Up" && (
-            <input
-              type="text"
-              name="name"
-              placeholder="Your Name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-gray-400"
-            />
-          )}
-          <input
-            type="email"
-            name="email"
-            placeholder="Your Email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-gray-400"
-          />
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={form.password}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder-gray-400"
-          />
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full mt-6 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-md transition duration-200 disabled:opacity-50"
-        >
-          {loading
-            ? "Processing..."
-            : currState === "Sign Up"
-            ? "Create Account"
-            : "Login"}
-        </button>
-
-        {/* Error */}
-        {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
-
-        {/* Terms */}
-        <div className="flex items-center mt-4">
-          <input type="checkbox" required className="mr-2" />
-          <p className="text-sm text-gray-600">
-            By continuing, I agree to the terms of use & privacy policy.
-          </p>
-        </div>
-
-        {/* OR Divider */}
-        <div className="flex items-center my-4">
-          <hr className="flex-grow border-t border-gray-300" />
-          <span className="mx-2 text-gray-500 text-sm">OR</span>
-          <hr className="flex-grow border-t border-gray-300" />
-        </div>
-
-        {/* Google Login */}
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 rounded-md transition duration-200"
-        >
-          Login with Google
-        </button>
-
-        {/* Toggle Login / Sign Up */}
-        <p className="text-center mt-4 text-gray-700 text-sm">
-          {currState === "Login" ? (
-            <>
-              Create a new account?{" "}
-              <span
-                onClick={() => setCurrState("Sign Up")}
-                className="text-blue-500 cursor-pointer hover:underline"
-              >
-                Click here
-              </span>
-            </>
-          ) : (
-            <>
-              Already have an account?{" "}
-              <span
-                onClick={() => setCurrState("Login")}
-                className="text-blue-500 cursor-pointer hover:underline"
-              >
-                Login here
-              </span>
-            </>
-          )}
+        <h2 id="login-title" className="text-2xl font-bold">
+          {mode === "login" ? "Welcome back" : "Create your account"}
+        </h2>
+        <p className="mt-1 text-sm text-muted">
+          {mode === "login" ? "Log in to manage jobs and payments." : "Hire developers or find work, paid in USDC."}
         </p>
-      </form>
-    </div>
-  );
-};
 
-export default LoginPopup;
+        <form onSubmit={submit} className="mt-6 space-y-4">
+          {mode === "signup" && (
+            <Field label="Name" htmlFor="auth-name">
+              <input id="auth-name" name="name" autoComplete="name" required minLength={2} value={form.name} onChange={set} className="input" />
+            </Field>
+          )}
+          <Field label="Email" htmlFor="auth-email">
+            <input id="auth-email" type="email" name="email" autoComplete="email" required value={form.email} onChange={set} className="input" />
+          </Field>
+          <Field label="Password" htmlFor="auth-password" hint={mode === "signup" ? "At least 8 characters." : undefined}>
+            <input
+              id="auth-password"
+              type="password"
+              name="password"
+              autoComplete={mode === "login" ? "current-password" : "new-password"}
+              required
+              minLength={mode === "signup" ? 8 : undefined}
+              value={form.password}
+              onChange={set}
+              className="input"
+            />
+          </Field>
+          <ErrorNote>{error}</ErrorNote>
+          <Button type="submit" loading={loading} className="w-full">
+            {mode === "login" ? "Log in" : "Create account"}
+          </Button>
+        </form>
+
+        <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
+          <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
+        </div>
+
+        <div className="space-y-3">
+          <Button type="button" variant="secondary" className="w-full" onClick={walletLogin} loading={wallet.busy}>
+            <Icon name="eth" size={18} /> Continue with Ethereum wallet
+          </Button>
+          <ErrorNote>{wallet.error}</ErrorNote>
+          {googleEnabled && (
+            <Button type="button" variant="secondary" className="w-full" onClick={() => (window.location.href = `${API}/api/auth/google`)}>
+              <Icon name="globe" size={18} /> Continue with Google
+            </Button>
+          )}
+        </div>
+
+        <p className="mt-6 text-center text-sm text-muted">
+          {mode === "login" ? "New here?" : "Already have an account?"}{" "}
+          <button
+            type="button"
+            className="font-semibold text-green-800 underline-offset-2 hover:underline"
+            onClick={() => {
+              setMode(mode === "login" ? "signup" : "login");
+              setError("");
+            }}
+          >
+            {mode === "login" ? "Create an account" : "Log in"}
+          </button>
+        </p>
+      </div>
+    </dialog>
+  );
+}

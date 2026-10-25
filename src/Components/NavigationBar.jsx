@@ -1,82 +1,126 @@
-import { Link } from "react-router-dom";
-//import { ShowBalance } from './ShowBalance';
-import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
-import {
-    WalletModalProvider,
-    WalletMultiButton
-} from '@solana/wallet-adapter-react-ui';
-import '@solana/wallet-adapter-react-ui/styles.css';
+import { useState } from "react";
+import { Link, NavLink } from "react-router-dom";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAuth } from "../context/useAuth";
+import { shortAddr } from "../lib/format";
+import { Button, Icon } from "./ui";
 
-export default function NavigationBar({ setShowLogin }) {
-  const token = localStorage.getItem("token");
+const links = [
+  { to: "/developers", label: "Developers" },
+  { to: "/jobs", label: "Jobs" },
+  { to: "/wallet", label: "Wallet" },
+];
 
-  const handleLogout = () => {
-    localStorage.removeItem("token"); // ✅ clear token
-    window.location.reload(); // ✅ refresh UI
-  };
+function WalletPill() {
+  const { address, isConnected } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  if (isConnected) {
+    return (
+      <button
+        onClick={() => disconnect()}
+        title="Disconnect wallet"
+        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium hover:border-green-700"
+      >
+        <span className="h-2 w-2 rounded-full bg-green-600" aria-hidden="true" />
+        {shortAddr(address)}
+      </button>
+    );
+  }
+  return (
+    <Button variant="secondary" size="sm" loading={isPending} disabled={!connectors.length} onClick={() => connect({ connector: connectors[0] })}>
+      <Icon name="wallet" size={16} /> Connect wallet
+    </Button>
+  );
+}
+
+export default function NavigationBar() {
+  const { user, ready, openLogin, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  const linkCls = ({ isActive }) =>
+    `rounded-full px-4 py-2 text-[0.95rem] font-medium transition-colors ${
+      isActive ? "bg-green-50 text-green-800" : "text-ink-soft hover:text-green-800"
+    }`;
 
   return (
-    <nav className="flex justify-between items-center py-6 mx-50">
-      {/* Logo */}
-      <div>
-        <Link to="/" className="text-2xl font-bold text-green-700">
+    <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur">
+      <nav className="container-page flex h-16 items-center justify-between gap-4" aria-label="Main">
+        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-green-800">
+          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-700 text-white">
+            <Icon name="shield" size={18} />
+          </span>
           Blockchain
         </Link>
-      </div>
 
-      {/* Navigation Links */}
-      <div className="flex items-center space-x-8 text-lg px-3 font-medium text-gray-700">
-        <ul className="flex space-x-8">
-          <li>
-            <Link to="/developers" className="hover:text-green-600">
-              Developers
-            </Link>
-          </li>
-          <li>
-            <Link to="/tasks" className="hover:text-green-600">
-              Tasks
-            </Link>
-          </li>
-          <li>
-            <Link to="/wallet" className="hover:text-green-600">
-              Wallet
-            </Link>
-          </li>
+        <ul className="hidden items-center gap-1 md:flex">
+          {links.map((l) => (
+            <li key={l.to}>
+              <NavLink to={l.to} className={linkCls}>
+                {l.label}
+              </NavLink>
+            </li>
+          ))}
         </ul>
 
-        {/* Auth Section */}
-        {!token ? (
-          <button
-            onClick={() => setShowLogin(true)}
-            className="bg-green-600 hover:bg-green-800 text-white px-6 py-2 rounded-full"
-          >
-            Login
-          </button>
-        ) : (
-          <button
-            onClick={handleLogout}
-            className="bg-red-600 hover:bg-red-800 text-white px-6 py-2 rounded-full"
-          >
-            Logout
-          </button>
-        )}
-        <div>
-          <ConnectionProvider endpoint={"https://api.devnet.solana.com"}>
-            <WalletProvider wallets={[]} autoConnect>
-                <WalletModalProvider>
-                    <WalletMultiButton className='  inline-flex items-center justify-center text-sm mx-4 py-2 px-2 rounded-md border border-white bg-white 
-                text-black font-medium hover:scale-105 transition-all duration-200' />
-                    {/* <WalletDisconnectButton /> */}
-                    {/* <RequestAirdrop/> */}
-                      {/* <ShowBalance />
-                      <SendTokens/>
-                      <SignMessage/> */}
-                    { /* Your app's components go here, nested within the context providers. */ }
-                </WalletModalProvider>
-            </WalletProvider>
-        </ConnectionProvider>
+        <div className="hidden items-center gap-3 md:flex">
+          <WalletPill />
+          {ready &&
+            (user ? (
+              <>
+                <Link to="/wallet" className="max-w-32 truncate text-sm font-medium" title={user.name}>
+                  {user.name}
+                </Link>
+                <Button variant="ghost" size="sm" onClick={signOut}>
+                  Log out
+                </Button>
+              </>
+            ) : (
+              <Button size="sm" onClick={openLogin}>
+                Log in
+              </Button>
+            ))}
         </div>
-      </div>
-    </nav>
+
+        <button
+          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-surface md:hidden"
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+          aria-controls="mobile-menu"
+          onClick={() => setOpen(!open)}
+        >
+          <Icon name={open ? "x" : "menu"} />
+        </button>
+      </nav>
+
+      {open && (
+        <div id="mobile-menu" className="container-page space-y-1 border-t border-line pb-5 pt-3 md:hidden">
+          {links.map((l) => (
+            <NavLink key={l.to} to={l.to} className={linkCls} onClick={() => setOpen(false)}>
+              <span className="block py-1">{l.label}</span>
+            </NavLink>
+          ))}
+          <div className="flex flex-wrap items-center gap-3 pt-3">
+            <WalletPill />
+            {user ? (
+              <Button variant="ghost" size="sm" onClick={signOut}>
+                Log out ({user.name})
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                onClick={() => {
+                  setOpen(false);
+                  openLogin();
+                }}
+              >
+                Log in
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </header>
   );
 }

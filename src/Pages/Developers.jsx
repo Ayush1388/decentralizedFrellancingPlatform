@@ -1,178 +1,184 @@
-import { useState, useEffect } from "react";
-import axios from "axios";
-import { jwtDecode } from "jwt-decode";
-import DeveloperCard from "../Components/DeveloperCard.jsx";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "../lib/api";
+import { useAuth } from "../context/useAuth";
+import DeveloperCard from "../Components/DeveloperCard";
+import { Button, CardSkeleton, EmptyState, ErrorNote, Field, Icon, PageHeader } from "../Components/ui";
 
-export default function Developers() {
-  const [developers, setDevelopers] = useState([]);
-  const [form, setForm] = useState({
-    name: "",
-    title: "",
-    bio: "",
-    hourlyRate: "",
-    jobsDone: "",
-    rating: "",
-    skills: "",
-    image: null,
-  });
-  
-  const [editingId, setEditingId] = useState(null);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [hasProfile, setHasProfile] = useState(false);
+const emptyForm = { name: "", title: "", hourlyRate: "", bio: "", skills: "" };
 
-  // ✅ Decode logged-in user ID from token
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      const decoded = jwtDecode(token);
-      setCurrentUserId(decoded.id);
-    }
-  }, []);
+function ProfileForm({ initial, editing, onSaved, onCancel }) {
+  const [form, setForm] = useState(initial);
+  const [image, setImage] = useState(null);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const set = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  // ✅ Fetch developers
-  useEffect(() => {
-    axios.get("http://localhost:3001/api/developers").then((res) => {
-      setDevelopers(res.data);
-      if (currentUserId) {
-        const found = res.data.find((d) => d.user === currentUserId);
-        setHasProfile(!!found);
-      }
-    });
-  }, [currentUserId]);
-
-  // ✅ Handle input changes
-  const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    setForm({ ...form, [name]: files ? files[0] : value });
-  };
-
-  // ✅ Create or Update Developer
-  const handleSubmit = async (e) => {
+  async function submit(e) {
     e.preventDefault();
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login first");
-      return;
-    }
-
+    setError("");
+    setSaving(true);
+    const body = new FormData();
+    Object.entries(form).forEach(([k, v]) => body.append(k, v));
+    if (image) body.append("image", image);
     try {
-      const formData = new FormData();
-      Object.keys(form).forEach((key) => {
-        formData.append(key, form[key]);
-      });
-
-      let response;
-      if (editingId) {
-        response = await axios.put(
-          `http://localhost:3001/api/developers/${editingId}`,
-          formData,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setDevelopers(
-          developers.map((dev) => (dev._id === editingId ? response.data : dev))
-        );
-        setEditingId(null);
-      } else {
-        response = await axios.post(
-          "http://localhost:3001/api/developers",
-          formData,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setDevelopers([...developers, response.data]);
-        setHasProfile(true);
-      }
-
-      setForm({
-        name: "",
-        title: "",
-        bio: "",
-        hourlyRate: "",
-        jobsDone: "",
-        rating: "",
-        skills: "",
-        image: null,
-      });
+      const saved = await api(editing ? `/api/developers/${editing}` : "/api/developers", { method: editing ? "PUT" : "POST", body });
+      onSaved(saved);
     } catch (err) {
-      console.error("Error saving developer:", err.response?.data || err);
-      alert(err.response?.data?.error || "Error saving developer");
+      setError(err.message);
+    } finally {
+      setSaving(false);
     }
-  };
-
-  // ✅ Delete developer
-  const handleDelete = async (id) => {
-    const token = localStorage.getItem("token");
-    try {
-      await axios.delete(`http://localhost:3001/api/developers/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setDevelopers(developers.filter((dev) => dev._id !== id));
-      setHasProfile(false);
-    } catch (err) {
-      console.error("Error deleting developer:", err);
-    }
-  };
-
-  // ✅ Load developer data into form for editing
-  const handleEdit = (dev) => {
-    setForm({
-      name: dev.name,
-      title: dev.title,
-      bio: dev.bio,
-      hourlyRate: dev.hourlyRate,
-      jobsDone: dev.jobsDone,
-      rating: dev.rating,
-      skills: dev.skills.join(", "),
-      image: null,
-    });
-    setEditingId(dev._id);
-  };
+  }
 
   return (
-    <div className="max-w-6xl mx-auto py-10 px-6">
-      {currentUserId && (!hasProfile || editingId) ? (
-        <>
-          <h2 className="text-3xl font-bold mb-6">
-            {editingId ? "Edit Your Profile" : "Create Your Developer Profile"}
-          </h2>
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white shadow-md rounded-xl p-8 grid gap-6"
-            encType="multipart/form-data"
-          >
-            <input type="text" name="name" placeholder="Full Name" value={form.name} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
-            <input type="text" name="title" placeholder="Job Title" value={form.title} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
-            <input type="number" name="hourlyRate" placeholder="Hourly Rate ($)" value={form.hourlyRate} onChange={handleChange} className="w-full p-3 border rounded-lg" required />
-            <input type="number" name="jobsDone" placeholder="Jobs Completed (e.g. 12)" value={form.jobsDone} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            <input type="number" step="0.1" max="5" min="1" name="rating" placeholder="Rating (1.0 - 5.0)" value={form.rating} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            <textarea name="bio" placeholder="Short Bio" value={form.bio} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            <input type="text" name="skills" placeholder="Skills (comma separated)" value={form.skills} onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            <input type="file" name="image" accept="image/*" onChange={handleChange} className="w-full p-3 border rounded-lg" />
-            <button className="bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">
-              {editingId ? "Update Profile" : "Create Profile"}
-            </button>
-          </form>
-        </>
-      ) : !currentUserId ? (
-        <p className="text-red-500">Please login to create a profile ✋</p>
-      ) : (
-        <p className="text-gray-500">✅ Your profile is listed below.</p>
+    <form onSubmit={submit} className="card mb-10 grid gap-5 p-6 sm:grid-cols-2 sm:p-8">
+      <h2 className="text-xl font-bold sm:col-span-2">{editing ? "Edit your profile" : "Create your developer profile"}</h2>
+      <Field label="Full name" htmlFor="dev-name">
+        <input id="dev-name" name="name" required minLength={2} maxLength={80} value={form.name} onChange={set} className="input" />
+      </Field>
+      <Field label="Title" htmlFor="dev-title" hint="e.g. Full-stack Web3 developer">
+        <input id="dev-title" name="title" required maxLength={100} value={form.title} onChange={set} className="input" />
+      </Field>
+      <Field label="Hourly rate (USDC)" htmlFor="dev-rate">
+        <input id="dev-rate" type="number" name="hourlyRate" required min="1" max="10000" inputMode="numeric" value={form.hourlyRate} onChange={set} className="input" />
+      </Field>
+      <Field label="Skills" htmlFor="dev-skills" hint="Comma separated, e.g. Solidity, React, Go">
+        <input id="dev-skills" name="skills" value={form.skills} onChange={set} className="input" />
+      </Field>
+      <div className="sm:col-span-2">
+        <Field label="Short bio" htmlFor="dev-bio" hint={`${form.bio.length}/600`}>
+          <textarea id="dev-bio" name="bio" rows={3} maxLength={600} value={form.bio} onChange={set} className="input" />
+        </Field>
+      </div>
+      <div className="sm:col-span-2">
+        <Field label="Profile photo" htmlFor="dev-image" hint="JPEG, PNG or WebP, up to 2 MB.">
+          <input
+            id="dev-image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(e) => setImage(e.target.files[0] || null)}
+            className="input file:mr-3 file:rounded-full file:border-0 file:bg-green-50 file:px-4 file:py-1.5 file:font-medium file:text-green-900"
+          />
+        </Field>
+      </div>
+      <div className="sm:col-span-2">
+        <ErrorNote>{error}</ErrorNote>
+      </div>
+      <div className="flex gap-3 sm:col-span-2">
+        <Button type="submit" loading={saving}>
+          {editing ? "Save changes" : "Publish profile"}
+        </Button>
+        {onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+export default function Developers() {
+  const { user, openLogin } = useAuth();
+  const [devs, setDevs] = useState(null);
+  const [error, setError] = useState("");
+  const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(q.trim()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const load = useCallback(
+    (signal) =>
+      api(`/api/developers${debounced ? `?q=${encodeURIComponent(debounced)}` : ""}`, { signal })
+        .then((d) => {
+          setDevs(d);
+          setError("");
+        })
+        .catch((e) => e.name !== "AbortError" && setError(e.message)),
+    [debounced],
+  );
+
+  useEffect(() => {
+    const ctl = new AbortController();
+    load(ctl.signal);
+    return () => ctl.abort();
+  }, [load]);
+
+  const mine = user && devs?.find((d) => d.userId === user.id);
+
+  function saved() {
+    setShowForm(false);
+    setEditing(null);
+    load();
+  }
+
+  async function remove() {
+    if (!mine) return;
+    await api(`/api/developers/${mine.id}`, { method: "DELETE" }).catch((e) => setError(e.message));
+    load();
+  }
+
+  return (
+    <div className="container-page pb-8">
+      <PageHeader
+        title="Developers"
+        image="/Working-bro.png"
+        subtitle="Browse developers by skill and rate. Every hire is protected by milestone escrow."
+        action={
+          !mine && (
+            <Button onClick={() => (user ? setShowForm(true) : openLogin())}>
+              <Icon name="plus" size={18} /> List yourself
+            </Button>
+          )
+        }
+      />
+
+      {(showForm || editing) && user && (
+        <ProfileForm
+          initial={editing ? { name: editing.name, title: editing.title, hourlyRate: editing.hourlyRate, bio: editing.bio, skills: editing.skills.join(", ") } : { ...emptyForm, name: user.name }}
+          editing={editing?.id}
+          onSaved={saved}
+          onCancel={() => {
+            setShowForm(false);
+            setEditing(null);
+          }}
+        />
       )}
 
-      <h3 className="text-2xl font-bold mt-10 mb-6">All Developers</h3>
-      <div className="grid md:grid-cols-3 gap-6">
-        {developers.map((dev) => (
-          <div key={dev._id}>
-            <DeveloperCard dev={dev} />
-            {dev.user === currentUserId && (
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => handleEdit(dev)} className="bg-blue-500 px-3 py-1 text-white rounded">Edit</button>
-                <button onClick={() => handleDelete(dev._id)} className="bg-red-500 px-3 py-1 text-white rounded">Delete</button>
-              </div>
-            )}
-          </div>
-        ))}
+      <div className="relative mb-8 max-w-md">
+        <Icon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+        <label htmlFor="dev-search" className="sr-only">
+          Search developers
+        </label>
+        <input id="dev-search" type="search" placeholder="Search by name, skill or title" value={q} onChange={(e) => setQ(e.target.value)} className="input !pl-11" />
       </div>
+
+      <ErrorNote>{error}</ErrorNote>
+
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy={devs === null}>
+        {devs === null && !error && Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+        {devs?.map((d) => <DeveloperCard key={d.id} dev={d} isMine={d.id === mine?.id} onEdit={setEditing} />)}
+      </div>
+
+      {devs?.length === 0 && (
+        <EmptyState image="/Working remotely-rafiki.svg" title={debounced ? "No developers match your search" : "No developers yet"}>
+          {debounced ? "Try a different skill or clear the search." : "Be the first to publish a profile."}
+        </EmptyState>
+      )}
+
+      {mine && (
+        <p className="mt-10 text-sm text-muted">
+          Want to take your profile down?{" "}
+          <button className="font-semibold text-red-700 underline-offset-2 hover:underline" onClick={remove}>
+            Delete my profile
+          </button>
+        </p>
+      )}
     </div>
   );
 }

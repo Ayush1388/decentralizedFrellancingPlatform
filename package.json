@@ -4,29 +4,34 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run db && concurrently -k -n api,web -c green,cyan \"npm:api\" \"npm:web\"",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "db": "docker compose up -d --wait",
+    "api": "cd server && go run .",
+    "web": "vite",
+    "dev:chain": "node scripts/dev-chain.mjs",
+    "contracts:install": "cd contracts && npm install",
+    "contracts:compile": "cd contracts && npm run compile",
+    "contracts:test": "cd contracts && npm test"
   },
   "dependencies": {
-    "@solana/wallet-adapter-base": "^0.9.27",
-    "@solana/wallet-adapter-react": "^0.15.39",
-    "@solana/wallet-adapter-react-ui": "^0.9.39",
-    "@solana/wallet-adapter-wallets": "^0.19.37",
-    "@solana/web3.js": "^1.98.4",
     "@tailwindcss/vite": "^4.1.14",
-    "jwt-decode": "^4.0.0",
+    "@tanstack/react-query": "^5.104.5",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.4",
-    "tailwindcss": "^4.1.14"
+    "tailwindcss": "^4.1.14",
+    "viem": "^2.57.11",
+    "wagmi": "^2.19.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@types/react": "^19.1.16",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^10.0.6",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",

@@ -1,23 +1,21 @@
-export default function Testimonial() {
-    return (
-       
-        <div className="py-4 shadow-md rounded-xl w-90">
-        <div className="flex justify-center">
-          <img className="  rounded-full w-12 h-12  " src="public\profile1.svg"></img>
-          <div>
-            <h2 className="text-lg font-semibold">
-              Sarah Lee
-            </h2>
-            <p className="text-sm text-gray-500">
-              Founder @ DeFiLabs
-            </p>
-          </div>
-        </div>
-        <p className="text-gray-600 mt-3 italic px-4">
-          “We were struggling to find skilled Web3 developers for our DeFi project.
-          Traditional freelancing sites were slow and risky, and payments were a nightmare.
-        </p>
-        <div className="mx-25">⭐⭐⭐⭐⭐</div>
+import { Avatar, Icon } from "./ui";
+
+export default function Testimonial({ name, role, quote, seed = 0 }) {
+  return (
+    <figure className="card flex h-full flex-col p-6">
+      <div className="flex gap-0.5 text-amber-500" role="img" aria-label="5 out of 5 stars">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Icon key={i} name="star" size={16} className="fill-current" />
+        ))}
       </div>
-    )
-};
+      <blockquote className="mt-4 flex-1 text-[0.95rem] text-ink-soft">“{quote}”</blockquote>
+      <figcaption className="mt-5 flex items-center gap-3">
+        <Avatar seed={seed} size={40} />
+        <div>
+          <p className="text-sm font-semibold">{name}</p>
+          <p className="text-xs text-muted">{role}</p>
+        </div>
+      </figcaption>
+    </figure>
+  );
+}
