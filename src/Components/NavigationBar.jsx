@@ -21,7 +21,7 @@ function WalletPill() {
       <button
         onClick={() => disconnect()}
         title="Disconnect wallet"
-        className="inline-flex min-h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium hover:border-green-700"
+        className="inline-flex min-h-10 items-center gap-2 rounded-sm border border-ink/40 px-4 text-xs font-medium tracking-wide hover:bg-ink hover:text-paper"
       >
         <span className="h-2 w-2 rounded-full bg-green-600" aria-hidden="true" />
         {shortAddr(address)}
@@ -40,21 +40,21 @@ export default function NavigationBar() {
   const [open, setOpen] = useState(false);
 
   const linkCls = ({ isActive }) =>
-    `rounded-full px-4 py-2 text-[0.95rem] font-medium transition-colors ${
-      isActive ? "bg-green-50 text-green-800" : "text-ink-soft hover:text-green-800"
+    `border-b px-1 py-1.5 text-[0.72rem] font-medium uppercase tracking-[0.16em] transition-colors ${
+      isActive ? "border-green-700 text-green-800" : "border-transparent text-ink-soft hover:text-green-800"
     }`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/90 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur">
       <nav className="container-page flex h-16 items-center justify-between gap-4" aria-label="Main">
-        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-green-800">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-green-700 text-white">
-            <Icon name="shield" size={18} />
+        <Link to="/" className="flex items-center gap-3 text-green-900" aria-label="Blockchain Freelance home">
+          <span className="flex h-8 w-8 items-center justify-center rounded-sm border border-green-900">
+            <Icon name="shield" size={16} />
           </span>
-          Blockchain
+          <span className="eyebrow !text-[0.78rem] !tracking-[0.24em]">Blockchain</span>
         </Link>
 
-        <ul className="hidden items-center gap-1 md:flex">
+        <ul className="hidden items-center gap-8 md:flex">
           {links.map((l) => (
             <li key={l.to}>
               <NavLink to={l.to} className={linkCls}>
@@ -64,12 +64,12 @@ export default function NavigationBar() {
           ))}
         </ul>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="hidden items-center gap-4 md:flex">
           <WalletPill />
           {ready &&
             (user ? (
               <>
-                <Link to="/wallet" className="max-w-32 truncate text-sm font-medium" title={user.name}>
+                <Link to="/wallet" className="max-w-32 truncate text-xs font-medium" title={user.name}>
                   {user.name}
                 </Link>
                 <Button variant="ghost" size="sm" onClick={signOut}>
@@ -84,7 +84,7 @@ export default function NavigationBar() {
         </div>
 
         <button
-          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-surface md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-sand md:hidden"
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           aria-controls="mobile-menu"

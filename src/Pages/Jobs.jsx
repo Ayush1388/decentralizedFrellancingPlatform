@@ -79,14 +79,14 @@ export default function Jobs() {
       />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div role="tablist" aria-label="Job lists" className="inline-flex rounded-full border border-line bg-surface p-1">
+        <div role="tablist" aria-label="Job lists" className="inline-flex rounded-sm border border-line p-1">
           {tabs.map((t) => (
             <button
               key={t.id}
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`min-h-10 rounded-full px-5 text-sm font-medium transition-colors ${tab === t.id ? "bg-white text-green-900 shadow-sm" : "text-muted hover:text-ink"}`}
+              className={`min-h-10 rounded-sm px-5 text-[0.72rem] font-medium uppercase tracking-[0.14em] transition-colors ${tab === t.id ? "bg-green-900 text-paper" : "text-muted hover:text-ink"}`}
             >
               {t.label}
             </button>

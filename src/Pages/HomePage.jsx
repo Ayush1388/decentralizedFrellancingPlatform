@@ -44,7 +44,7 @@ const tones = { gray: "gray", green: "green", blue: "blue", amber: "amber" };
 
 function Row({ title, sub, badge, tone, live, children }) {
   return (
-    <li className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-300 ${live ? "bg-green-50 ring-1 ring-green-200" : "bg-surface"}`}>
+    <li className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors duration-300 ${live ? "bg-green-100 ring-1 ring-green-300" : "bg-surface"}`}>
       {children}
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{title}</span>
@@ -125,7 +125,7 @@ function StepCard({ step }) {
 function HowItWorks() {
   const [active, setActive] = useState(0);
   return (
-    <div className="mt-14 grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+    <div className="mt-16 grid items-center gap-8 lg:grid-cols-2 lg:gap-16">
       <div role="tablist" aria-label="How it works" className="space-y-3">
         {steps.map((s, i) => {
           const on = i === active;
@@ -142,15 +142,15 @@ function HowItWorks() {
                 if (e.key === "ArrowDown" || e.key === "ArrowRight") setActive((active + 1) % steps.length);
                 if (e.key === "ArrowUp" || e.key === "ArrowLeft") setActive((active + steps.length - 1) % steps.length);
               }}
-              className={`card flex w-full gap-4 p-5 text-left transition-all duration-300 sm:p-6 ${on ? "!border-green-700 shadow-lg ring-1 ring-green-700/20" : "hover:border-green-300"}`}
+              className={`card flex w-full gap-4 p-5 text-left transition-all duration-300 sm:p-6 ${on ? "!border-green-800 !bg-white" : "hover:border-green-700"}`}
             >
               <span
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-colors duration-300 ${on ? "bg-green-700 text-white" : "bg-green-100 text-green-900"}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border font-serif text-xl transition-colors duration-300 ${on ? "border-green-900 bg-green-900 text-paper" : "border-green-300 text-green-800"}`}
               >
                 {i + 1}
               </span>
               <span className="min-w-0">
-                <span className="block text-xl font-semibold tracking-tight">{s.title}</span>
+                <span className="block font-serif text-3xl leading-tight">{s.title}</span>
                 <span className={`grid transition-all duration-300 ${on ? "mt-2 grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}>
                   <span className="overflow-hidden text-muted">{s.text}</span>
                 </span>
@@ -184,61 +184,63 @@ export default function HomePage() {
 
   return (
     <>
-      {/* Hero */}
-      <section className="bg-gradient-to-b from-green-50 to-white">
-        <div className="container-page grid items-center gap-12 py-14 md:grid-cols-2 md:py-24">
-          <div className="rise">
-            <Badge tone="green" className="mb-6 !px-3.5 !py-1">
-              <img src="/eth.jpeg" alt="" width="14" height="14" className="h-3.5 w-3.5 rounded-full" /> Built on Ethereum · Paid in USDC
-            </Badge>
-            <h1 className="text-[2.6rem] font-bold leading-[1.05] tracking-[-0.03em] sm:text-6xl lg:text-[3.9rem]">
-              Hire Developers,
-              <span className="block text-green-700">Pay in Crypto</span>
-            </h1>
-            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted">
-              A global freelancing platform built for the future. Find developers, manage projects, and make borderless payments that stay in escrow until the
-              work is done.
+      {/* Hero: dark forest ground, serif promise bottom-left, hairline CTA bottom-right */}
+      <section
+        className="relative isolate overflow-hidden bg-green-950 text-white"
+        style={{
+          backgroundImage:
+            "radial-gradient(55% 60% at 74% 38%, rgb(224 178 112 / 0.22), transparent 70%), radial-gradient(40% 50% at 12% 0%, rgb(61 113 86 / 0.35), transparent 70%), linear-gradient(180deg, #0b2a1e 0%, #04120d 78%)",
+        }}
+      >
+        <div className="container-page relative grid min-h-[min(46rem,calc(100svh-4rem))] items-end gap-10 pb-10 pt-14 lg:grid-cols-[1.35fr_1fr] lg:gap-8">
+          <div className="rise self-end">
+            <p className="eyebrow mb-8 flex items-center gap-3 text-white/70">
+              <img src="/eth.jpeg" alt="" width="16" height="16" className="h-4 w-4 rounded-full opacity-90" /> Built on Ethereum · Paid in USDC
             </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <Button to="/developers" className="!min-h-12 !px-8 text-base">
-                Hire now <Icon name="arrow" size={18} />
-              </Button>
-              <Button to="/jobs" variant="secondary" className="!min-h-12 !px-8 text-base">
-                Find work
-              </Button>
+            <h1 className="text-[3.1rem] sm:text-7xl lg:text-[5.6rem]">
+              Hire developers.
+              <span className="block text-white/80">Pay on delivery.</span>
+            </h1>
+            <div className="mt-10 flex flex-wrap items-end justify-between gap-6">
+              <p className="eyebrow max-w-xs !leading-[1.9] text-white/70">
+                Funds wait in escrow and release only when you approve each milestone
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button to="/developers" variant="light">
+                  Hire now
+                </Button>
+                <Button to="/jobs" variant="light" className="!border-white/30">
+                  Find work
+                </Button>
+              </div>
             </div>
           </div>
-          <IllustrationPanel
-            src="/Working remotely-bro.png"
-            alt="A developer working remotely at a laptop"
-            className="rise mx-auto aspect-square w-full max-w-lg !bg-white shadow-[0_20px_60px_-24px_rgb(22_163_74/0.35)] ring-1 ring-green-100 md:ml-auto"
-            imgClass="!p-0 scale-105"
-          />
-        </div>
-      </section>
 
-      {/* Proof strip */}
-      <div className="container-page">
-        <ul className="card grid divide-y divide-line sm:grid-cols-2 sm:divide-y-0 lg:grid-cols-4 lg:divide-x">
-          {proof.map((p) => (
-            <li key={p.title} className="flex items-center gap-3 p-5">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-800">
-                <Icon name={p.icon} size={20} />
-              </span>
+          <div className="rise relative mx-auto hidden w-full max-w-sm self-center lg:block">
+            <div className="arch aspect-[3/4] overflow-hidden bg-paper p-6 pt-24 shadow-[0_40px_80px_-30px_rgb(0_0_0/0.7)]">
+              <img src="/Working remotely-bro.png" alt="A developer working remotely at a laptop" className="h-full w-full object-contain" />
+            </div>
+          </div>
+        </div>
+
+        <ul className="container-page relative grid border-t border-white/15 sm:grid-cols-2 lg:grid-cols-4">
+          {proof.map((p, i) => (
+            <li key={p.title} className={`flex items-start gap-4 py-6 lg:px-6 ${i ? "lg:border-l lg:border-white/15" : "lg:pl-0"}`}>
+              <Icon name={p.icon} size={18} className="mt-1 text-white/60" />
               <span>
-                <span className="block font-semibold leading-tight">{p.title}</span>
-                <span className="text-sm text-muted">{p.text}</span>
+                <span className="eyebrow block !text-[0.68rem] text-white">{p.title}</span>
+                <span className="mt-1 block text-sm text-white/60">{p.text}</span>
               </span>
             </li>
           ))}
         </ul>
-      </div>
+      </section>
 
       {/* Developers */}
       <Section aria-labelledby="devs-title">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <SectionHeader align="left" eyebrow="Talent" id="devs-title" title="Developers" subtitle="Hire people with proven, escrow-backed work." />
-          <Link to="/developers" className="inline-flex items-center gap-1 font-semibold text-green-800 hover:underline">
+          <Link to="/developers" className="eyebrow inline-flex items-center gap-2 border-b border-green-700 pb-1 text-green-800 hover:text-green-950">
             View all <Icon name="arrow" size={16} />
           </Link>
         </div>
@@ -269,7 +271,7 @@ export default function HomePage() {
 
       {/* Rules */}
       <Section aria-labelledby="rules-title">
-        <div className="grid items-center gap-10 rounded-3xl bg-surface p-6 sm:p-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14 lg:p-14">
+        <div className="grid items-center gap-10 rounded-sm bg-surface p-6 sm:p-10 lg:grid-cols-[1fr_1.1fr] lg:gap-14 lg:p-14">
           <div>
             <SectionHeader
               align="left"
@@ -278,13 +280,13 @@ export default function HomePage() {
               title="Built so nobody has to trust anybody"
               subtitle="Disagree about the work? Either side can open a dispute. The milestone freezes and a neutral arbiter splits the funds."
             />
-            <IllustrationPanel src="/Co-workers-cuate.svg" className="mt-8 hidden aspect-[16/10] !bg-white lg:flex" />
+            <IllustrationPanel src="/Co-workers-cuate.svg" className="mt-8 hidden aspect-[16/10] !bg-paper lg:flex" />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {rules.map((r) => (
               <div key={r.title} className="card p-6">
-                <p className="text-4xl font-bold tracking-tight text-green-700">{r.big}</p>
-                <h3 className="mt-3 font-semibold">{r.title}</h3>
+                <p className="font-serif text-6xl leading-none text-green-800">{r.big}</p>
+                <h3 className="eyebrow mt-4 text-ink">{r.title}</h3>
                 <p className="mt-1 text-sm text-muted">{r.text}</p>
               </div>
             ))}
@@ -304,20 +306,26 @@ export default function HomePage() {
 
       {/* CTA */}
       <Section>
-        <div className="grid items-center gap-8 overflow-hidden rounded-3xl bg-green-700 p-6 text-white sm:p-10 md:grid-cols-[1.1fr_1fr] lg:p-14">
+        <div
+          className="grid items-center gap-10 overflow-hidden rounded-sm bg-green-950 p-8 text-white sm:p-12 md:grid-cols-[1.2fr_1fr] lg:p-16"
+          style={{ backgroundImage: "radial-gradient(60% 80% at 90% 20%, rgb(224 178 112 / 0.18), transparent 70%)" }}
+        >
           <div>
-            <h2 className="text-3xl font-bold tracking-[-0.02em] sm:text-4xl">Ready to build something?</h2>
-            <p className="mt-3 max-w-md text-green-50">Post a job in minutes. You only pay when you approve the work.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button to="/jobs/new" className="!bg-white !text-green-900 hover:!bg-green-50">
+            <p className="eyebrow mb-5 text-white/60">Start today</p>
+            <h2 className="text-5xl sm:text-6xl">Ready to build something?</h2>
+            <p className="mt-5 max-w-md text-white/70">Post a job in minutes. You only pay when you approve the work.</p>
+            <div className="mt-9 flex flex-wrap gap-3">
+              <Button to="/jobs/new" variant="solidLight">
                 Post a job
               </Button>
-              <Button to="/developers" variant="ghost" className="!text-white hover:!bg-white/10">
+              <Button to="/developers" variant="light">
                 Browse developers
               </Button>
             </div>
           </div>
-          <IllustrationPanel src="/Business growth-rafiki.svg" className="hidden aspect-[4/3] !bg-white md:flex" />
+          <div className="arch hidden aspect-[4/3] max-w-xs justify-self-end bg-paper p-6 pt-14 md:block">
+            <img src="/Business growth-rafiki.svg" alt="" className="h-full w-full object-contain" />
+          </div>
         </div>
       </Section>
     </>
