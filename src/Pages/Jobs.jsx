@@ -19,6 +19,7 @@ export function JobCard({ job }) {
       <p className="mt-2 line-clamp-2 text-sm text-muted">{job.description}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Badge tone={st.tone}>{st.label}</Badge>
+        {job.demo && <Badge tone="red">Demo</Badge>}
         {job.skills.slice(0, 4).map((s) => (
           <SkillChip key={s}>{s}</SkillChip>
         ))}

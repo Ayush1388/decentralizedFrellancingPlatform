@@ -22,16 +22,18 @@ type Developer struct {
 	Rating     float64  `json:"rating"`
 	Skills     []string `json:"skills"`
 	Image      *string  `json:"image"`
+	Demo       bool     `json:"demo"`
 }
 
-const devCols = `id, user_id, name, title, bio, hourly_rate, jobs_done, rating, skills, image`
+const devCols = `id, user_id, name, title, bio, hourly_rate, jobs_done, rating, skills, image,
+	COALESCE((SELECT u.is_demo FROM users u WHERE u.id = developers.user_id), false)`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanDeveloper(r rowScanner) (Developer, error) {
 	var d Developer
 	var skills string
-	err := r.Scan(&d.ID, &d.UserID, &d.Name, &d.Title, &d.Bio, &d.HourlyRate, &d.JobsDone, &d.Rating, &skills, &d.Image)
+	err := r.Scan(&d.ID, &d.UserID, &d.Name, &d.Title, &d.Bio, &d.HourlyRate, &d.JobsDone, &d.Rating, &skills, &d.Image, &d.Demo)
 	d.Skills = parseSkills(skills)
 	return d, err
 }

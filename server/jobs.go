@@ -55,6 +55,7 @@ type JobSummary struct {
 	Freelancer  *Party   `json:"freelancer"`
 	Total       int64    `json:"total"`
 	Applicants  int      `json:"applicants"`
+	Demo        bool     `json:"demo"`
 }
 
 type JobDetail struct {
@@ -75,7 +76,8 @@ const jobSelect = `
 SELECT j.id, j.title, j.description, j.skills, j.status, j.created_at,
        c.id, c.name, f.id, f.name,
        COALESCE((SELECT SUM(amount)::bigint FROM milestones WHERE job_id = j.id), 0),
-       (SELECT COUNT(*) FROM applications WHERE job_id = j.id)
+       (SELECT COUNT(*) FROM applications WHERE job_id = j.id),
+       c.is_demo
 FROM jobs j
 JOIN users c ON c.id = j.client_id
 LEFT JOIN users f ON f.id = j.freelancer_id`
@@ -86,7 +88,7 @@ func scanJob(r rowScanner) (JobSummary, error) {
 	var fid sql.NullInt64
 	var fname sql.NullString
 	err := r.Scan(&j.ID, &j.Title, &j.Description, &skills, &j.Status, &j.CreatedAt,
-		&j.Client.ID, &j.Client.Name, &fid, &fname, &j.Total, &j.Applicants)
+		&j.Client.ID, &j.Client.Name, &fid, &fname, &j.Total, &j.Applicants, &j.Demo)
 	j.Skills = parseSkills(skills)
 	if fid.Valid {
 		j.Freelancer = &Party{ID: fid.Int64, Name: fname.String}
@@ -110,13 +112,13 @@ func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
 	if len(where) > 0 {
 		q += " WHERE " + strings.Join(where, " AND ")
 	}
-	q += " ORDER BY j.id DESC LIMIT 100"
+	q += " ORDER BY j.created_at DESC, j.id DESC LIMIT 100"
 	s.writeJobList(w, q, args...)
 }
 
 func (s *Server) handleMyJobs(w http.ResponseWriter, r *http.Request, uid int64) {
 	s.writeJobList(w, jobSelect+` WHERE j.client_id = ? OR j.freelancer_id = ?
-		OR j.id IN (SELECT job_id FROM applications WHERE user_id = ?) ORDER BY j.id DESC`, uid, uid, uid)
+		OR j.id IN (SELECT job_id FROM applications WHERE user_id = ?) ORDER BY j.created_at DESC, j.id DESC`, uid, uid, uid)
 }
 
 func (s *Server) writeJobList(w http.ResponseWriter, q string, args ...any) {

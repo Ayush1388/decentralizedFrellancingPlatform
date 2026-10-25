@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, API } from "../lib/api";
 import { useAuth } from "../context/useAuth";
 import { useWalletAuth } from "../lib/useWalletAuth";
+import { useDemoLogin } from "../lib/useDemoLogin";
 import { Button, ErrorNote, Field, Icon } from "./ui";
 
 export default function LoginPopup() {
@@ -13,6 +14,7 @@ export default function LoginPopup() {
   const [loading, setLoading] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const wallet = useWalletAuth();
+  const demo = useDemoLogin();
 
   useEffect(() => {
     api("/api/config").then((c) => setGoogleEnabled(c.googleEnabled)).catch(() => {});
@@ -104,6 +106,14 @@ export default function LoginPopup() {
         </div>
 
         <div className="space-y-3">
+          {demo.available && (
+            <>
+              <Button type="button" variant="outline" className="w-full !border-marker/60 !text-marker" onClick={demo.run} loading={demo.busy}>
+                <Icon name="user" size={18} /> Use the demo account
+              </Button>
+              <ErrorNote>{demo.error}</ErrorNote>
+            </>
+          )}
           <Button type="button" variant="secondary" className="w-full" onClick={walletLogin} loading={wallet.busy}>
             <Icon name="eth" size={18} /> Continue with Ethereum wallet
           </Button>

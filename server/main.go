@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -22,11 +23,16 @@ func (s *Server) routes() http.Handler {
 		writeJSON(w, 200, map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]any{
+		cfg := map[string]any{
 			"feeBps": s.cfg.FeeBps, "claimAfterDays": s.cfg.ClaimAfterDays, "refundAfterDays": s.cfg.RefundAfterDays,
 			"googleEnabled": s.cfg.GoogleClientID != "",
 			"chain":         s.chainInfo,
-		})
+		}
+		// The demo account is public on purpose: it only owns seeded demo data.
+		if os.Getenv("SEED_DEMO") == "true" {
+			cfg["demoLogin"] = map[string]string{"email": DemoEmail, "password": DemoPassword}
+		}
+		writeJSON(w, 200, cfg)
 	})
 
 	// auth
@@ -70,6 +76,12 @@ func main() {
 		log.Fatalf("database: %v", err)
 	}
 	defer db.Close()
+
+	if os.Getenv("SEED_DEMO") == "true" {
+		if err := seedDemo(db); err != nil {
+			log.Printf("demo seed: %v", err)
+		}
+	}
 
 	s := &Server{cfg: cfg, db: db}
 	if cfg.EscrowAddress != "" && cfg.RPCURL != "" {

@@ -442,11 +442,12 @@ export default function JobDetail() {
       </Link>
 
       <header className="mt-4 flex flex-col gap-6 border border-gold/30 bg-surface p-5 sm:flex-row sm:p-6">
-        <Poster title={job.title} tilt={-2} className="hidden !max-w-[10rem] sm:flex" />
+        <Poster title={job.title} tilt={-2} demo={job.demo} className="hidden !max-w-[10rem] sm:flex" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={st.tone}>{st.label}</Badge>
             {role !== "visitor" && <Badge tone="violet">You are the {role}</Badge>}
+            {job.demo && <Badge tone="red">Demo data</Badge>}
           </div>
           <h1 className="poster-title mt-3 text-5xl text-gold sm:text-6xl">{job.title}</h1>
           <p className="mt-3 font-serif text-lg italic text-ink-soft">

@@ -8,6 +8,7 @@ import { ChainConfigProvider } from "./context/ChainConfigContext";
 import NavigationBar from "./Components/NavigationBar";
 import Footer from "./Components/Footer";
 import ApiStatus from "./Components/ApiStatus";
+import DemoBanner from "./Components/DemoBanner";
 import LoginPopup from "./Components/LoginPopup";
 import HomePage from "./Pages/HomePage";
 import Developers from "./Pages/Developers";
@@ -43,6 +44,7 @@ export default function App() {
             </a>
             <ApiStatus />
             <NavigationBar />
+            <DemoBanner />
             <main id="main" className="min-h-[60vh]">
               <Routes>
                 <Route path="/" element={<HomePage />} />

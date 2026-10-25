@@ -19,6 +19,18 @@ export function Bulbs({ count = 42, className = "" }) {
   );
 }
 
+// Red rubber stamp marking seeded sample data.
+export function DemoStamp({ className = "" }) {
+  return (
+    <span
+      title="Sample data for demos"
+      className={`pointer-events-none inline-block -rotate-12 border-[3px] border-marker px-2 font-hand text-lg leading-tight text-marker opacity-90 ${className}`}
+    >
+      Demo
+    </span>
+  );
+}
+
 // Shield over a skyline of blocks: the house silhouette on every poster.
 function Silhouette() {
   return (
@@ -34,7 +46,7 @@ function Silhouette() {
   );
 }
 
-export function Poster({ title, tilt = 2, className = "" }) {
+export function Poster({ title, tilt = 2, demo, className = "" }) {
   return (
     <div
       className={`relative flex aspect-[3/4] w-full max-w-[13rem] shrink-0 flex-col self-start overflow-hidden border-[3px] border-poster bg-gold p-3 text-poster shadow-[0_18px_40px_-12px_rgb(0_0_0/0.8)] ${className}`}
@@ -43,6 +55,7 @@ export function Poster({ title, tilt = 2, className = "" }) {
       <p className="text-[0.45rem] font-semibold uppercase tracking-[0.14em]">The Blockchain Picture Company</p>
       <p className="poster-title mt-1 line-clamp-3 text-[1.55rem]">{title}</p>
       <Silhouette />
+      {demo && <DemoStamp className="absolute right-2 top-1/2 bg-ticket/80" />}
     </div>
   );
 }
@@ -56,11 +69,12 @@ export function Spec({ label, children }) {
   );
 }
 
-export function ReelTag({ n, children, dim }) {
+export function ReelTag({ n, children, dim, demo }) {
   return (
     <p className={`flex flex-wrap items-center gap-3 font-mono text-[0.8rem] text-gold ${dim ? "opacity-70" : ""}`}>
       <span className="border border-gold px-2 py-0.5">Reel Nº{n}</span>
       {children}
+      {demo && <span className="border border-marker px-2 py-0.5 text-marker">Demo</span>}
     </p>
   );
 }
@@ -68,9 +82,11 @@ export function ReelTag({ n, children, dim }) {
 export function Reel({ job, n }) {
   return (
     <article className="flex flex-col gap-6 border border-white/10 bg-surface p-4 sm:flex-row sm:p-5">
-      <Poster title={job.title} tilt={n % 2 ? -2 : 2} />
+      <Poster title={job.title} tilt={n % 2 ? -2 : 2} demo={job.demo} />
       <div className="min-w-0 flex-1">
-        <ReelTag n={n}>{reelDate(job.createdAt)}</ReelTag>
+        <ReelTag n={n} demo={job.demo}>
+          {reelDate(job.createdAt)}
+        </ReelTag>
         <h3 className="poster-title mt-3 text-4xl text-ink sm:text-5xl">{job.title}</h3>
         <p className="mt-3 font-serif text-lg italic text-gold">A picture in USDC, paid on delivery</p>
         <p className="mt-3 line-clamp-3 max-w-xl text-[0.95rem] leading-relaxed text-ink-soft">{job.description}</p>

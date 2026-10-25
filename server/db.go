@@ -93,6 +93,8 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS escrow_id BIGINT;
+-- demo rows are seeded for showcases and labelled as such in the UI
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_escrow ON jobs(escrow_id) WHERE escrow_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, id DESC);
 CREATE INDEX IF NOT EXISTS idx_milestones_job ON milestones(job_id);

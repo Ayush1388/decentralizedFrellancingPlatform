@@ -262,6 +262,7 @@ export default function Dashboard() {
                           </span>
                           <span className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
                             <Badge tone={st.tone}>{st.label}</Badge>
+                            {j.demo && <Badge tone="red">Demo</Badge>}
                             <span>{j.viewerRole === "client" ? (j.freelancer ? `You hired ${j.freelancer.name}` : "You posted") : `For ${j.client.name}`}</span>
                             <span>· {timeAgo(j.createdAt)}</span>
                           </span>

@@ -1,4 +1,5 @@
 import { Avatar, Button, Icon, SkillChip } from "./ui";
+import { DemoStamp } from "./cinema";
 
 // A cast card: headshot in a gold frame, name in poster type, billing in type.
 export default function DeveloperCard({ dev, onEdit, isMine }) {
@@ -7,12 +8,13 @@ export default function DeveloperCard({ dev, onEdit, isMine }) {
   const extra = dev.skills.length - visible.length;
 
   return (
-    <article className="card card-hover flex h-full flex-col p-5">
+    <article className="card card-hover relative flex h-full flex-col p-5">
+      {dev.demo && <DemoStamp className="absolute right-3 top-3 !text-base" />}
       <div className="flex items-start gap-4">
         <div className="shrink-0 border-[3px] border-poster bg-gold p-1">
           <Avatar src={dev.image} seed={dev.id} size={64} />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 pr-12">
           <h3 className="poster-title truncate text-3xl">{dev.name}</h3>
           <p className="truncate font-serif italic text-gold">{dev.title}</p>
         </div>
