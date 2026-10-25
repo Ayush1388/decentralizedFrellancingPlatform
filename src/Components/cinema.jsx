@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { usdc } from "../lib/format";
+import { closesIn, openingsLabel, plural, usdc } from "../lib/format";
 import { houseRules, reelDate } from "../lib/cinema";
 import { Icon } from "./ui";
 
@@ -95,8 +95,10 @@ export function Reel({ job, n }) {
           <Spec label="Directed by">{job.client.name}</Spec>
           <Spec label="Cast">{job.skills.slice(0, 3).join(", ") || "Open casting"}</Spec>
           <Spec label="Audience">
-            {job.applicants} applicant{job.applicants === 1 ? "" : "s"} so far
+            {plural(job.applicants, "applicant")} · {openingsLabel(job)}
           </Spec>
+          {job.closesAt && <Spec label="Showing until">{closesIn(job.closesAt)}</Spec>}
+          {(job.duration || job.level) && <Spec label="Running time">{[job.duration, job.level && `${job.level} level`].filter(Boolean).join(" · ")}</Spec>}
         </dl>
         <Link
           to={`/jobs/${job.id}`}

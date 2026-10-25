@@ -41,3 +41,22 @@ export const splitSkills = (s) =>
     .split(",")
     .map((x) => x.trim())
     .filter(Boolean);
+
+const DAY = 86_400_000;
+
+// "Closes in 5 days", "Closes today", "Closed": how long a posting still takes applications.
+export function closesIn(iso) {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "Applications closed";
+  const days = Math.ceil(ms / DAY);
+  return days <= 1 ? "Closes today" : `Closes in ${days} days`;
+}
+
+export const isClosed = (job) => job.status !== "open" || (job.closesAt && new Date(job.closesAt).getTime() <= Date.now());
+
+// "1 of 2 filled" style summary of a posting's openings.
+export const openingsLabel = (job) =>
+  job.openings > 1 ? `${job.hired} of ${job.openings} openings filled` : job.hired ? "Position filled" : "1 opening";
+
+export const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;

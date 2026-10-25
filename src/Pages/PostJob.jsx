@@ -8,7 +8,7 @@ import { Button, EmptyState, ErrorNote, Field, Icon, PageHeader } from "../Compo
 export default function PostJob() {
   const { user, ready, openLogin } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ title: "", description: "", skills: "" });
+  const [form, setForm] = useState({ title: "", description: "", skills: "", openings: "1", openDays: "14", duration: "", level: "" });
   const [milestones, setMilestones] = useState([{ title: "", amount: "" }]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -37,6 +37,8 @@ export default function PostJob() {
         body: {
           ...form,
           skills: splitSkills(form.skills),
+          openings: Number(form.openings),
+          openDays: Number(form.openDays),
           milestones: milestones.map((m) => ({ title: m.title, amount: Number(m.amount) })),
         },
       });
@@ -62,11 +64,41 @@ export default function PostJob() {
           <Field label="Skills needed" htmlFor="job-skills" hint="Comma separated, e.g. Solidity, React">
             <input id="job-skills" name="skills" value={form.skills} onChange={set} className="input" />
           </Field>
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field label="Openings" htmlFor="job-openings" hint={Number(form.openings) > 1 ? "Each hire gets their own contract with these milestones." : "How many people you want to hire."}>
+              <input id="job-openings" name="openings" type="number" min="1" max="20" required value={form.openings} onChange={set} className="input" />
+            </Field>
+            <Field label="Applications close in" htmlFor="job-open-days">
+              <select id="job-open-days" name="openDays" value={form.openDays} onChange={set} className="input">
+                {[3, 7, 14, 21, 30, 60].map((d) => (
+                  <option key={d} value={d}>
+                    {d} days
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Expected duration" htmlFor="job-duration">
+              <select id="job-duration" name="duration" value={form.duration} onChange={set} className="input">
+                <option value="">Not sure yet</option>
+                {["Less than a week", "1 to 4 weeks", "1 to 3 months", "More than 3 months"].map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Experience level" htmlFor="job-level">
+              <select id="job-level" name="level" value={form.level} onChange={set} className="input">
+                <option value="">Any</option>
+                {["Entry", "Intermediate", "Expert"].map((d) => (
+                  <option key={d}>{d}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
         </section>
 
         <section className="card p-6 sm:p-8">
           <div className="flex items-baseline justify-between">
-            <h2 className="text-lg font-semibold">Milestones</h2>
+            <h2 className="poster-title text-2xl">Milestones</h2>
             <p className="text-sm text-muted">
               Budget: <strong className="text-ink">{usdc(total * 1_000_000)}</strong> USDC
             </p>
@@ -99,6 +131,7 @@ export default function PostJob() {
           )}
           <p className="mt-5 border border-dashed border-white/10 px-4 py-3 font-mono text-sm text-muted">
             A 2% platform fee is deducted from the freelancer's payout when a milestone is released. You pay the milestone price, nothing extra.
+            {Number(form.openings) > 1 && ` With ${form.openings} openings, your total if everyone completes is ${usdc(total * Number(form.openings) * 1_000_000)}.`}
           </p>
         </section>
 

@@ -3,10 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -93,7 +90,8 @@ func (s *Server) handleGetDeveloper(w http.ResponseWriter, r *http.Request) {
 }
 
 // saveImage validates and stores an uploaded profile picture, returning its public path.
-func (s *Server) saveImage(r *http.Request) (string, error) {
+// saveImage stores an uploaded profile photo and returns its URL, or "" if none was sent.
+func (s *Server) saveImage(r *http.Request, uid int64) (string, error) {
 	f, hdr, err := r.FormFile("image")
 	if errors.Is(err, http.ErrMissingFile) {
 		return "", nil
@@ -101,32 +99,11 @@ func (s *Server) saveImage(r *http.Request) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
-	if hdr.Size > 2<<20 {
-		return "", errors.New("image must be under 2 MB")
-	}
-	head := make([]byte, 512)
-	n, _ := f.Read(head)
-	ext := map[string]string{"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp", "image/gif": ".gif"}[http.DetectContentType(head[:n])]
-	if ext == "" {
-		return "", errors.New("image must be JPEG, PNG, WebP or GIF")
-	}
-	if err := os.MkdirAll(s.cfg.UploadDir, 0o755); err != nil {
-		return "", err
-	}
-	name := randomHex(12) + ext
-	out, err := os.Create(filepath.Join(s.cfg.UploadDir, name))
+	id, err := storeUpload(s.db, uid, "avatar", f, hdr)
 	if err != nil {
 		return "", err
 	}
-	defer out.Close()
-	if _, err := out.Write(head[:n]); err != nil {
-		return "", err
-	}
-	if _, err := io.Copy(out, f); err != nil {
-		return "", err
-	}
-	return "/uploads/" + name, nil
+	return fileURL(id), nil
 }
 
 type profileInput struct {
@@ -166,7 +143,7 @@ func (s *Server) handleCreateDeveloper(w http.ResponseWriter, r *http.Request, u
 		writeErr(w, 400, msg)
 		return
 	}
-	img, err := s.saveImage(r)
+	img, err := s.saveImage(r, uid)
 	if err != nil {
 		writeErr(w, 400, err.Error())
 		return
@@ -214,7 +191,7 @@ func (s *Server) handleUpdateDeveloper(w http.ResponseWriter, r *http.Request, u
 		writeErr(w, 400, msg)
 		return
 	}
-	img, err := s.saveImage(r)
+	img, err := s.saveImage(r, uid)
 	if err != nil {
 		writeErr(w, 400, err.Error())
 		return

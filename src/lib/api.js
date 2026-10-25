@@ -39,3 +39,19 @@ export async function api(path, { method = "GET", body, signal } = {}) {
 }
 
 export const imageUrl = (path) => (path ? `${API}${path}` : null);
+
+// Opens a protected file (a resume) in a new tab. A plain link would not carry the token.
+export async function openProtectedFile(path) {
+  const tab = window.open("", "_blank");
+  try {
+    const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+    if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).message || "Could not open the file", res.status);
+    const url = URL.createObjectURL(await res.blob());
+    if (tab) tab.location.href = url;
+    else window.location.href = url;
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (err) {
+    tab?.close();
+    throw err;
+  }
+}

@@ -111,9 +111,9 @@ func TestEscrowLifecycle(t *testing.T) {
 	code, out := e.call("POST", fmt.Sprintf("/api/milestones/%d/fund", m1), client, nil)
 	e.mustOK(code, out, 409)
 
-	code, out = e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", jobID), dev, map[string]string{"cover": "I have shipped three escrow dapps."})
+	code, out = e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", jobID), dev, map[string]string{"cover": "I have shipped three escrow dapps.", "githubUrl": "https://github.com/dev/escrow"})
 	e.mustOK(code, out, 201)
-	code, out = e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", jobID), client, map[string]string{"cover": "I have shipped three escrow dapps."})
+	code, out = e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", jobID), client, map[string]string{"cover": "I have shipped three escrow dapps.", "githubUrl": "https://github.com/dev/escrow"})
 	e.mustOK(code, out, 403)
 
 	code, out = e.call("GET", fmt.Sprintf("/api/jobs/%d", jobID), client, nil)
@@ -176,13 +176,13 @@ func TestDisputeOnlyArbiterResolves(t *testing.T) {
 	})
 	jobID := int(job["id"].(float64))
 	mid := int(job["milestones"].([]any)[0].(map[string]any)["id"].(float64))
-	e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", jobID), dev, map[string]string{"cover": "Hire me, I do good work always."})
+	e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", jobID), dev, map[string]string{"cover": "Hire me, I do good work always.", "githubUrl": "https://github.com/dev/escrow"})
 	_, d := e.call("GET", fmt.Sprintf("/api/jobs/%d", jobID), client, nil)
 	appID := int(d["applications"].([]any)[0].(map[string]any)["id"].(float64))
 	e.call("POST", fmt.Sprintf("/api/jobs/%d/hire", jobID), client, map[string]int{"applicationId": appID})
 	e.call("POST", fmt.Sprintf("/api/milestones/%d/fund", mid), client, nil)
 
-	code, out := e.call("POST", fmt.Sprintf("/api/milestones/%d/dispute", mid), dev, nil)
+	code, out := e.call("POST", fmt.Sprintf("/api/milestones/%d/dispute", mid), dev, map[string]string{"reason": "The client stopped replying to messages."})
 	e.mustOK(code, out, 200)
 	code, out = e.call("POST", fmt.Sprintf("/api/milestones/%d/resolve", mid), client, map[string]int{"freelancerPercent": 100})
 	e.mustOK(code, out, 403)

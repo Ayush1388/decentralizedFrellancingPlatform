@@ -160,7 +160,8 @@ func (s *Server) handleCreateEscrow(w http.ResponseWriter, r *http.Request, uid 
 }
 
 // handleChainMilestone mirrors a milestone transition after verifying its transaction.
-func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, uid, id int64, action, txHash, deliverableURL string) {
+func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, uid, id int64, action string, b milestoneBody) {
+	txHash, deliverableURL := b.TxHash, b.DeliverableURL
 	spec, ok := chainActions[action]
 	if !ok {
 		writeErr(w, 404, "unknown action")
@@ -174,12 +175,12 @@ func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, ui
 	var (
 		jobID, client int64
 		position      int
-		status        string
+		status, title string
 		escrowID      sql.NullInt64
 		freelancer    sql.NullInt64
 	)
-	err := s.db.QueryRow(`SELECT m.job_id, m.position, m.status, j.escrow_id, j.client_id, j.freelancer_id
-		FROM milestones m JOIN jobs j ON j.id = m.job_id WHERE m.id = ?`, id).Scan(&jobID, &position, &status, &escrowID, &client, &freelancer)
+	err := s.db.QueryRow(`SELECT m.job_id, m.position, m.status, m.title, j.escrow_id, j.client_id, j.freelancer_id
+		FROM milestones m JOIN jobs j ON j.id = m.job_id WHERE m.id = ?`, id).Scan(&jobID, &position, &status, &title, &escrowID, &client, &freelancer)
 	if err != nil {
 		writeErr(w, 404, "milestone not found")
 		return
@@ -247,9 +248,9 @@ func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, ui
 	case "funded":
 		_, err = tx.Exec(`UPDATE milestones SET status='funded', funded_at=?, fund_tx=? WHERE id=?`, at, txHash, id)
 	case "submitted":
-		_, err = tx.Exec(`UPDATE milestones SET status='submitted', submitted_at=?, deliverable_url=? WHERE id=?`, at, deliverableURL, id)
+		_, err = tx.Exec(`UPDATE milestones SET status='submitted', submitted_at=?, deliverable_url=?, submission_note=? WHERE id=?`, at, deliverableURL, b.Note, id)
 	case "disputed":
-		_, err = tx.Exec(`UPDATE milestones SET status='disputed' WHERE id=?`, id)
+		_, err = tx.Exec(`UPDATE milestones SET status='disputed', dispute_reason=? WHERE id=?`, b.Reason, id)
 	case "released":
 		_, err = tx.Exec(`UPDATE milestones SET status='released', resolved_at=?, freelancer_bps=10000, release_tx=? WHERE id=?`, at, txHash, id)
 	case "refunded":
@@ -262,6 +263,11 @@ func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, ui
 		writeErr(w, 500, "could not update milestone")
 		return
 	}
+	detail := title
+	if action == "dispute" {
+		detail = title + ": " + b.Reason
+	}
+	logEvent(tx, jobID, uid, eventKind[action], detail)
 	closeJobIfDone(tx, jobID, freelancer)
 	if err := tx.Commit(); err != nil {
 		writeErr(w, 500, "could not update milestone")
@@ -280,5 +286,6 @@ func closeJobIfDone(tx *Tx, jobID int64, freelancer sql.NullInt64) {
 	res, _ := tx.Exec(`UPDATE jobs SET status='completed' WHERE id = ? AND status <> 'completed'`, jobID)
 	if n, _ := res.RowsAffected(); n > 0 && freelancer.Valid {
 		tx.Exec(`UPDATE developers SET jobs_done = jobs_done + 1 WHERE user_id = ?`, freelancer.Int64)
+		logEvent(tx, jobID, 0, "completed", "")
 	}
 }

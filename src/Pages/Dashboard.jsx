@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/useAuth";
-import { jobStatus } from "../lib/jobStatus";
+import { appStatus, jobStatus } from "../lib/jobStatus";
 import { timeAgo, toUsdc, usdc } from "../lib/format";
 import { Avatar, Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, IconButton } from "../Components/ui";
 
@@ -18,6 +18,7 @@ const filters = [
   { id: "all", label: "All" },
   { id: "client", label: "As client" },
   { id: "freelancer", label: "As freelancer" },
+  { id: "applicant", label: "My applications" },
 ];
 
 // What the viewer should do next on a milestone, if anything.
@@ -25,7 +26,7 @@ function nextStep(m, role, job) {
   // Funding only makes sense once someone has been hired.
   if (role === "client" && m.status === "pending" && job.status === "in_progress") return "Fund";
   if (role === "client" && m.status === "submitted") return "Review";
-  if (role === "freelancer" && m.status === "funded") return "Deliver";
+  if (role === "freelancer" && m.status === "funded") return m.feedback ? "Rework" : "Deliver";
   if (m.status === "disputed") return "Disputed";
   return null;
 }
@@ -46,6 +47,15 @@ export default function Dashboard() {
   const [jobs, setJobs] = useState(null);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
+  const [disputes, setDisputes] = useState(null);
+
+  // The arbiter's queue: every frozen milestone waiting for a ruling.
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+    api("/api/admin/disputes")
+      .then(setDisputes)
+      .catch(() => setDisputes([]));
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -68,6 +78,15 @@ export default function Dashboard() {
     const sums = Object.fromEntries(groups.map((g) => [g.key, { amount: 0, count: 0 }]));
     const actions = [];
     for (const j of list) {
+      if (j.viewerRole === "client" && j.status === "open") {
+        const n = (j.applications || []).filter((a) => a.status === "pending" || a.status === "shortlisted").length;
+        if (n) actions.push({ key: `apps-${j.id}`, job: j, title: `${n} applicant${n > 1 ? "s" : ""} to review`, step: "Hire" });
+      }
+      if (j.viewerRole === "applicant" && j.myApplication?.status === "shortlisted") {
+        actions.push({ key: `short-${j.id}`, job: j, title: "You are shortlisted", step: "Reply" });
+      }
+      // Money only counts on real contracts; a posting's milestones are a template until someone is hired.
+      if (!j.freelancer || j.viewerRole === "applicant") continue;
       for (const m of j.milestones) {
         const g = groups.find((x) => x.statuses.includes(m.status));
         if (g) {
@@ -75,7 +94,7 @@ export default function Dashboard() {
           sums[g.key].count += 1;
         }
         const step = nextStep(m, j.viewerRole, j);
-        if (step) actions.push({ job: j, m, step });
+        if (step) actions.push({ key: m.id, job: j, title: m.title, amount: m.amount, step });
       }
     }
     return { list, sums, actions };
@@ -95,7 +114,8 @@ export default function Dashboard() {
   const maxGroup = Math.max(1, ...groups.map((g) => sums[g.key].amount));
   const total = groups.reduce((t, g) => t + sums[g.key].amount, 0);
   const counterpart = (j) => (j.viewerRole === "client" ? j.freelancer : j.client);
-  const talking = list.filter((j) => j.status === "in_progress" && counterpart(j));
+  const talking = list.filter((j) => j.status === "in_progress" && counterpart(j) && (j.viewerRole === "client" || j.viewerRole === "freelancer"));
+  const contracts = list.filter((j) => j.freelancer && j.viewerRole !== "applicant");
 
   return (
     <div className="container-page pb-4 pt-4">
@@ -183,9 +203,9 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="my-5 border-t border-dashed border-white/20" />
-              {list.length === 0 && <p className="text-sm text-white/60">No jobs yet.</p>}
+              {contracts.length === 0 && <p className="text-sm text-white/60">Payments show up here once someone is hired.</p>}
               <ul className="space-y-4">
-                {list.slice(0, 3).map((j, i) => {
+                {contracts.slice(0, 3).map((j, i) => {
                   const paid = j.milestones.filter((m) => ["released", "resolved"].includes(m.status)).reduce((t, m) => t + m.amount, 0);
                   const pct = j.total ? (paid / j.total) * 100 : 0;
                   return (
@@ -216,18 +236,18 @@ export default function Dashboard() {
                 <p className="text-sm text-ink-soft">Nothing waiting on you. Nice.</p>
               ) : (
                 <ul className="space-y-2">
-                  {actions.slice(0, 4).map(({ job, m, step }, i) => (
-                    <li key={m.id}>
+                  {actions.slice(0, 4).map(({ key, job, title, amount, step }, i) => (
+                    <li key={key}>
                       <Link
                         to={`/jobs/${job.id}`}
                         className={`flex items-center justify-between gap-3 px-4 py-3 ${i === 0 ? "bg-gold text-poster" : "bg-black/30 hover:bg-black/50"}`}
                       >
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-semibold">{m.title}</span>
+                          <span className="block truncate text-sm font-semibold">{title}</span>
                           <span className="block truncate text-xs opacity-70">{job.title}</span>
                         </span>
                         <span className="shrink-0 text-right">
-                          <span className="block text-sm font-semibold">{compact(m.amount)}</span>
+                          {amount != null && <span className="block text-sm font-semibold">{compact(amount)}</span>}
                           <span className="block text-xs opacity-70">{step}</span>
                         </span>
                       </Link>
@@ -263,7 +283,15 @@ export default function Dashboard() {
                           <span className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
                             <Badge tone={st.tone}>{st.label}</Badge>
                             {j.demo && <Badge tone="red">Demo</Badge>}
-                            <span>{j.viewerRole === "client" ? (j.freelancer ? `You hired ${j.freelancer.name}` : "You posted") : `For ${j.client.name}`}</span>
+                            <span>
+                              {j.viewerRole === "client"
+                                ? j.freelancer
+                                  ? `You hired ${j.freelancer.name}`
+                                  : `You posted · ${j.applicants} applied`
+                                : j.viewerRole === "applicant"
+                                  ? `You applied · ${(appStatus[j.myApplication?.status] || appStatus.pending).label}`
+                                  : `For ${j.client.name}`}
+                            </span>
                             <span>· {timeAgo(j.createdAt)}</span>
                           </span>
                         </Link>
@@ -273,6 +301,28 @@ export default function Dashboard() {
                 </ul>
               )}
             </section>
+
+            {/* Arbiter queue */}
+            {user?.isAdmin && (
+              <section className="tile lg:col-span-3 !border-red-300" aria-label="Disputes">
+                <TileHead title={`Disputes (${disputes?.length ?? "…"})`} />
+                {disputes?.length === 0 && <p className="text-sm text-ink-soft">No disputes waiting for a ruling.</p>}
+                <ul className="grid gap-2 md:grid-cols-2">
+                  {disputes?.map((d) => (
+                    <li key={d.milestoneId}>
+                      <Link to={`/jobs/${d.jobId}`} className="block bg-black/30 p-4 hover:bg-black/50">
+                        <span className="flex justify-between gap-3">
+                          <span className="font-semibold">{d.title}</span>
+                          <span className="font-mono">{compact(d.amount)}</span>
+                        </span>
+                        <span className="block text-xs text-muted">{d.jobTitle}</span>
+                        <span className="mt-2 block text-sm italic text-ink-soft">“{d.reason}”</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
 
             {/* Conversations on active jobs */}
             <section className="tile bg-butter" aria-label="Conversations">

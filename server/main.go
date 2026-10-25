@@ -64,6 +64,15 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/jobs/{id}/messages", auth(s.handlePostMessage))
 	mux.HandleFunc("POST /api/milestones/{id}/{action}", auth(s.handleMilestoneAction))
 
+	// applications
+	mux.HandleFunc("POST /api/applications/{id}/status", auth(s.handleApplicationStatus))
+	mux.HandleFunc("DELETE /api/applications/{id}", auth(s.handleWithdrawApplication))
+	mux.HandleFunc("GET /api/applications/{id}/messages", auth(s.handleListAppMessages))
+	mux.HandleFunc("POST /api/applications/{id}/messages", auth(s.handlePostAppMessage))
+	mux.HandleFunc("POST /api/jobs/{id}/review", auth(s.handleReview))
+	mux.HandleFunc("GET /api/admin/disputes", auth(s.handleAdminDisputes))
+	mux.HandleFunc("GET /api/files/{id}", s.handleGetFile)
+
 	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(s.cfg.UploadDir))))
 
 	return cors(s.cfg.FrontendURL, mux)

@@ -14,10 +14,22 @@ func TestSeedDemo(t *testing.T) {
 		}
 	}
 
+	// A version bump replaces the old demo rows instead of duplicating them,
+	// even when a real user's job has a demo applicant on it.
+	real, _ := e.signup("Real Client", "real@x.io")
+	realJob, _ := e.postJob(real, nil)
+	var demoDev int64
+	e.srv.db.QueryRow(`SELECT id FROM users WHERE is_demo AND email IS NULL LIMIT 1`).Scan(&demoDev)
+	e.srv.db.Exec(`INSERT INTO applications (job_id, user_id, cover, github_url) VALUES (?, ?, 'hello there, I can help', 'https://github.com/x/y')`, realJob, demoDev)
+	e.srv.db.Exec(`UPDATE meta SET value = 'old' WHERE key = 'demo_version'`)
+	if err := seedDemo(e.srv.db); err != nil {
+		t.Fatal(err)
+	}
+
 	var devs, jobs int
 	e.srv.db.QueryRow(`SELECT COUNT(*) FROM developers`).Scan(&devs)
 	e.srv.db.QueryRow(`SELECT COUNT(*) FROM jobs`).Scan(&jobs)
-	if devs != len(demoDevs) || jobs != len(demoJobs) {
+	if devs != len(demoDevs) || jobs != len(demoJobs)+1 {
 		t.Fatalf("seeded %d developers and %d jobs, want %d and %d", devs, jobs, len(demoDevs), len(demoJobs))
 	}
 

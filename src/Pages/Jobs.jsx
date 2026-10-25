@@ -26,6 +26,7 @@ export function JobCard({ job }) {
         <span className="ml-auto text-xs text-muted">
           {job.client.name} · {timeAgo(job.createdAt)}
           {job.status === "open" && ` · ${job.applicants} applicant${job.applicants === 1 ? "" : "s"}`}
+          {job.parentId && " · contract"}
         </span>
       </div>
     </Link>

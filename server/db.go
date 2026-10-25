@@ -95,6 +95,63 @@ CREATE TABLE IF NOT EXISTS messages (
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS escrow_id BIGINT;
 -- demo rows are seeded for showcases and labelled as such in the UI
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
+
+-- Uploaded files live in the database: the host's disk is wiped on every deploy.
+CREATE TABLE IF NOT EXISTS files (
+	id         BIGSERIAL PRIMARY KEY,
+	owner_id   BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind       TEXT NOT NULL CHECK (kind IN ('avatar','resume')),
+	mime       TEXT NOT NULL,
+	name       TEXT NOT NULL DEFAULT '',
+	data       BYTEA NOT NULL,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- A posting can have several openings; with more than one, each hire becomes its own contract (a child job).
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS openings INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS closes_at TIMESTAMPTZ;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS duration TEXT NOT NULL DEFAULT '';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS level TEXT NOT NULL DEFAULT '';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS parent_id BIGINT REFERENCES jobs(id);
+ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
+ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('open','filled','in_progress','completed','cancelled'));
+
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS github_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS portfolio_url TEXT NOT NULL DEFAULT '';
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS bid BIGINT;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS eta_days INTEGER;
+ALTER TABLE applications ADD COLUMN IF NOT EXISTS resume_file_id BIGINT REFERENCES files(id) ON DELETE SET NULL;
+
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS submission_note TEXT NOT NULL DEFAULT '';
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS feedback TEXT NOT NULL DEFAULT '';
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS dispute_reason TEXT NOT NULL DEFAULT '';
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS revisions INTEGER NOT NULL DEFAULT 0;
+
+-- Messages with an application_id are the pre-hire thread between a client and one applicant.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS application_id BIGINT REFERENCES applications(id) ON DELETE CASCADE;
+
+CREATE TABLE IF NOT EXISTS job_events (
+	id         BIGSERIAL PRIMARY KEY,
+	job_id     BIGINT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+	actor_id   BIGINT REFERENCES users(id),
+	kind       TEXT NOT NULL,
+	detail     TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+	id            BIGSERIAL PRIMARY KEY,
+	job_id        BIGINT NOT NULL UNIQUE REFERENCES jobs(id) ON DELETE CASCADE,
+	reviewer_id   BIGINT NOT NULL REFERENCES users(id),
+	freelancer_id BIGINT NOT NULL REFERENCES users(id),
+	rating        INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+	comment       TEXT NOT NULL DEFAULT '',
+	created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_events_job ON job_events(job_id, id);
+CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(application_id, id);
+CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_escrow ON jobs(escrow_id) WHERE escrow_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, id DESC);
 CREATE INDEX IF NOT EXISTS idx_milestones_job ON milestones(job_id);

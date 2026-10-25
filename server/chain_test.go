@@ -149,7 +149,7 @@ func newChainEnv(t *testing.T) *chainEnv {
 	for _, m := range job["milestones"].([]any) {
 		ce.milestones = append(ce.milestones, int(m.(map[string]any)["id"].(float64)))
 	}
-	e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", ce.jobID), ce.dev, map[string]string{"cover": "I can build this for you, quickly."})
+	e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", ce.jobID), ce.dev, map[string]string{"cover": "I can build this for you, quickly.", "githubUrl": "https://github.com/dev/escrow"})
 	_, d := e.call("GET", fmt.Sprintf("/api/jobs/%d", ce.jobID), ce.client, nil)
 	appID := int(d["applications"].([]any)[0].(map[string]any)["id"].(float64))
 	code, out := e.call("POST", fmt.Sprintf("/api/jobs/%d/hire", ce.jobID), ce.client, map[string]int{"applicationId": appID})
@@ -180,7 +180,7 @@ func TestChainHireNeedsWallet(t *testing.T) {
 		"milestones": []map[string]any{{"title": "One", "amount": 10}},
 	})
 	id := int(job["id"].(float64))
-	e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", id), dev, map[string]string{"cover": "I can build this for you, quickly."})
+	e.call("POST", fmt.Sprintf("/api/jobs/%d/apply", id), dev, map[string]string{"cover": "I can build this for you, quickly.", "githubUrl": "https://github.com/dev/escrow"})
 	_, d := e.call("GET", fmt.Sprintf("/api/jobs/%d", id), client, nil)
 	app := d["applications"].([]any)[0].(map[string]any)
 	if app["hasWallet"] != false {
@@ -266,7 +266,7 @@ func TestChainMilestoneLifecycle(t *testing.T) {
 	c.mustOK(code, out, 200)
 
 	// strangers cannot push state
-	code, out = c.milestone(0, "dispute", c.stranger, map[string]any{"txHash": c.fake.add(msEv("MilestoneDisputed", 5, 0, nil))})
+	code, out = c.milestone(0, "dispute", c.stranger, map[string]any{"txHash": c.fake.add(msEv("MilestoneDisputed", 5, 0, nil)), "reason": "Delivery does not match the brief."})
 	c.mustOK(code, out, 403)
 
 	// the link must match the on-chain hash
@@ -296,7 +296,7 @@ func TestChainMilestoneLifecycle(t *testing.T) {
 	// second milestone ends in a dispute the arbiter splits 60/40; the job then completes
 	code, out = c.milestone(1, "fund", c.client, map[string]any{"txHash": c.fake.add(msEv("MilestoneFunded", 5, 1, nil))})
 	c.mustOK(code, out, 200)
-	code, out = c.milestone(1, "dispute", c.dev, map[string]any{"txHash": c.fake.add(msEv("MilestoneDisputed", 5, 1, nil))})
+	code, out = c.milestone(1, "dispute", c.dev, map[string]any{"txHash": c.fake.add(msEv("MilestoneDisputed", 5, 1, nil)), "reason": "Delivery does not match the brief."})
 	c.mustOK(code, out, 200)
 	resTx := c.fake.add(msEv("MilestoneResolved", 5, 1, map[string]any{"freelancerBps": uint16(6000)}))
 	code, out = c.milestone(1, "resolve", c.client, map[string]any{"txHash": resTx})
