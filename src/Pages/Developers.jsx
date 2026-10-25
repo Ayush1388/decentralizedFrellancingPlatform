@@ -57,7 +57,7 @@ function ProfileForm({ initial, editing, onSaved, onCancel }) {
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={(e) => setImage(e.target.files[0] || null)}
-            className="input file:mr-3 file:rounded-full file:border-0 file:bg-green-50 file:px-4 file:py-1.5 file:font-medium file:text-green-900"
+            className="input file:mr-3 file:mr-3 file:border-0 file:bg-gold file:px-3 file:py-1 file:font-semibold file:text-poster"
           />
         </Field>
       </div>
@@ -126,7 +126,8 @@ export default function Developers() {
   return (
     <div className="container-page pb-8">
       <PageHeader
-        title="Developers"
+        eyebrow="Casting office"
+        title="The cast"
         image="/Working-bro.png"
         subtitle="Browse developers by skill and rate. Every hire is protected by milestone escrow."
         action={

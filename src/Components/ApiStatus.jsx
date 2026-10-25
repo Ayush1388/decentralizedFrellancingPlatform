@@ -32,7 +32,7 @@ export default function ApiStatus() {
 
   if (!down) return null;
   return (
-    <div role="alert" className="bg-red-700 px-4 py-2.5 text-center text-sm text-white">
+    <div role="alert" className="bg-[#8f1d24] px-4 py-2.5 text-center text-sm text-white">
       <span className="inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
         <Icon name="alert" size={16} />
         <span>

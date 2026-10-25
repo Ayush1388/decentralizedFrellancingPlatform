@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { jobStatus } from "../lib/jobStatus";
 import { useAuth } from "../context/useAuth";
 import { timeAgo, usdc } from "../lib/format";
+import { Reel } from "../Components/cinema";
 import { Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, PageHeader, SkillChip } from "../Components/ui";
 
 
@@ -12,8 +13,8 @@ export function JobCard({ job }) {
   return (
     <Link to={`/jobs/${job.id}`} className="card card-hover block p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h3 className="text-lg font-semibold">{job.title}</h3>
-        <p className="text-lg font-semibold">{usdc(job.total)}</p>
+        <h3 className="poster-title text-3xl">{job.title}</h3>
+        <p className="font-mono text-lg font-bold text-gold">{usdc(job.total)}</p>
       </div>
       <p className="mt-2 line-clamp-2 text-sm text-muted">{job.description}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -68,7 +69,8 @@ export default function Jobs() {
   return (
     <div className="container-page pb-8">
       <PageHeader
-        title="Jobs"
+        eyebrow="The programme"
+        title="Now showing"
         image="/Working from anywhere-bro.svg"
         subtitle="Every job is split into milestones and paid from escrow in USDC."
         action={
@@ -86,7 +88,7 @@ export default function Jobs() {
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`min-h-11 rounded-full px-5 text-sm font-medium transition-colors ${tab === t.id ? "bg-ink text-white" : "border border-ink/20 hover:bg-white"}`}
+              className={`eyebrow min-h-11 px-5 transition-colors ${tab === t.id ? "bg-gold text-poster" : "border border-[#3a3733] hover:border-gold hover:text-gold"}`}
             >
               {t.label}
             </button>
@@ -107,7 +109,7 @@ export default function Jobs() {
 
       <div className="space-y-4" role="tabpanel" aria-busy={jobs === null}>
         {jobs === null && !error && Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-32" />)}
-        {jobs?.map((j) => <JobCard key={j.id} job={j} />)}
+        {jobs?.map((j, i) => (tab === "open" ? <Reel key={j.id} job={j} n={i + 1} /> : <JobCard key={j.id} job={j} />))}
       </div>
 
       {jobs?.length === 0 &&

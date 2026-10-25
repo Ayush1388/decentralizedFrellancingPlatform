@@ -3,15 +3,16 @@ import { Link, NavLink } from "react-router-dom";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { useAuth } from "../context/useAuth";
 import { shortAddr } from "../lib/format";
-import { Button, Icon, IconButton } from "./ui";
+import { Icon, IconButton } from "./ui";
 
+// Theatre names first, plain names underneath so nobody has to guess.
 const baseLinks = [
-  { to: "/developers", label: "Developers" },
-  { to: "/jobs", label: "Jobs" },
-  { to: "/wallet", label: "Wallet" },
+  { to: "/jobs", label: "Programme", hint: "Jobs" },
+  { to: "/developers", label: "The cast", hint: "Developers" },
+  { to: "/wallet", label: "Box office", hint: "Wallet" },
 ];
 
-function WalletPill() {
+function WalletButton() {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
@@ -21,9 +22,9 @@ function WalletPill() {
       <button
         onClick={() => disconnect()}
         title="Disconnect wallet"
-        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-medium hover:bg-sage"
+        className="inline-flex min-h-10 items-center gap-2 border border-[#3a3733] px-3 font-mono text-xs hover:border-gold hover:text-gold"
       >
-        <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
+        <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
         {shortAddr(address)}
       </button>
     );
@@ -31,6 +32,7 @@ function WalletPill() {
   return (
     <IconButton
       icon="wallet"
+      size={40}
       label={isPending ? "Connecting wallet" : "Connect wallet"}
       disabled={!connectors.length || isPending}
       onClick={() => connect({ connector: connectors[0] })}
@@ -38,62 +40,55 @@ function WalletPill() {
   );
 }
 
-const initials = (name = "") =>
-  name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
 export default function NavigationBar() {
   const { user, ready, openLogin, signOut } = useAuth();
   const [open, setOpen] = useState(false);
-  const links = user ? [{ to: "/dashboard", label: "Dashboard" }, ...baseLinks] : baseLinks;
+  const links = user ? [...baseLinks, { to: "/dashboard", label: "My seat", hint: "Dashboard" }] : baseLinks;
 
   const linkCls = ({ isActive }) =>
-    `inline-flex min-h-11 items-center rounded-full px-5 text-[0.95rem] font-medium transition-colors ${
-      isActive ? "bg-ink text-white" : "bg-sage text-ink-soft hover:bg-[#c3cec5]"
-    }`;
+    `group flex flex-col items-center px-1 py-1 transition-colors ${isActive ? "text-gold" : "text-ink-soft hover:text-gold"}`;
 
   return (
-    <header className="sticky top-0 z-40 bg-paper/90 backdrop-blur">
-      <nav className="container-page flex h-20 items-center justify-between gap-4" aria-label="Main">
-        <Link to="/" className="font-serif text-[1.75rem] leading-none text-ink" aria-label="Blockchain Freelance home">
-          Blockchain
+    <header className="sticky top-0 z-40 border-b border-white/5 bg-paper/90 backdrop-blur">
+      <nav className="container-page flex h-16 items-center justify-between gap-4" aria-label="Main">
+        <Link to="/" className="flex items-center gap-2 text-gold" aria-label="Blockchain Picture House, home">
+          <Icon name="shield" size={18} />
+          <span className="eyebrow !tracking-[0.26em]">
+            Blockchain<span className="hidden sm:inline"> Picture House</span>
+          </span>
         </Link>
 
-        <ul className="hidden items-center gap-1.5 md:flex">
+        <ul className="hidden items-center gap-7 md:flex">
           {links.map((l) => (
             <li key={l.to}>
               <NavLink to={l.to} className={linkCls}>
-                {l.label}
+                <span className="eyebrow">{l.label}</span>
+                <span className="font-mono text-[0.62rem] text-muted group-hover:text-gold/80">{l.hint}</span>
               </NavLink>
             </li>
           ))}
         </ul>
 
         <div className="hidden items-center gap-2 md:flex">
-          <WalletPill />
+          <WalletButton />
           {ready &&
             (user ? (
               <>
-                <IconButton icon="logout" label="Log out" onClick={signOut} />
-                <Link
-                  to="/dashboard"
-                  title={user.name}
-                  className="flex h-11 w-11 items-center justify-center rounded-full bg-butter text-sm font-semibold ring-2 ring-white"
-                >
-                  {initials(user.name)}
-                </Link>
+                <span className="max-w-32 truncate font-mono text-xs text-muted" title={user.name}>
+                  {user.name}
+                </span>
+                <IconButton icon="logout" size={40} label="Log out" onClick={signOut} />
               </>
             ) : (
-              <Button onClick={openLogin}>Log in</Button>
+              <button onClick={openLogin} className="eyebrow inline-flex min-h-10 items-center bg-gold px-4 text-poster hover:brightness-110">
+                Log in
+              </button>
             ))}
         </div>
 
         <IconButton
           icon={open ? "x" : "menu"}
+          size={40}
           label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           aria-controls="mobile-menu"
@@ -103,31 +98,38 @@ export default function NavigationBar() {
       </nav>
 
       {open && (
-        <div id="mobile-menu" className="container-page pb-5 md:hidden">
-          <div className="tile space-y-2 bg-white">
+        <div id="mobile-menu" className="container-page border-t border-white/5 pb-5 md:hidden">
+          <ul className="divide-y divide-white/5">
             {links.map((l) => (
-              <NavLink key={l.to} to={l.to} className={(a) => `${linkCls(a)} w-full`} onClick={() => setOpen(false)}>
-                {l.label}
-              </NavLink>
-            ))}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <WalletPill />
-              {user ? (
-                <Button variant="secondary" size="sm" onClick={signOut}>
-                  <Icon name="logout" size={16} /> Log out ({user.name})
-                </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setOpen(false);
-                    openLogin();
-                  }}
+              <li key={l.to}>
+                <NavLink
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                  className={({ isActive }) => `flex items-baseline justify-between py-3.5 ${isActive ? "text-gold" : "text-ink"}`}
                 >
-                  Log in
-                </Button>
-              )}
-            </div>
+                  <span className="poster-title text-3xl">{l.label}</span>
+                  <span className="font-mono text-xs text-muted">{l.hint}</span>
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap items-center gap-3 pt-4">
+            <WalletButton />
+            {user ? (
+              <button onClick={signOut} className="eyebrow inline-flex min-h-10 items-center gap-2 border border-[#3a3733] px-4">
+                <Icon name="logout" size={14} /> Log out ({user.name})
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  openLogin();
+                }}
+                className="eyebrow inline-flex min-h-10 items-center bg-gold px-4 text-poster"
+              >
+                Log in
+              </button>
+            )}
           </div>
         </div>
       )}

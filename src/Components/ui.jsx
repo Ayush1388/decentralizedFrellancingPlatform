@@ -50,20 +50,20 @@ export function Icon({ name, size = 20, className = "" }) {
 
 // ---------- Buttons ----------
 const base =
-  "inline-flex items-center justify-center gap-2 min-h-11 px-6 rounded-full text-[0.95rem] font-medium transition-colors duration-200 disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-[2px] text-[0.72rem] font-semibold uppercase tracking-[0.2em] transition-[filter,background-color,color,border-color] duration-200 disabled:opacity-50 disabled:pointer-events-none";
 const variants = {
-  primary: "bg-ink text-white hover:bg-ink-soft",
-  secondary: "bg-sage text-ink hover:bg-[#c3cec5]",
-  outline: "border border-ink/20 text-ink hover:bg-white",
-  ghost: "text-ink hover:bg-sage",
-  danger: "bg-blush text-red-900 hover:bg-[#f0b0b2]",
-  dark: "bg-ink text-white hover:bg-ink-soft",
-  light: "border border-white/30 text-white hover:bg-white/10",
-  solidLight: "bg-white text-ink hover:bg-paper",
+  primary: "bg-gold text-poster hover:brightness-110",
+  secondary: "border border-gold text-gold hover:bg-gold/10",
+  outline: "border border-[#3a3733] text-ink hover:border-gold hover:text-gold",
+  ghost: "text-gold hover:bg-white/5",
+  danger: "border border-red-300 text-red-700 hover:bg-red-50",
+  dark: "bg-poster text-ticket hover:bg-black",
+  light: "border border-ink/40 text-ink hover:border-gold hover:text-gold",
+  solidLight: "bg-gold text-poster hover:brightness-110",
 };
 
 export function Button({ variant = "primary", size, className = "", loading, children, to, ...props }) {
-  const cls = `${base} ${variants[variant]} ${size === "sm" ? "!min-h-9 !px-4 text-sm" : ""} ${className}`;
+  const cls = `${base} ${variants[variant]} ${size === "sm" ? "!min-h-9 !px-3.5 !text-[0.66rem]" : ""} ${className}`;
   if (to) {
     return (
       <Link to={to} className={cls} {...props}>
@@ -92,12 +92,12 @@ export function Spinner({ className = "" }) {
 // Round icon button, as in the reference's toolbar circles.
 export function IconButton({ icon, label, tone = "white", size = 44, className = "", to, ...props }) {
   const toneCls = {
-    white: "bg-white text-ink hover:bg-paper",
-    sage: "bg-sage text-ink hover:bg-[#c3cec5]",
-    ink: "bg-ink text-white hover:bg-ink-soft",
-    outline: "border border-current/30 hover:bg-white/40",
+    white: "border border-[#3a3733] text-ink hover:border-gold hover:text-gold",
+    sage: "border border-[#3a3733] bg-surface text-ink hover:border-gold hover:text-gold",
+    ink: "bg-gold text-poster hover:brightness-110",
+    outline: "border border-current/40 hover:border-gold hover:text-gold",
   }[tone];
-  const cls = `inline-flex shrink-0 items-center justify-center rounded-full transition-colors ${toneCls} ${className}`;
+  const cls = `inline-flex shrink-0 items-center justify-center rounded-[2px] transition-colors ${toneCls} ${className}`;
   const style = { width: size, height: size };
   if (to)
     return (
@@ -114,17 +114,17 @@ export function IconButton({ icon, label, tone = "white", size = 44, className =
 
 // ---------- Small pieces ----------
 const tones = {
-  green: "bg-mint text-green-900",
-  amber: "bg-butter text-amber-950",
-  red: "bg-blush text-red-900",
-  blue: "bg-sky text-sky-950",
-  gray: "bg-sage text-ink-soft",
-  violet: "bg-violet-100 text-violet-900",
+  green: "border-gold text-gold",
+  amber: "border-amber-800 text-amber-800",
+  red: "border-red-700 text-red-700",
+  blue: "border-[#8fb8f0] text-[#a9c9f5]",
+  gray: "border-[#4a4640] text-muted",
+  violet: "border-violet-900 text-violet-900",
 };
 
 export function Badge({ tone = "gray", children, className = "" }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-medium ${tones[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[0.75rem] ${tones[tone]} ${className}`}>
       {children}
     </span>
   );
@@ -132,7 +132,7 @@ export function Badge({ tone = "gray", children, className = "" }) {
 
 export function SkillChip({ children }) {
   return (
-    <span className="rounded-full border border-line bg-white/60 px-3 py-0.5 text-xs text-ink-soft">{children}</span>
+    <span className="border border-line px-2 py-0.5 font-mono text-[0.75rem] text-ink-soft">{children}</span>
   );
 }
 
@@ -146,7 +146,7 @@ export function Avatar({ src, seed = 0, size = 48 }) {
       width={size}
       height={size}
       loading="lazy"
-      className="shrink-0 rounded-full bg-sand object-cover ring-2 ring-white"
+      className="shrink-0 rounded-full bg-surface object-cover ring-1 ring-gold/50"
       style={{ width: size, height: size, objectPosition: "50% 18%" }}
     />
   );
@@ -172,7 +172,7 @@ export function Field({ label, hint, error, children, htmlFor }) {
 export function ErrorNote({ children }) {
   if (!children) return null;
   return (
-    <p role="alert" className="flex items-start gap-2 rounded-2xl bg-blush px-4 py-3 text-sm text-red-950">
+    <p role="alert" className="flex items-start gap-2 border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
       <Icon name="alert" size={18} className="mt-0.5" />
       <span>{children}</span>
     </p>
@@ -181,35 +181,36 @@ export function ErrorNote({ children }) {
 
 export function EmptyState({ icon = "briefcase", image, title, children, action }) {
   return (
-    <div className="flex flex-col items-center rounded-3xl bg-white px-6 py-12 text-center">
+    <div className="flex flex-col items-center border border-dashed border-[#3a3733] bg-surface px-6 py-12 text-center">
       {image ? (
-        <img src={image} alt="" width="180" height="180" className="mb-2 h-36 w-auto" />
+        <img src={image} alt="" width="180" height="180" className="mb-4 h-36 w-auto bg-ticket p-2 sepia-[.35]" />
       ) : (
-        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sage text-ink">
+        <span className="mb-4 flex h-12 w-12 items-center justify-center border border-gold text-gold">
           <Icon name={icon} size={22} />
         </span>
       )}
-      <h3 className="text-xl font-semibold">{title}</h3>
+      <h3 className="poster-title text-3xl text-ink">{title}</h3>
       {children && <p className="mt-1 max-w-sm text-sm text-muted">{children}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
-export function PageHeader({ title, subtitle, action, image, eyebrow = "Overview" }) {
+// Every inner page opens like a programme card: label, poster title, a framed still.
+export function PageHeader({ title, subtitle, action, image, eyebrow = "Now showing" }) {
   return (
-    <div className="mb-8 mt-8 grid gap-4 md:grid-cols-[1fr_auto]">
-      <div className="tile flex flex-col justify-between bg-white sm:p-8">
-        <div>
-          <p className="stat-label">{eyebrow}</p>
-          <h1 className="mt-1 text-4xl font-semibold sm:text-5xl">{title}</h1>
-          {subtitle && <p className="mt-3 max-w-xl text-muted">{subtitle}</p>}
-        </div>
+    <div className="mb-10 mt-10 grid items-end gap-8 border-b border-gold/35 pb-8 md:grid-cols-[1fr_auto]">
+      <div className="min-w-0">
+        <p className="eyebrow text-gold">{eyebrow}</p>
+        <h1 className="poster-title mt-3 text-6xl text-gold sm:text-7xl">{title}</h1>
+        {subtitle && <p className="mt-4 max-w-xl text-lg text-ink-soft">{subtitle}</p>}
         {action && <div className="mt-6">{action}</div>}
       </div>
       {image && (
-        <div className="tile hidden w-64 items-center justify-center bg-sage md:flex lg:w-72">
-          <img src={image} alt="" width="220" height="220" className="h-44 w-full object-contain lg:h-48" />
+        <div className="hidden -rotate-2 border-[3px] border-poster bg-gold p-2 shadow-[0_18px_40px_-12px_rgb(0_0_0/0.8)] md:block">
+          <div className="bg-ticket">
+            <img src={image} alt="" width="220" height="220" className="h-40 w-52 object-contain p-2 sepia-[.35]" />
+          </div>
         </div>
       )}
     </div>
@@ -217,7 +218,7 @@ export function PageHeader({ title, subtitle, action, image, eyebrow = "Overview
 }
 
 export function CardSkeleton({ className = "h-64" }) {
-  return <div className={`animate-pulse rounded-3xl bg-white/60 ${className}`} aria-hidden="true" />;
+  return <div className={`animate-pulse bg-surface ${className}`} aria-hidden="true" />;
 }
 
 // ---------- Layout primitives shared by every page ----------
@@ -225,7 +226,7 @@ export function CardSkeleton({ className = "h-64" }) {
 // Every illustration sits in the same tinted rounded panel so artwork from different packs reads as one set.
 export function IllustrationPanel({ src, alt = "", className = "", imgClass = "", children }) {
   return (
-    <div className={`relative flex items-center justify-center overflow-hidden rounded-3xl bg-white ${className}`}>
+    <div className={`relative flex items-center justify-center overflow-hidden bg-ticket ${className}`}>
       {src && <img src={src} alt={alt} loading="lazy" className={`h-full w-full object-contain p-4 sm:p-6 ${imgClass}`} />}
       {children}
     </div>
@@ -236,11 +237,11 @@ export function IllustrationPanel({ src, alt = "", className = "", imgClass = ""
 export function SectionHeader({ eyebrow, title, subtitle, align = "center", id }) {
   return (
     <header className={`max-w-2xl ${align === "center" ? "mx-auto text-center" : "text-left"}`}>
-      {eyebrow && <p className="stat-label">{eyebrow}</p>}
-      <h2 id={id} className="mt-1 text-3xl font-semibold sm:text-4xl lg:text-[2.6rem] lg:leading-[1.1]">
+      {eyebrow && <p className="eyebrow text-gold">{eyebrow}</p>}
+      <h2 id={id} className="poster-title mt-3 text-5xl text-ink sm:text-6xl">
         {title}
       </h2>
-      {subtitle && <p className="mt-3 text-lg text-muted">{subtitle}</p>}
+      {subtitle && <p className="mt-4 text-lg text-ink-soft">{subtitle}</p>}
     </header>
   );
 }

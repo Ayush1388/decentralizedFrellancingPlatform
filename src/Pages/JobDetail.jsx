@@ -4,6 +4,8 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/useAuth";
 import { shortDate, timeAgo, usdc } from "../lib/format";
 import { Avatar, Badge, Button, CardSkeleton, EmptyState, ErrorNote, Field, Icon, SkillChip } from "../Components/ui";
+import { Poster } from "../Components/cinema";
+import { reelDate } from "../lib/cinema";
 import { jobStatus } from "../lib/jobStatus";
 import { useChainConfig } from "../context/useChainConfig";
 import { friendlyError, useEscrow } from "../lib/useEscrow";
@@ -47,11 +49,11 @@ function MilestoneCard({ m, job, user, onChange, perform, step, chainOn }) {
     <li className="card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-green-700">Milestone {m.position}</p>
-          <h3 className="text-lg font-semibold">{m.title}</h3>
+          <p className="font-mono text-xs text-gold">Scene {m.position}</p>
+          <h3 className="poster-title text-2xl">{m.title}</h3>
         </div>
         <div className="text-right">
-          <p className="text-lg font-bold">{usdc(m.amount)}</p>
+          <p className="font-mono text-lg font-bold">{usdc(m.amount)}</p>
           <Badge tone={st.tone}>{st.label}</Badge>
         </div>
       </div>
@@ -145,7 +147,7 @@ function MilestoneCard({ m, job, user, onChange, perform, step, chainOn }) {
           <label htmlFor={`pct-${m.id}`} className="text-sm font-medium">
             Arbiter ruling: {pct}% to freelancer, {100 - pct}% back to client
           </label>
-          <input id={`pct-${m.id}`} type="range" min="0" max="100" step="5" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-2 w-full accent-green-700" />
+          <input id={`pct-${m.id}`} type="range" min="0" max="100" step="5" value={pct} onChange={(e) => setPct(e.target.value)} className="mt-2 w-full accent-[#f2c230]" />
           <Button type="submit" size="sm" className="mt-2" loading={busy}>
             Issue ruling
           </Button>
@@ -181,8 +183,8 @@ function OpenEscrow({ job, eth, onChange }) {
   }
 
   return (
-    <div className="card mb-4 border-green-300 p-5">
-      <h3 className="font-semibold">Open the escrow on-chain</h3>
+    <div className="card mb-4 !border-gold/50 p-5">
+      <h3 className="poster-title text-2xl">Open the escrow on-chain</h3>
       <p className="mt-1 text-sm text-muted">
         One transaction creates the escrow with these {job.milestones.length} milestones. It moves no money yet: you fund each milestone separately.
       </p>
@@ -234,7 +236,7 @@ function Chat({ jobId, user }) {
 
   return (
     <section id="chat" className="card flex scroll-mt-24 flex-col p-5" aria-label="Job chat">
-      <h2 className="mb-3 flex items-center gap-2 font-semibold">
+      <h2 className="poster-title mb-3 flex items-center gap-2 text-2xl">
         <Icon name="chat" size={18} /> Messages
       </h2>
       <div className="max-h-80 min-h-32 space-y-3 overflow-y-auto pr-1" role="log" aria-live="polite">
@@ -243,7 +245,7 @@ function Chat({ jobId, user }) {
           const mine = m.sender.id === user?.id;
           return (
             <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
-              <p className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2 text-sm ${mine ? "bg-ink text-white" : "bg-sage"}`}>{m.body}</p>
+              <p className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2 text-sm ${mine ? "bg-gold text-poster" : "bg-sage"}`}>{m.body}</p>
               <span className="mt-0.5 text-[11px] text-muted">
                 {mine ? "You" : m.sender.name} · {timeAgo(m.createdAt)}
               </span>
@@ -276,7 +278,7 @@ function ApplyBox({ job, onChange, openLogin, user }) {
   if (job.myApplication) {
     return (
       <div className="card p-5">
-        <h2 className="font-semibold">Your application</h2>
+        <h2 className="poster-title text-2xl">Your application</h2>
         <Badge tone={job.myApplication.status === "accepted" ? "green" : job.myApplication.status === "declined" ? "red" : "amber"} className="mt-2">
           {job.myApplication.status === "pending" ? "Awaiting client" : job.myApplication.status}
         </Badge>
@@ -288,7 +290,7 @@ function ApplyBox({ job, onChange, openLogin, user }) {
   if (!user) {
     return (
       <div className="card p-5">
-        <h2 className="font-semibold">Interested in this job?</h2>
+        <h2 className="poster-title text-2xl">Interested in this job?</h2>
         <p className="mt-1 text-sm text-muted">Log in to send the client a cover note.</p>
         <Button className="mt-4 w-full" onClick={openLogin}>
           Log in to apply
@@ -310,7 +312,7 @@ function ApplyBox({ job, onChange, openLogin, user }) {
   }
   return (
     <form onSubmit={submit} className="card space-y-4 p-5">
-      <h2 className="font-semibold">Apply to this job</h2>
+      <h2 className="poster-title text-2xl">Apply to this job</h2>
       <Field label="Cover note" htmlFor="cover" hint="Tell the client why you are a fit (20+ characters).">
         <textarea id="cover" required minLength={20} maxLength={2000} rows={5} value={cover} onChange={(e) => setCover(e.target.value)} className="input" />
       </Field>
@@ -339,7 +341,7 @@ function Applications({ job, onChange }) {
   }
   return (
     <section className="card p-5" aria-label="Applications">
-      <h2 className="font-semibold">Applications ({job.applications?.length || 0})</h2>
+      <h2 className="poster-title text-2xl">Applications ({job.applications?.length || 0})</h2>
       {!job.applications?.length && <p className="mt-2 text-sm text-muted">No applications yet. Freelancers will appear here.</p>}
       <ul className="mt-3 space-y-4">
         {job.applications?.map((a) => (
@@ -439,36 +441,40 @@ export default function JobDetail() {
         <Icon name="arrow" size={14} className="rotate-180" /> All jobs
       </Link>
 
-      <header className="mt-4 flex flex-wrap items-start justify-between gap-6 rounded-3xl bg-gradient-to-br from-green-50 to-surface p-6 sm:p-8">
-        <div className="min-w-0">
+      <header className="mt-4 flex flex-col gap-6 border border-gold/30 bg-surface p-5 sm:flex-row sm:p-6">
+        <Poster title={job.title} tilt={-2} className="hidden !max-w-[10rem] sm:flex" />
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={st.tone}>{st.label}</Badge>
             {role !== "visitor" && <Badge tone="violet">You are the {role}</Badge>}
           </div>
-          <h1 className="mt-3 text-3xl font-bold tracking-tight sm:text-4xl">{job.title}</h1>
-          <p className="mt-2 text-sm text-muted">
-            Posted by {job.client.name} · {timeAgo(job.createdAt)}
-            {job.freelancer && ` · Hired ${job.freelancer.name}`}
+          <h1 className="poster-title mt-3 text-5xl text-gold sm:text-6xl">{job.title}</h1>
+          <p className="mt-3 font-serif text-lg italic text-ink-soft">
+            Directed by {job.client.name}
+            {job.freelancer && `, starring ${job.freelancer.name}`}
           </p>
-        </div>
-        <dl className="grid grid-cols-3 gap-3 text-center">
+          <p className="mt-1 font-mono text-xs text-muted">
+            {reelDate(job.createdAt)} · {timeAgo(job.createdAt)}
+          </p>
+        <dl className="mt-5 grid max-w-md grid-cols-3 gap-px border border-white/10 bg-white/10">
           {[
             ["Budget", job.total],
             ["In escrow", inEscrow],
             ["Paid out", paid],
           ].map(([k, v]) => (
-            <div key={k} className="card px-4 py-3">
-              <dt className="text-xs text-muted">{k}</dt>
-              <dd className="font-bold">{usdc(v)}</dd>
+            <div key={k} className="bg-[#0f0e0d] px-4 py-3">
+              <dt className="stat-label">{k}</dt>
+              <dd className="font-mono font-bold">{usdc(v)}</dd>
             </div>
           ))}
         </dl>
+        </div>
       </header>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-8">
           <section>
-            <h2 className="text-lg font-semibold">About the work</h2>
+            <h2 className="poster-title text-3xl text-gold">The synopsis</h2>
             <p className="mt-2 whitespace-pre-wrap text-ink-soft">{job.description}</p>
             {job.skills.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2 empty:hidden">
@@ -480,7 +486,7 @@ export default function JobDetail() {
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold">Milestones</h2>
+            <h2 className="poster-title text-3xl text-gold">Scenes &amp; milestones</h2>
             {chain ? (
               <p className="mb-4 mt-1 flex items-start gap-2 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-900">
                 <Icon name="shield" size={18} className="mt-0.5" />

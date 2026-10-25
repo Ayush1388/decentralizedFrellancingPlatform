@@ -52,14 +52,14 @@ export default function LoginPopup() {
       onClose={closeLogin}
       onClick={(e) => e.target === dialogRef.current && closeLogin()}
       aria-labelledby="login-title"
-      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-3xl p-0 shadow-2xl backdrop:bg-ink/60 backdrop:backdrop-blur-sm"
+      className="m-auto w-[calc(100%-2rem)] max-w-md border border-gold/40 bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     >
       <div className="relative p-6 sm:p-8">
         <button
           type="button"
           onClick={closeLogin}
           aria-label="Close"
-          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full text-muted hover:bg-surface"
+          className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center text-muted hover:text-gold"
         >
           <Icon name="x" />
         </button>

@@ -35,7 +35,7 @@ const compact = (units) => usdc(units, { compact: true });
 function TileHead({ title, children }) {
   return (
     <div className="mb-4 flex items-start justify-between gap-3">
-      <h2 className="text-xl font-semibold">{title}</h2>
+      <h2 className="poster-title text-3xl">{title}</h2>
       <div className="flex gap-1.5">{children}</div>
     </div>
   );
@@ -127,8 +127,8 @@ export default function Dashboard() {
               role="tab"
               aria-selected={filter === f.id}
               onClick={() => setFilter(f.id)}
-              className={`inline-flex min-h-11 items-center rounded-full px-5 text-sm font-medium transition-colors ${
-                filter === f.id ? "bg-ink text-white" : "border border-ink/20 hover:bg-white"
+              className={`eyebrow inline-flex min-h-11 items-center px-5 transition-colors ${
+                filter === f.id ? "bg-gold text-poster" : "border border-[#3a3733] hover:border-gold hover:text-gold"
               }`}
             >
               {f.label}
@@ -155,7 +155,7 @@ export default function Dashboard() {
         jobs && (
           <div className="grid gap-4 lg:grid-cols-3">
             {/* Milestones by state, hatched bars */}
-            <section className="tile flex flex-col bg-white" aria-label="Milestones">
+            <section className="tile flex flex-col" aria-label="Milestones">
               <TileHead title={`Milestones (${groups.reduce((t, g) => t + sums[g.key].count, 0)})`}>
                 <IconButton icon="arrowUpRight" label="All jobs" to="/jobs" tone="sage" size={38} />
               </TileHead>
@@ -166,7 +166,7 @@ export default function Dashboard() {
                     <div key={g.key} className="flex h-full flex-1 flex-col justify-end">
                       <p className="text-xs text-muted">{g.label}</p>
                       <p className="mb-1.5 text-sm font-semibold">{compact(sums[g.key].amount)}</p>
-                      <div className="hatch rounded-xl bg-sage" style={{ height: `${h}%` }} />
+                      <div className="hatch bg-sage" style={{ height: `${h}%` }} />
                     </div>
                   );
                 })}
@@ -174,12 +174,12 @@ export default function Dashboard() {
             </section>
 
             {/* Payments per job */}
-            <section className="tile bg-ink text-white" aria-label="Payments">
+            <section className="tile !border-gold/40 bg-[#0f0e0d]" aria-label="Payments">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-xl font-semibold">Payments</h2>
+                <h2 className="poster-title text-3xl">Payments</h2>
                 <div className="text-right">
                   <p className="text-xl font-semibold">{usdc(total)}</p>
-                  <p className="text-xs text-green-300">{total ? Math.round((sums.paid.amount / total) * 100) : 0}% paid out</p>
+                  <p className="text-xs text-gold">{total ? Math.round((sums.paid.amount / total) * 100) : 0}% paid out</p>
                 </div>
               </div>
               <div className="my-5 border-t border-dashed border-white/20" />
@@ -198,7 +198,7 @@ export default function Dashboard() {
                           </span>
                         </div>
                         <div className="relative h-8 overflow-hidden rounded-full bg-white/10">
-                          <div className={`absolute inset-y-0 left-0 rounded-full ${["bg-sky", "bg-blush", "bg-mint"][i]}`} style={{ width: `${Math.max(pct, 4)}%` }} />
+                          <div className={`absolute inset-y-0 left-0 rounded-full ${["bg-gold", "bg-[#e9a23b]", "bg-ticket"][i]}`} style={{ width: `${Math.max(pct, 4)}%` }} />
                         </div>
                       </Link>
                     </li>
@@ -210,7 +210,7 @@ export default function Dashboard() {
             {/* Things waiting on the viewer */}
             <section className="tile bg-blush" aria-label="Needs your action">
               <TileHead title="Needs your action">
-                <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-white px-3 text-sm font-semibold">{actions.length}</span>
+                <span className="flex h-9 min-w-9 items-center justify-center border border-white/20 px-3 text-sm font-semibold">{actions.length}</span>
               </TileHead>
               {actions.length === 0 ? (
                 <p className="text-sm text-ink-soft">Nothing waiting on you. Nice.</p>
@@ -220,7 +220,7 @@ export default function Dashboard() {
                     <li key={m.id}>
                       <Link
                         to={`/jobs/${job.id}`}
-                        className={`flex items-center justify-between gap-3 rounded-full px-5 py-3 ${i === 0 ? "bg-ink text-white" : "bg-white/70 hover:bg-white"}`}
+                        className={`flex items-center justify-between gap-3 px-4 py-3 ${i === 0 ? "bg-gold text-poster" : "bg-black/30 hover:bg-black/50"}`}
                       >
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold">{m.title}</span>
@@ -243,7 +243,7 @@ export default function Dashboard() {
                 <IconButton icon="plus" label="Post a job" to="/jobs/new" size={38} />
               </TileHead>
               {list.length === 0 ? (
-                <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-white/60 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-4 bg-black/30 p-5">
                   <p className="text-sm">Post a job or apply to one and it will show up here.</p>
                   <Button to="/jobs/new" size="sm">
                     Post a job
@@ -255,7 +255,7 @@ export default function Dashboard() {
                     const st = jobStatus[j.status] || jobStatus.open;
                     return (
                       <li key={j.id}>
-                        <Link to={`/jobs/${j.id}`} className="flex h-full flex-col rounded-2xl bg-white/70 p-4 transition-colors hover:bg-white">
+                        <Link to={`/jobs/${j.id}`} className="flex h-full flex-col bg-black/30 p-4 transition-colors hover:bg-black/50">
                           <span className="flex items-start justify-between gap-3">
                             <span className="font-semibold leading-snug">{j.title}</span>
                             <span className="shrink-0 font-semibold">{compact(j.total)}</span>
@@ -276,7 +276,7 @@ export default function Dashboard() {
             {/* Conversations on active jobs */}
             <section className="tile bg-butter" aria-label="Conversations">
               <TileHead title="Conversations">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white" aria-hidden="true">
+                <span className="flex h-9 w-9 items-center justify-center border border-white/20" aria-hidden="true">
                   <Icon name="chat" size={16} />
                 </span>
               </TileHead>
@@ -289,13 +289,13 @@ export default function Dashboard() {
                     const open = j.milestones.filter((m) => !["released", "resolved", "refunded"].includes(m.status)).length;
                     return (
                       <li key={j.id}>
-                        <Link to={`/jobs/${j.id}#chat`} className="flex items-center gap-3 rounded-full bg-white/60 p-1.5 pr-2 hover:bg-white">
+                        <Link to={`/jobs/${j.id}#chat`} className="flex items-center gap-3 bg-black/30 p-1.5 pr-2 hover:bg-black/50">
                           <Avatar seed={who.id} size={40} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold">{who.name}</span>
                             <span className="block truncate text-xs text-muted">{j.title}</span>
                           </span>
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-butter text-sm font-semibold" title="Open milestones">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-gold/40 text-sm text-gold font-semibold" title="Open milestones">
                             {open}
                           </span>
                         </Link>

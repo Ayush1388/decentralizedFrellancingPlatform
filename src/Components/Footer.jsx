@@ -1,28 +1,37 @@
 import { Link } from "react-router-dom";
 
+// Closing credits.
+const credits = [
+  ["Programme", "/jobs", "Browse open jobs"],
+  ["The cast", "/developers", "Find developers"],
+  ["Casting call", "/jobs/new", "Post a job"],
+  ["Box office", "/wallet", "Wallet and withdrawals"],
+];
+
 export default function Footer() {
   return (
-    <footer className="container-page mt-28 pb-6">
-      <div className="tile grid gap-10 bg-ink p-8 text-white/70 sm:grid-cols-[1.4fr_1fr_1fr] sm:p-10">
-        <div>
-          <p className="font-serif text-3xl text-white">Blockchain</p>
-          <p className="mt-3 max-w-xs text-sm">Hire developers worldwide and pay in USDC. Funds stay in escrow until the work is approved.</p>
+    <footer className="mt-32 border-t border-white/5 bg-[#070707] pb-10 pt-16 text-center">
+      <p className="poster-title text-6xl text-gold sm:text-7xl">The end</p>
+      <p className="mt-3 font-serif text-lg italic text-ink-soft">Hire developers worldwide and pay in USDC, held in escrow until the work is approved.</p>
+
+      <dl className="mx-auto mt-12 grid max-w-md gap-3 px-5 font-mono text-[0.85rem]">
+        {credits.map(([role, to, name]) => (
+          <div key={role} className="grid grid-cols-2 gap-6">
+            <dt className="text-right text-muted">{role}</dt>
+            <dd className="text-left">
+              <Link to={to} className="text-ink hover:text-gold">
+                {name}
+              </Link>
+            </dd>
+          </div>
+        ))}
+        <div className="grid grid-cols-2 gap-6">
+          <dt className="text-right text-muted">Concessions</dt>
+          <dd className="text-left text-ink">2% fee, only on release</dd>
         </div>
-        <nav aria-label="Platform" className="text-sm">
-          <p className="mb-4 font-medium text-white">Platform</p>
-          <ul className="space-y-2.5">
-            <li><Link className="hover:text-white" to="/developers">Find developers</Link></li>
-            <li><Link className="hover:text-white" to="/jobs">Browse jobs</Link></li>
-            <li><Link className="hover:text-white" to="/jobs/new">Post a job</Link></li>
-            <li><Link className="hover:text-white" to="/dashboard">Dashboard</Link></li>
-          </ul>
-        </nav>
-        <div className="text-sm">
-          <p className="mb-4 font-medium text-white">Fees</p>
-          <p>2% platform fee, taken only when a milestone is released. No fee to post a job or apply.</p>
-          <p className="mt-6 text-xs text-white/50">Payments in USDC on Ethereum.</p>
-        </div>
-      </div>
+      </dl>
+
+      <p className="eyebrow mt-14 text-muted">The Blockchain Picture House · Payments in USDC on Ethereum</p>
     </footer>
   );
 }

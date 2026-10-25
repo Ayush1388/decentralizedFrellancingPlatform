@@ -21,6 +21,7 @@ import { Button, EmptyState } from "./Components/ui";
 
 const queryClient = new QueryClient();
 
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {

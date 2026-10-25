@@ -124,14 +124,15 @@ export default function Wallet() {
   return (
     <div className="container-page max-w-3xl pb-8">
       <PageHeader
-        title="Wallet"
+        eyebrow="Box office"
+        title="Your wallet"
         image="/Business growth-rafiki.svg"
         subtitle="Connect an Ethereum wallet to fund milestones, receive payouts and withdraw from escrow."
       />
 
       {!isConnected ? (
         <div className="card flex flex-col items-center px-6 py-14 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sage text-ink">
+          <span className="flex h-14 w-14 items-center justify-center border border-gold text-gold">
             <Icon name="wallet" size={26} />
           </span>
           <h2 className="mt-4 text-xl font-semibold">Connect your wallet</h2>
@@ -201,7 +202,7 @@ export default function Wallet() {
           </div>
 
           {current?.id === sepolia.id && (
-            <p className="rounded-xl bg-surface px-4 py-3 text-sm text-muted">
+            <p className="border border-dashed border-white/10 px-4 py-3 font-mono text-sm text-muted">
               You are on the Sepolia test network. Get free test USDC from Circle's faucet and test ETH from any Sepolia faucet.
             </p>
           )}

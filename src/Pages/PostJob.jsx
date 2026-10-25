@@ -49,7 +49,7 @@ export default function PostJob() {
 
   return (
     <div className="container-page max-w-3xl pb-8">
-      <PageHeader image="/Work time-cuate.svg" title="Post a job" subtitle="Describe the work and break it into milestones. You fund each milestone only after you hire someone." />
+      <PageHeader eyebrow="Casting call" image="/Work time-cuate.svg" title="Pitch a picture" subtitle="Describe the work and break it into milestones. You fund each milestone only after you hire someone." />
 
       <form onSubmit={submit} className="space-y-8">
         <section className="card space-y-5 p-6 sm:p-8">
@@ -85,7 +85,7 @@ export default function PostJob() {
                   aria-label={`Remove milestone ${i + 1}`}
                   disabled={milestones.length === 1}
                   onClick={() => setMilestones((ms) => ms.filter((_, j) => j !== i))}
-                  className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-red-50 hover:text-red-700 disabled:opacity-30"
+                  className="flex h-11 w-11 items-center justify-center text-muted hover:bg-red-50 hover:text-red-700 disabled:opacity-30"
                 >
                   <Icon name="x" size={18} />
                 </button>
@@ -97,7 +97,7 @@ export default function PostJob() {
               <Icon name="plus" size={16} /> Add milestone
             </Button>
           )}
-          <p className="mt-5 rounded-xl bg-surface px-4 py-3 text-sm text-muted">
+          <p className="mt-5 border border-dashed border-white/10 px-4 py-3 font-mono text-sm text-muted">
             A 2% platform fee is deducted from the freelancer's payout when a milestone is released. You pay the milestone price, nothing extra.
           </p>
         </section>

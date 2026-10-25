@@ -1,61 +1,88 @@
 @import "tailwindcss";
 
+/*
+  The Picture House: a dark auditorium lit by one gold spotlight.
+  Token names are kept from earlier versions so every page keeps working:
+  "ink" is now the light text colour, "paper" the dark ground.
+*/
 @theme {
-  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "DM Serif Display", Georgia, "Times New Roman", serif;
-  --color-ink: #111311;
-  --color-ink-soft: #2b302c;
-  --color-paper: #e9f1ec; /* page ground: pale mint */
-  --color-surface: #dfe7e1;
-  --color-sage: #d3dcd5; /* inactive pills, neutral tiles */
-  --color-sand: #d3dcd5;
-  --color-line: #c6d0c8;
-  --color-muted: #555e57; /* 5.7:1 on paper */
+  --font-sans: "Jost", ui-sans-serif, system-ui, sans-serif;
+  --font-poster: "Anton", Impact, "Arial Narrow", sans-serif;
+  --font-mono: "Courier Prime", "Courier New", ui-monospace, monospace;
+  --font-serif: "Bodoni Moda", Didot, Georgia, serif;
+  --font-hand: "Permanent Marker", "Comic Sans MS", cursive;
 
-  /* Pastel tiles; text on them is always ink. */
-  --color-blush: #f6c5c6;
-  --color-sky: #c8dcf5;
-  --color-butter: #f6dfa2;
-  --color-mint: #cfe9d9;
+  --color-ink: #f4f1ea;
+  --color-ink-soft: #d8d2c6;
+  --color-muted: #a9a398; /* 7.4:1 on the panel colour */
+  --color-paper: #0c0b0a;
+  --color-surface: #141414;
+  --color-sage: #211f1d;
+  --color-sand: #211f1d;
+  --color-line: #2c2a27;
 
-  --color-green-50: #effaf3;
-  --color-green-100: #d9f2e2;
-  --color-green-200: #b4e3c6;
-  --color-green-300: #82cda0;
-  --color-green-400: #4fb37a;
-  --color-green-500: #2f9a5f;
-  --color-green-600: #217d4b;
-  --color-green-700: #1b643d;
-  --color-green-800: #174f33;
-  --color-green-900: #12402a;
-  --color-green-950: #0a2516;
+  --color-gold: #f2c230;
+  --color-gold-deep: #c99a12;
+  --color-poster: #1b1214; /* ink printed on gold */
+  --color-ticket: #f1e7cf; /* ticket card stock */
+  --color-marker: #ff5a62;
 
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 22px;
-  --radius-3xl: 28px;
+  /* Former pastel tiles, now dark tints of the same hues. */
+  --color-blush: #2a1618;
+  --color-sky: #141d29;
+  --color-butter: #2a2211;
+  --color-mint: #14231a;
+
+  /* "green" is the accent everywhere in older markup: it now means gold. */
+  --color-green-50: #1d1a10;
+  --color-green-100: #2a2412;
+  --color-green-200: #4a3d16;
+  --color-green-300: #6b5719;
+  --color-green-400: #c99a12;
+  --color-green-500: #f2c230;
+  --color-green-600: #f2c230;
+  --color-green-700: #f2c230;
+  --color-green-800: #f5cf55;
+  --color-green-900: #f8dc7c;
+  --color-green-950: #fbe8a6;
+
+  --color-amber-50: #2a2211;
+  --color-amber-100: #2a2211;
+  --color-amber-200: #5a4a1c;
+  --color-amber-800: #f6c46a;
+  --color-amber-900: #f8d58c;
+  --color-amber-950: #f8d58c;
+  --color-red-50: #2a1517;
+  --color-red-200: #5c2228;
+  --color-red-300: #7a2a31;
+  --color-red-700: #ff7a80;
+  --color-red-800: #ff8f94;
+  --color-red-900: #ffa6aa;
+  --color-sky-950: #cfe2ff;
+  --color-violet-100: #221a33;
+  --color-violet-900: #d9c8ff;
+
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 3px;
+  --radius-3xl: 4px;
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
+    color-scheme: dark;
   }
   body {
     background: var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    line-height: 1.55;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
   }
-  h1,
-  h2,
-  h3 {
-    letter-spacing: -0.02em;
-  }
   :where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
-    outline: 2px solid var(--color-ink);
+    outline: 2px solid var(--color-gold);
     outline-offset: 3px;
-    border-radius: 999px;
   }
   :where(button, [role="button"], a, select, summary) {
     cursor: pointer;
@@ -63,71 +90,96 @@
   :where(button:disabled) {
     cursor: not-allowed;
   }
+  ::selection {
+    background: var(--color-gold);
+    color: var(--color-poster);
+  }
 }
 
 @layer components {
   .container-page {
     width: 100%;
-    max-width: 76rem;
+    max-width: 72rem;
     margin-inline: auto;
     padding-inline: 1.25rem;
   }
-  /* One tile shape everywhere; colour comes from a bg-* utility next to it. */
-  .card {
-    background: #fff;
-    border-radius: var(--radius-3xl);
-  }
-  .card-hover {
-    transition: transform 200ms ease, box-shadow 200ms ease;
-  }
-  .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 18px 40px -24px rgb(17 19 17 / 0.35);
+  .card,
+  .tile {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 2px;
   }
   .tile {
-    border-radius: var(--radius-3xl);
     padding: 1.5rem;
   }
+  .card-hover {
+    transition: border-color 200ms ease, transform 200ms ease;
+  }
+  .card-hover:hover {
+    border-color: rgb(242 194 48 / 0.55);
+  }
+  /* Small tracked capitals: programme labels. */
+  .eyebrow {
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
   .stat-label {
-    font-size: 0.9rem;
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
     color: var(--color-muted);
   }
   .stat-value {
-    font-size: clamp(1.25rem, 4vw, 1.6rem);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    line-height: 1.15;
+    font-family: var(--font-mono);
+    font-size: clamp(1.1rem, 3.5vw, 1.4rem);
+    font-weight: 700;
+    line-height: 1.2;
   }
-  .eyebrow {
-    font-size: 0.9rem;
-    font-weight: 500;
+  .poster-title {
+    font-family: var(--font-poster);
+    text-transform: uppercase;
+    line-height: 0.95;
+    letter-spacing: 0.005em;
+  }
+  .hatch {
+    background-image: repeating-linear-gradient(135deg, rgb(242 194 48 / 0.35) 0 2px, transparent 2px 7px);
   }
   .arch {
-    border-radius: var(--radius-3xl);
-  }
-  /* Diagonal hatching for bars, as in the reference's "Courses" tile. */
-  .hatch {
-    background-image: repeating-linear-gradient(135deg, rgb(17 19 17 / 0.28) 0 2px, transparent 2px 7px);
+    border-radius: 2px;
   }
   .input {
     width: 100%;
     min-height: 2.9rem;
-    padding: 0.6rem 1.1rem;
-    background: #fff;
-    border: 1px solid transparent;
-    border-radius: 999px;
+    padding: 0.6rem 0.95rem;
+    background: #0f0e0d;
+    color: var(--color-ink);
+    border: 1px solid #3a3733;
+    border-radius: 2px;
     transition: border-color 150ms ease, box-shadow 150ms ease;
   }
-  textarea.input {
-    border-radius: 18px;
+  .input::placeholder {
+    color: #7d776d;
   }
   .input:hover {
-    border-color: var(--color-line);
+    border-color: #59544c;
   }
   .input:focus {
     outline: none;
-    border-color: var(--color-ink);
-    box-shadow: 0 0 0 3px rgb(17 19 17 / 0.12);
+    border-color: var(--color-gold);
+    box-shadow: 0 0 0 3px rgb(242 194 48 / 0.2);
+  }
+  /* Faint film grain over the whole auditorium. */
+  .grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 }
 
@@ -154,4 +206,29 @@
 }
 .rise {
   animation: rise 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.bulb {
+  animation: twinkle 1.6s ease-in-out infinite;
+}
+
+@keyframes reel {
+  to {
+    transform: translateX(-50%);
+  }
+}
+.filmstrip-track {
+  animation: reel 40s linear infinite;
+}
+.filmstrip:hover .filmstrip-track {
+  animation-play-state: paused;
 }
