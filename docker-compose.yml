@@ -1,0 +1,22 @@
+# Dedicated Postgres for this project (port 5434 avoids clashing with other local databases)
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: freelance-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: freelance
+      POSTGRES_PASSWORD: freelance
+      POSTGRES_DB: freelance
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - freelance-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U freelance"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  freelance-pgdata:
