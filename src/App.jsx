@@ -15,6 +15,7 @@ import Jobs from "./Pages/Jobs";
 import PostJob from "./Pages/PostJob";
 import JobDetail from "./Pages/JobDetail";
 import Wallet from "./Pages/Wallet";
+import Dashboard from "./Pages/Dashboard";
 import OAuthSuccess from "./Pages/OAuthSuccess";
 import { Button, EmptyState } from "./Components/ui";
 
@@ -49,6 +50,7 @@ export default function App() {
                 <Route path="/jobs/new" element={<PostJob />} />
                 <Route path="/jobs/:id" element={<JobDetail />} />
                 <Route path="/wallet" element={<Wallet />} />
+                <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/oauth-success" element={<OAuthSuccess />} />
                 <Route
                   path="*"

@@ -233,7 +233,7 @@ function Chat({ jobId, user }) {
   }
 
   return (
-    <section className="card flex flex-col p-5" aria-label="Job chat">
+    <section id="chat" className="card flex scroll-mt-24 flex-col p-5" aria-label="Job chat">
       <h2 className="mb-3 flex items-center gap-2 font-semibold">
         <Icon name="chat" size={18} /> Messages
       </h2>
@@ -243,7 +243,7 @@ function Chat({ jobId, user }) {
           const mine = m.sender.id === user?.id;
           return (
             <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
-              <p className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2 text-sm ${mine ? "bg-green-700 text-white" : "bg-surface"}`}>{m.body}</p>
+              <p className={`max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2 text-sm ${mine ? "bg-ink text-white" : "bg-sage"}`}>{m.body}</p>
               <span className="mt-0.5 text-[11px] text-muted">
                 {mine ? "You" : m.sender.name} · {timeAgo(m.createdAt)}
               </span>

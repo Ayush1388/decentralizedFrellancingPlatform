@@ -3,9 +3,9 @@ import { Link, NavLink } from "react-router-dom";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { useAuth } from "../context/useAuth";
 import { shortAddr } from "../lib/format";
-import { Button, Icon } from "./ui";
+import { Button, Icon, IconButton } from "./ui";
 
-const links = [
+const baseLinks = [
   { to: "/developers", label: "Developers" },
   { to: "/jobs", label: "Jobs" },
   { to: "/wallet", label: "Wallet" },
@@ -21,40 +21,49 @@ function WalletPill() {
       <button
         onClick={() => disconnect()}
         title="Disconnect wallet"
-        className="inline-flex min-h-10 items-center gap-2 rounded-sm border border-ink/40 px-4 text-xs font-medium tracking-wide hover:bg-ink hover:text-paper"
+        className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-4 text-sm font-medium hover:bg-sage"
       >
-        <span className="h-2 w-2 rounded-full bg-green-600" aria-hidden="true" />
+        <span className="h-2 w-2 rounded-full bg-green-500" aria-hidden="true" />
         {shortAddr(address)}
       </button>
     );
   }
   return (
-    <Button variant="secondary" size="sm" loading={isPending} disabled={!connectors.length} onClick={() => connect({ connector: connectors[0] })}>
-      <Icon name="wallet" size={16} /> Connect wallet
-    </Button>
+    <IconButton
+      icon="wallet"
+      label={isPending ? "Connecting wallet" : "Connect wallet"}
+      disabled={!connectors.length || isPending}
+      onClick={() => connect({ connector: connectors[0] })}
+    />
   );
 }
+
+const initials = (name = "") =>
+  name
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 
 export default function NavigationBar() {
   const { user, ready, openLogin, signOut } = useAuth();
   const [open, setOpen] = useState(false);
+  const links = user ? [{ to: "/dashboard", label: "Dashboard" }, ...baseLinks] : baseLinks;
 
   const linkCls = ({ isActive }) =>
-    `border-b px-1 py-1.5 text-[0.72rem] font-medium uppercase tracking-[0.16em] transition-colors ${
-      isActive ? "border-green-700 text-green-800" : "border-transparent text-ink-soft hover:text-green-800"
+    `inline-flex min-h-11 items-center rounded-full px-5 text-[0.95rem] font-medium transition-colors ${
+      isActive ? "bg-ink text-white" : "bg-sage text-ink-soft hover:bg-[#c3cec5]"
     }`;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur">
-      <nav className="container-page flex h-16 items-center justify-between gap-4" aria-label="Main">
-        <Link to="/" className="flex items-center gap-3 text-green-900" aria-label="Blockchain Freelance home">
-          <span className="flex h-8 w-8 items-center justify-center rounded-sm border border-green-900">
-            <Icon name="shield" size={16} />
-          </span>
-          <span className="eyebrow !text-[0.78rem] !tracking-[0.24em]">Blockchain</span>
+    <header className="sticky top-0 z-40 bg-paper/90 backdrop-blur">
+      <nav className="container-page flex h-20 items-center justify-between gap-4" aria-label="Main">
+        <Link to="/" className="font-serif text-[1.75rem] leading-none text-ink" aria-label="Blockchain Freelance home">
+          Blockchain
         </Link>
 
-        <ul className="hidden items-center gap-8 md:flex">
+        <ul className="hidden items-center gap-1.5 md:flex">
           {links.map((l) => (
             <li key={l.to}>
               <NavLink to={l.to} className={linkCls}>
@@ -64,60 +73,61 @@ export default function NavigationBar() {
           ))}
         </ul>
 
-        <div className="hidden items-center gap-4 md:flex">
+        <div className="hidden items-center gap-2 md:flex">
           <WalletPill />
           {ready &&
             (user ? (
               <>
-                <Link to="/wallet" className="max-w-32 truncate text-xs font-medium" title={user.name}>
-                  {user.name}
+                <IconButton icon="logout" label="Log out" onClick={signOut} />
+                <Link
+                  to="/dashboard"
+                  title={user.name}
+                  className="flex h-11 w-11 items-center justify-center rounded-full bg-butter text-sm font-semibold ring-2 ring-white"
+                >
+                  {initials(user.name)}
                 </Link>
-                <Button variant="ghost" size="sm" onClick={signOut}>
-                  Log out
-                </Button>
               </>
             ) : (
-              <Button size="sm" onClick={openLogin}>
-                Log in
-              </Button>
+              <Button onClick={openLogin}>Log in</Button>
             ))}
         </div>
 
-        <button
-          className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-sand md:hidden"
-          aria-label={open ? "Close menu" : "Open menu"}
+        <IconButton
+          icon={open ? "x" : "menu"}
+          label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
           aria-controls="mobile-menu"
           onClick={() => setOpen(!open)}
-        >
-          <Icon name={open ? "x" : "menu"} />
-        </button>
+          className="md:hidden"
+        />
       </nav>
 
       {open && (
-        <div id="mobile-menu" className="container-page space-y-1 border-t border-line pb-5 pt-3 md:hidden">
-          {links.map((l) => (
-            <NavLink key={l.to} to={l.to} className={linkCls} onClick={() => setOpen(false)}>
-              <span className="block py-1">{l.label}</span>
-            </NavLink>
-          ))}
-          <div className="flex flex-wrap items-center gap-3 pt-3">
-            <WalletPill />
-            {user ? (
-              <Button variant="ghost" size="sm" onClick={signOut}>
-                Log out ({user.name})
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                onClick={() => {
-                  setOpen(false);
-                  openLogin();
-                }}
-              >
-                Log in
-              </Button>
-            )}
+        <div id="mobile-menu" className="container-page pb-5 md:hidden">
+          <div className="tile space-y-2 bg-white">
+            {links.map((l) => (
+              <NavLink key={l.to} to={l.to} className={(a) => `${linkCls(a)} w-full`} onClick={() => setOpen(false)}>
+                {l.label}
+              </NavLink>
+            ))}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <WalletPill />
+              {user ? (
+                <Button variant="secondary" size="sm" onClick={signOut}>
+                  <Icon name="logout" size={16} /> Log out ({user.name})
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    setOpen(false);
+                    openLogin();
+                  }}
+                >
+                  Log in
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

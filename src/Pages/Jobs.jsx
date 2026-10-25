@@ -13,7 +13,7 @@ export function JobCard({ job }) {
     <Link to={`/jobs/${job.id}`} className="card card-hover block p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h3 className="text-lg font-semibold">{job.title}</h3>
-        <p className="text-lg font-bold text-green-800">{usdc(job.total)}</p>
+        <p className="text-lg font-semibold">{usdc(job.total)}</p>
       </div>
       <p className="mt-2 line-clamp-2 text-sm text-muted">{job.description}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -79,14 +79,14 @@ export default function Jobs() {
       />
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div role="tablist" aria-label="Job lists" className="inline-flex rounded-sm border border-line p-1">
+        <div role="tablist" aria-label="Job lists" className="inline-flex gap-2">
           {tabs.map((t) => (
             <button
               key={t.id}
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`min-h-10 rounded-sm px-5 text-[0.72rem] font-medium uppercase tracking-[0.14em] transition-colors ${tab === t.id ? "bg-green-900 text-paper" : "text-muted hover:text-ink"}`}
+              className={`min-h-11 rounded-full px-5 text-sm font-medium transition-colors ${tab === t.id ? "bg-ink text-white" : "border border-ink/20 hover:bg-white"}`}
             >
               {t.label}
             </button>

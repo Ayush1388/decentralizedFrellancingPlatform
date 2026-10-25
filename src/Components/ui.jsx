@@ -23,6 +23,10 @@ const paths = {
   send: "m21 3-9.5 18-2.2-7.8L3 11l18-8ZM9.3 13.2 21 3",
   globe: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-9-9h18M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9c-2.5-2.5-3.5-5.5-3.5-9S9.5 5.5 12 3Z",
   eth: "M12 2 5 12.2 12 16l7-3.8L12 2Zm0 20 7-9.6L12 16l-7-3.6L12 22Z",
+  logout: "M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10",
+  sliders: "M4 7h9m4 0h3M4 17h3m4 0h9M15 5v4M9 15v4",
+  arrowUpRight: "M7 17 17 7M8 7h9v9",
+  grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
 };
 
 export function Icon({ name, size = 20, className = "" }) {
@@ -46,19 +50,20 @@ export function Icon({ name, size = 20, className = "" }) {
 
 // ---------- Buttons ----------
 const base =
-  "inline-flex items-center justify-center gap-2 min-h-11 px-7 rounded-sm text-[0.72rem] font-medium uppercase tracking-[0.14em] transition-colors duration-200 disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 min-h-11 px-6 rounded-full text-[0.95rem] font-medium transition-colors duration-200 disabled:opacity-50 disabled:pointer-events-none";
 const variants = {
-  primary: "bg-green-900 text-paper hover:bg-green-700",
-  secondary: "bg-transparent text-ink border border-ink/50 hover:bg-ink hover:text-paper",
-  ghost: "text-green-800 hover:bg-green-100",
-  danger: "bg-transparent text-red-800 border border-red-300 hover:bg-red-50",
+  primary: "bg-ink text-white hover:bg-ink-soft",
+  secondary: "bg-sage text-ink hover:bg-[#c3cec5]",
+  outline: "border border-ink/20 text-ink hover:bg-white",
+  ghost: "text-ink hover:bg-sage",
+  danger: "bg-blush text-red-900 hover:bg-[#f0b0b2]",
   dark: "bg-ink text-white hover:bg-ink-soft",
-  light: "bg-transparent text-white border border-white/70 hover:bg-white hover:text-green-950",
-  solidLight: "bg-paper text-green-950 hover:bg-white",
+  light: "border border-white/30 text-white hover:bg-white/10",
+  solidLight: "bg-white text-ink hover:bg-paper",
 };
 
 export function Button({ variant = "primary", size, className = "", loading, children, to, ...props }) {
-  const cls = `${base} ${variants[variant]} ${size === "sm" ? "!min-h-9 !px-4 !text-[0.68rem]" : ""} ${className}`;
+  const cls = `${base} ${variants[variant]} ${size === "sm" ? "!min-h-9 !px-4 text-sm" : ""} ${className}`;
   if (to) {
     return (
       <Link to={to} className={cls} {...props}>
@@ -84,19 +89,42 @@ export function Spinner({ className = "" }) {
   );
 }
 
+// Round icon button, as in the reference's toolbar circles.
+export function IconButton({ icon, label, tone = "white", size = 44, className = "", to, ...props }) {
+  const toneCls = {
+    white: "bg-white text-ink hover:bg-paper",
+    sage: "bg-sage text-ink hover:bg-[#c3cec5]",
+    ink: "bg-ink text-white hover:bg-ink-soft",
+    outline: "border border-current/30 hover:bg-white/40",
+  }[tone];
+  const cls = `inline-flex shrink-0 items-center justify-center rounded-full transition-colors ${toneCls} ${className}`;
+  const style = { width: size, height: size };
+  if (to)
+    return (
+      <Link to={to} aria-label={label} title={label} className={cls} style={style} {...props}>
+        <Icon name={icon} size={18} />
+      </Link>
+    );
+  return (
+    <button type="button" aria-label={label} title={label} className={cls} style={style} {...props}>
+      <Icon name={icon} size={18} />
+    </button>
+  );
+}
+
 // ---------- Small pieces ----------
 const tones = {
-  green: "bg-green-100 text-green-900",
-  amber: "bg-amber-100 text-amber-900",
-  red: "bg-red-100 text-red-800",
-  blue: "bg-sky-100 text-sky-900",
-  gray: "bg-sand text-ink-soft",
+  green: "bg-mint text-green-900",
+  amber: "bg-butter text-amber-950",
+  red: "bg-blush text-red-900",
+  blue: "bg-sky text-sky-950",
+  gray: "bg-sage text-ink-soft",
   violet: "bg-violet-100 text-violet-900",
 };
 
 export function Badge({ tone = "gray", children, className = "" }) {
   return (
-    <span className={`inline-flex items-center gap-1 rounded-sm px-2.5 py-0.5 text-[0.68rem] font-medium uppercase tracking-[0.1em] ${tones[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-xs font-medium ${tones[tone]} ${className}`}>
       {children}
     </span>
   );
@@ -104,7 +132,7 @@ export function Badge({ tone = "gray", children, className = "" }) {
 
 export function SkillChip({ children }) {
   return (
-    <span className="rounded-sm border border-line bg-transparent px-2.5 py-0.5 text-xs text-ink-soft">{children}</span>
+    <span className="rounded-full border border-line bg-white/60 px-3 py-0.5 text-xs text-ink-soft">{children}</span>
   );
 }
 
@@ -118,7 +146,7 @@ export function Avatar({ src, seed = 0, size = 48 }) {
       width={size}
       height={size}
       loading="lazy"
-      className="shrink-0 rounded-full bg-sand object-cover ring-1 ring-line"
+      className="shrink-0 rounded-full bg-sand object-cover ring-2 ring-white"
       style={{ width: size, height: size, objectPosition: "50% 18%" }}
     />
   );
@@ -144,7 +172,7 @@ export function Field({ label, hint, error, children, htmlFor }) {
 export function ErrorNote({ children }) {
   if (!children) return null;
   return (
-    <p role="alert" className="flex items-start gap-2 rounded-sm border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+    <p role="alert" className="flex items-start gap-2 rounded-2xl bg-blush px-4 py-3 text-sm text-red-950">
       <Icon name="alert" size={18} className="mt-0.5" />
       <span>{children}</span>
     </p>
@@ -153,43 +181,43 @@ export function ErrorNote({ children }) {
 
 export function EmptyState({ icon = "briefcase", image, title, children, action }) {
   return (
-    <div className="flex flex-col items-center rounded-sm border border-dashed border-[#c9c3b2] bg-transparent px-6 py-12 text-center">
+    <div className="flex flex-col items-center rounded-3xl bg-white px-6 py-12 text-center">
       {image ? (
         <img src={image} alt="" width="180" height="180" className="mb-2 h-36 w-auto" />
       ) : (
-        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-800">
+        <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-sage text-ink">
           <Icon name={icon} size={22} />
         </span>
       )}
-      <h3 className="font-serif text-2xl font-medium">{title}</h3>
+      <h3 className="text-xl font-semibold">{title}</h3>
       {children && <p className="mt-1 max-w-sm text-sm text-muted">{children}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
-export function PageHeader({ title, subtitle, action, image, eyebrow }) {
+export function PageHeader({ title, subtitle, action, image, eyebrow = "Overview" }) {
   return (
-    <div className="mb-10 mt-10 border-b border-line pb-10">
-      <div className="flex flex-wrap items-end justify-between gap-8">
-        <div className="min-w-0 flex-1 basis-80">
-          {eyebrow && <p className="eyebrow mb-4 text-green-700">{eyebrow}</p>}
-          <h1 className="text-5xl sm:text-6xl">{title}</h1>
-          {subtitle && <p className="mt-4 max-w-xl text-lg text-muted">{subtitle}</p>}
-          {action && <div className="mt-7">{action}</div>}
+    <div className="mb-8 mt-8 grid gap-4 md:grid-cols-[1fr_auto]">
+      <div className="tile flex flex-col justify-between bg-white sm:p-8">
+        <div>
+          <p className="stat-label">{eyebrow}</p>
+          <h1 className="mt-1 text-4xl font-semibold sm:text-5xl">{title}</h1>
+          {subtitle && <p className="mt-3 max-w-xl text-muted">{subtitle}</p>}
         </div>
-        {image && (
-          <div className="arch hidden h-44 w-36 shrink-0 items-end justify-center overflow-hidden bg-sand sm:flex lg:h-52 lg:w-44">
-            <img src={image} alt="" width="220" height="220" className="h-full w-full object-contain p-3 pt-8" />
-          </div>
-        )}
+        {action && <div className="mt-6">{action}</div>}
       </div>
+      {image && (
+        <div className="tile hidden w-64 items-center justify-center bg-sage md:flex lg:w-72">
+          <img src={image} alt="" width="220" height="220" className="h-44 w-full object-contain lg:h-48" />
+        </div>
+      )}
     </div>
   );
 }
 
 export function CardSkeleton({ className = "h-64" }) {
-  return <div className={`animate-pulse rounded-sm bg-sand ${className}`} aria-hidden="true" />;
+  return <div className={`animate-pulse rounded-3xl bg-white/60 ${className}`} aria-hidden="true" />;
 }
 
 // ---------- Layout primitives shared by every page ----------
@@ -197,7 +225,7 @@ export function CardSkeleton({ className = "h-64" }) {
 // Every illustration sits in the same tinted rounded panel so artwork from different packs reads as one set.
 export function IllustrationPanel({ src, alt = "", className = "", imgClass = "", children }) {
   return (
-    <div className={`relative flex items-center justify-center overflow-hidden rounded-sm bg-sand ${className}`}>
+    <div className={`relative flex items-center justify-center overflow-hidden rounded-3xl bg-white ${className}`}>
       {src && <img src={src} alt={alt} loading="lazy" className={`h-full w-full object-contain p-4 sm:p-6 ${imgClass}`} />}
       {children}
     </div>
@@ -208,18 +236,18 @@ export function IllustrationPanel({ src, alt = "", className = "", imgClass = ""
 export function SectionHeader({ eyebrow, title, subtitle, align = "center", id }) {
   return (
     <header className={`max-w-2xl ${align === "center" ? "mx-auto text-center" : "text-left"}`}>
-      {eyebrow && <p className="eyebrow text-green-700">{eyebrow}</p>}
-      <h2 id={id} className="mt-4 text-4xl sm:text-5xl lg:text-6xl">
+      {eyebrow && <p className="stat-label">{eyebrow}</p>}
+      <h2 id={id} className="mt-1 text-3xl font-semibold sm:text-4xl lg:text-[2.6rem] lg:leading-[1.1]">
         {title}
       </h2>
-      {subtitle && <p className="mt-5 text-lg text-muted">{subtitle}</p>}
+      {subtitle && <p className="mt-3 text-lg text-muted">{subtitle}</p>}
     </header>
   );
 }
 
 export function Section({ children, className = "", ...props }) {
   return (
-    <section className={`container-page pt-24 sm:pt-36 ${className}`} {...props}>
+    <section className={`container-page pt-20 sm:pt-28 ${className}`} {...props}>
       {children}
     </section>
   );

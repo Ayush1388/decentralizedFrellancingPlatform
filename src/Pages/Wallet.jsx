@@ -131,7 +131,7 @@ export default function Wallet() {
 
       {!isConnected ? (
         <div className="card flex flex-col items-center px-6 py-14 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-green-800">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-sage text-ink">
             <Icon name="wallet" size={26} />
           </span>
           <h2 className="mt-4 text-xl font-semibold">Connect your wallet</h2>
