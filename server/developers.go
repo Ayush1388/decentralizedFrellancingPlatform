@@ -115,6 +115,42 @@ func (s *Server) handleGetDeveloper(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, d)
 }
 
+// RecentReview is one public review with the job it was written about, for the home page.
+type RecentReview struct {
+	Rating   int    `json:"rating"`
+	Comment  string `json:"comment"`
+	Reviewer string `json:"reviewer"`
+	Role     string `json:"role"`
+	JobTitle string `json:"jobTitle"`
+	Demo     bool   `json:"demo"`
+}
+
+// handleRecentReviews lists the newest written reviews, both directions. Sample reviews from the demo data are flagged.
+func (s *Server) handleRecentReviews(w http.ResponseWriter, r *http.Request) {
+	rows, err := s.db.Query(`SELECT r.rating, r.comment, u.name, r.kind, j.title, u.is_demo FROM reviews r
+		JOIN users u ON u.id = r.reviewer_id AND u.deleted_at IS NULL AND u.banned_at IS NULL
+		JOIN jobs j ON j.id = r.job_id
+		WHERE length(trim(r.comment)) >= 20 ORDER BY r.id DESC LIMIT 6`)
+	if err != nil {
+		writeErr(w, 500, "could not load reviews")
+		return
+	}
+	defer rows.Close()
+	out := []RecentReview{}
+	for rows.Next() {
+		var v RecentReview
+		var kind string
+		if rows.Scan(&v.Rating, &v.Comment, &v.Reviewer, &kind, &v.JobTitle, &v.Demo) == nil {
+			v.Role = "Freelancer"
+			if kind == "client_to_freelancer" {
+				v.Role = "Client"
+			}
+			out = append(out, v)
+		}
+	}
+	writeJSON(w, 200, out)
+}
+
 // saveImage validates and stores an uploaded profile picture, returning its public path.
 // saveImage stores an uploaded profile photo and returns its URL, or "" if none was sent.
 func (s *Server) saveImage(r *http.Request, uid int64) (string, error) {

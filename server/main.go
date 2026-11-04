@@ -60,6 +60,7 @@ func (s *Server) routes() http.Handler {
 
 	// developers
 	mux.HandleFunc("GET /api/developers", s.handleListDevelopers)
+	mux.HandleFunc("GET /api/reviews/recent", s.handleRecentReviews)
 	mux.HandleFunc("GET /api/developers/{id}", s.handleGetDeveloper)
 	mux.HandleFunc("POST /api/developers", auth(s.handleCreateDeveloper))
 	mux.HandleFunc("PUT /api/developers/{id}", auth(s.handleUpdateDeveloper))

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import DeveloperCard from "../Components/DeveloperCard";
 import Testimonial from "../Components/Testimonial";
-import { testimonials } from "../data/testimonials";
 import { BillHeader, Bulbs, ComingSoon, HouseRules, Reel } from "../Components/cinema";
 import { reelDate } from "../lib/cinema";
 import { Button, CardSkeleton, EmptyState, Icon, Section } from "../Components/ui";
@@ -11,26 +10,23 @@ import { useAuth } from "../context/useAuth";
 
 const acts = [
   {
-    act: "Act I",
+    act: "Act I", numeral: "I",
     title: "The pitch",
     text: "Describe the project, pick the skills you need and split a USDC budget into milestones.",
-    img: "/Work time-cuate.svg",
     to: "/jobs/new",
     cta: "Post a job",
   },
   {
-    act: "Act II",
+    act: "Act II", numeral: "II",
     title: "The casting",
     text: "Developers apply. Compare profiles and rates, chat with them, then hire one.",
-    img: "/Hired-cuate.svg",
     to: "/developers",
     cta: "Meet the cast",
   },
   {
-    act: "Act III",
+    act: "Act III", numeral: "III",
     title: "The payoff",
     text: "Fund each milestone into escrow. It is released only when you approve the work.",
-    img: "/Freelancer-cuate.svg",
     to: "/wallet",
     cta: "Open box office",
   },
@@ -137,16 +133,23 @@ function FilmStrip({ devCount, jobCount }) {
 
 function Acts() {
   return (
-    <ol className="mt-8 grid gap-4 md:grid-cols-3">
-      {acts.map((a) => (
-        <li key={a.act} className="card flex flex-col p-5">
-          <p className="font-mono text-[0.8rem] text-gold">{a.act}</p>
-          <div className="mt-4 border-[3px] border-poster bg-gold p-1.5">
-            <img src={a.img} alt="" loading="lazy" className="aspect-[4/3] w-full bg-ticket object-contain p-3 sepia-[.35]" />
+    <ol className="mt-8 grid gap-6 md:grid-cols-3">
+      {acts.map((a, i) => (
+        <li key={a.act} className="flex flex-col border border-white/10 bg-surface p-4 sm:p-5">
+          {/* A tilted gold one-sheet, like the posters on the programme */}
+          <div
+            className="relative flex aspect-[4/3] w-full flex-col justify-between overflow-hidden border-[3px] border-poster bg-gold p-3 text-poster shadow-[0_18px_40px_-12px_rgb(0_0_0/0.8)]"
+            style={{ transform: `rotate(${i % 2 ? 1.5 : -1.5}deg)` }}
+            aria-hidden="true"
+          >
+            <p className="text-[0.5rem] font-semibold uppercase tracking-[0.14em]">The Blockchain Picture Company presents</p>
+            <p className="poster-title text-center text-[5.5rem] leading-none">{a.numeral}</p>
+            <p className="text-center font-serif text-sm italic">{a.title}</p>
           </div>
-          <h3 className="poster-title mt-5 text-4xl">{a.title}</h3>
+          <p className="mt-6 font-mono text-[0.8rem] text-gold">{a.act}</p>
+          <h3 className="poster-title mt-2 text-4xl">{a.title}</h3>
           <p className="mt-2 flex-1 text-ink-soft">{a.text}</p>
-          <Link to={a.to} className="eyebrow mt-5 inline-flex items-center gap-2 text-gold hover:underline">
+          <Link to={a.to} className="eyebrow mt-5 inline-flex min-h-11 items-center gap-2 self-start text-gold hover:underline">
             {a.cta} <Icon name="arrow" size={14} />
           </Link>
         </li>
@@ -159,12 +162,16 @@ export default function HomePage() {
   const { user, openLogin } = useAuth();
   const [developers, setDevelopers] = useState(null);
   const [jobs, setJobs] = useState(null);
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
     const ctl = new AbortController();
     api("/api/developers", { signal: ctl.signal })
       .then(setDevelopers)
       .catch((e) => e.name !== "AbortError" && setDevelopers([]));
+    api("/api/reviews/recent", { signal: ctl.signal })
+      .then(setReviews)
+      .catch(() => {});
     api("/api/jobs?status=open", { signal: ctl.signal })
       .then(setJobs)
       .catch((e) => e.name !== "AbortError" && setJobs([]));
@@ -240,15 +247,17 @@ export default function HomePage() {
         )}
       </Section>
 
-      {/* Reviews */}
-      <Section aria-labelledby="reviews-title">
-        <BillHeader id="reviews-title" title="The reviews" note="from people who sat through the whole picture" />
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
-          {testimonials.map((t, i) => (
-            <Testimonial key={t.name} seed={i} {...t} />
-          ))}
-        </div>
-      </Section>
+      {/* Reviews: only what people actually wrote on the platform. Nothing is shown until there are some. */}
+      {reviews.length > 0 && (
+        <Section aria-labelledby="reviews-title">
+          <BillHeader id="reviews-title" title="The reviews" note="written by people after a paid job" />
+          <div className={`mt-6 grid gap-4 ${reviews.length > 2 ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+            {reviews.slice(0, 3).map((r, i) => (
+              <Testimonial key={i} seed={i} name={r.reviewer} role={r.role} jobTitle={r.jobTitle} quote={r.comment} rating={r.rating} demo={r.demo} />
+            ))}
+          </div>
+        </Section>
+      )}
 
       <Section>
         <HouseRules />
