@@ -9,28 +9,41 @@ import (
 )
 
 type Developer struct {
-	ID         int64    `json:"id"`
-	UserID     int64    `json:"userId"`
-	Name       string   `json:"name"`
-	Title      string   `json:"title"`
-	Bio        string   `json:"bio"`
-	HourlyRate int      `json:"hourlyRate"`
-	JobsDone   int      `json:"jobsDone"`
-	Rating     float64  `json:"rating"`
-	Skills     []string `json:"skills"`
-	Image      *string  `json:"image"`
-	Demo       bool     `json:"demo"`
+	ID          int64       `json:"id"`
+	UserID      int64       `json:"userId"`
+	Name        string      `json:"name"`
+	Title       string      `json:"title"`
+	Bio         string      `json:"bio"`
+	HourlyRate  int         `json:"hourlyRate"`
+	JobsDone    int         `json:"jobsDone"`
+	Rating      float64     `json:"rating"`
+	Skills      []string    `json:"skills"`
+	Image       *string     `json:"image"`
+	Demo        bool        `json:"demo"`
+	RatingCount int         `json:"ratingCount"`
+	Reviews     []DevReview `json:"reviews,omitempty"`
+}
+
+// DevReview is a client's review of a freelancer, shown on their public profile.
+type DevReview struct {
+	Rating    int    `json:"rating"`
+	Comment   string `json:"comment"`
+	Reply     string `json:"reply"`
+	CreatedAt string `json:"createdAt"`
+	Reviewer  string `json:"reviewer"`
+	JobTitle  string `json:"jobTitle"`
 }
 
 const devCols = `id, user_id, name, title, bio, hourly_rate, jobs_done, rating, skills, image,
-	COALESCE((SELECT u.is_demo FROM users u WHERE u.id = developers.user_id), false)`
+	COALESCE((SELECT u.is_demo FROM users u WHERE u.id = developers.user_id), false),
+	(SELECT COUNT(*) FROM reviews r WHERE r.subject_id = developers.user_id AND r.kind = 'client_to_freelancer')`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanDeveloper(r rowScanner) (Developer, error) {
 	var d Developer
 	var skills string
-	err := r.Scan(&d.ID, &d.UserID, &d.Name, &d.Title, &d.Bio, &d.HourlyRate, &d.JobsDone, &d.Rating, &skills, &d.Image, &d.Demo)
+	err := r.Scan(&d.ID, &d.UserID, &d.Name, &d.Title, &d.Bio, &d.HourlyRate, &d.JobsDone, &d.Rating, &skills, &d.Image, &d.Demo, &d.RatingCount)
 	d.Skills = parseSkills(skills)
 	return d, err
 }
@@ -85,6 +98,19 @@ func (s *Server) handleGetDeveloper(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeErr(w, 500, "could not load developer")
 		return
+	}
+	// The public profile shows what clients said about the work, newest first.
+	rows, err := s.db.Query(`SELECT r.rating, r.comment, r.reply, r.created_at, u.name, j.title FROM reviews r
+		JOIN users u ON u.id = r.reviewer_id JOIN jobs j ON j.id = r.job_id
+		WHERE r.subject_id = ? AND r.kind = 'client_to_freelancer' ORDER BY r.id DESC LIMIT 50`, d.UserID)
+	if err == nil {
+		for rows.Next() {
+			var v DevReview
+			if rows.Scan(&v.Rating, &v.Comment, &v.Reply, &v.CreatedAt, &v.Reviewer, &v.JobTitle) == nil {
+				d.Reviews = append(d.Reviews, v)
+			}
+		}
+		rows.Close()
 	}
 	writeJSON(w, 200, d)
 }

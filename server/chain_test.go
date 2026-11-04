@@ -98,6 +98,11 @@ func TestParseLogsDecodesEscrowEvents(t *testing.T) {
 type fakeChain struct {
 	txs map[string][]ChainEvent
 	err map[string]error
+	ms  map[[2]int64]ChainMilestone // the "contract's" milestone records, for resync tests
+}
+
+func (f *fakeChain) Milestone(_ context.Context, escrowID int64, index int) (ChainMilestone, error) {
+	return f.ms[[2]int64{escrowID, int64(index)}], nil
 }
 
 func (f *fakeChain) Events(_ context.Context, tx string) ([]ChainEvent, error) {
@@ -364,4 +369,61 @@ func TestChainTransactionProblemsAreReported(t *testing.T) {
 
 	code, out = c.milestone(0, "fund", c.client, map[string]any{"txHash": "not-a-hash"})
 	c.mustOK(code, out, 400)
+}
+
+func TestSyncCatchesUpWithTheBlockchain(t *testing.T) {
+	c := newChainEnv(t)
+	c.openEscrow(7)
+	url := "https://github.com/acme/repo/pull/9"
+	hash := crypto.Keccak256Hash([]byte(url))
+	set := func(i int64, m ChainMilestone) {
+		if c.fake.ms == nil {
+			c.fake.ms = map[[2]int64]ChainMilestone{}
+		}
+		c.fake.ms[[2]int64{7, i}] = m
+	}
+	sync := func(token string, body map[string]any) (int, map[string]any) {
+		return c.call("POST", fmt.Sprintf("/api/jobs/%d/sync", c.jobID), token, body)
+	}
+
+	// Nothing differs: nothing changes, and strangers cannot trigger a sync.
+	code, out := sync(c.stranger, nil)
+	c.mustOK(code, out, 403)
+	code, out = sync(c.client, nil)
+	c.mustOK(code, out, 200)
+
+	// The wallet funded and the freelancer delivered, but the site heard about neither.
+	funded := time.Now().Add(-48 * time.Hour).UTC()
+	set(0, ChainMilestone{Status: 2, FundedAt: funded, SubmittedAt: funded.Add(time.Hour), Deliverable: [32]byte(hash)})
+	code, out = sync(c.client, nil)
+	out = c.mustOK(code, out, 200)
+	m := out["milestones"].([]any)[0].(map[string]any)
+	if m["status"] != "submitted" || m["deliverableMissing"] != true {
+		t.Fatalf("after sync: %v", m) // delivered on-chain, link unknown
+	}
+	// The freelancer supplies the link; it is accepted only if it hashes to the on-chain value.
+	code, out = sync(c.dev, map[string]any{"deliverables": map[string]string{fmt.Sprint(c.milestones[0]): "https://evil.example/other"}})
+	out = c.mustOK(code, out, 200)
+	if out["milestones"].([]any)[0].(map[string]any)["deliverableUrl"] != nil {
+		t.Fatal("a link that does not match the on-chain hash was accepted")
+	}
+	code, out = sync(c.dev, map[string]any{"deliverables": map[string]string{fmt.Sprint(c.milestones[0]): url}})
+	out = c.mustOK(code, out, 200)
+	m = out["milestones"].([]any)[0].(map[string]any)
+	if m["deliverableUrl"] != url || m["deliverableMissing"] != false {
+		t.Fatalf("link not recorded: %v", m)
+	}
+
+	// Released and resolved milestones take the on-chain split; the job completes when everything is settled.
+	set(0, ChainMilestone{Status: 3, FreelancerBps: 10000, Deliverable: [32]byte(hash)})
+	set(1, ChainMilestone{Status: 6, FreelancerBps: 6000})
+	code, out = sync(c.client, nil)
+	out = c.mustOK(code, out, 200)
+	ms := out["milestones"].([]any)
+	if ms[0].(map[string]any)["status"] != "released" || ms[1].(map[string]any)["status"] != "resolved" || ms[1].(map[string]any)["freelancerBps"] != float64(6000) {
+		t.Fatalf("settled milestones: %v", ms)
+	}
+	if out["status"] != "completed" {
+		t.Fatalf("job status = %v, want completed", out["status"])
+	}
 }

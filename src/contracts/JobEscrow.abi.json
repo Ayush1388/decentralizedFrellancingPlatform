@@ -518,6 +518,19 @@
   },
   {
     "inputs": [],
+    "name": "DISPUTE_TIMEOUT",
+    "outputs": [
+      {
+        "internalType": "uint32",
+        "name": "",
+        "type": "uint32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "MAX_FEE_BPS",
     "outputs": [
       {
@@ -785,6 +798,11 @@
             "type": "uint8"
           },
           {
+            "internalType": "uint16",
+            "name": "freelancerBps",
+            "type": "uint16"
+          },
+          {
             "internalType": "uint64",
             "name": "fundedAt",
             "type": "uint64"
@@ -792,6 +810,11 @@
           {
             "internalType": "uint64",
             "name": "submittedAt",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "disputedAt",
             "type": "uint64"
           },
           {
@@ -971,6 +994,24 @@
       }
     ],
     "name": "resolve",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "escrowId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "resolveStale",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

@@ -24,25 +24,26 @@ type Party struct {
 }
 
 type Milestone struct {
-	ID             int64   `json:"id"`
-	Position       int     `json:"position"`
-	Title          string  `json:"title"`
-	Amount         int64   `json:"amount"`
-	Status         string  `json:"status"`
-	DeliverableURL *string `json:"deliverableUrl"`
-	SubmissionNote string  `json:"submissionNote"`
-	Feedback       string  `json:"feedback"` // the client's last change request
-	DisputeReason  string  `json:"disputeReason"`
-	Revisions      int     `json:"revisions"`
-	FundTx         *string `json:"fundTx"`
-	ReleaseTx      *string `json:"releaseTx"`
-	FundedAt       *string `json:"fundedAt"`
-	SubmittedAt    *string `json:"submittedAt"`
-	FreelancerBps  *int    `json:"freelancerBps"`
-	ClaimableAt    *string `json:"claimableAt"`  // freelancer may claim after this if the client stays silent
-	RefundableAt   *string `json:"refundableAt"` // client may reclaim after this if nothing was submitted
-	DisputedAt     *string `json:"disputedAt"`
-	SettleAt       *string `json:"settleAt"` // either party may settle a stale dispute 50/50 from this time
+	ID                 int64   `json:"id"`
+	Position           int     `json:"position"`
+	Title              string  `json:"title"`
+	Amount             int64   `json:"amount"`
+	Status             string  `json:"status"`
+	DeliverableURL     *string `json:"deliverableUrl"`
+	SubmissionNote     string  `json:"submissionNote"`
+	Feedback           string  `json:"feedback"` // the client's last change request
+	DisputeReason      string  `json:"disputeReason"`
+	Revisions          int     `json:"revisions"`
+	FundTx             *string `json:"fundTx"`
+	ReleaseTx          *string `json:"releaseTx"`
+	FundedAt           *string `json:"fundedAt"`
+	SubmittedAt        *string `json:"submittedAt"`
+	FreelancerBps      *int    `json:"freelancerBps"`
+	ClaimableAt        *string `json:"claimableAt"`        // freelancer may claim after this if the client stays silent
+	RefundableAt       *string `json:"refundableAt"`       // client may reclaim after this if nothing was submitted
+	DeliverableMissing bool    `json:"deliverableMissing"` // delivered on-chain, but the link is not recorded on the site
+	DisputedAt         *string `json:"disputedAt"`
+	SettleAt           *string `json:"settleAt"` // either party may settle a stale dispute 50/50 from this time
 }
 
 type JobSummary struct {
@@ -225,6 +226,7 @@ func (s *Server) loadJobDetail(id, viewer int64) (JobDetail, error) {
 		if m.Status == "funded" && m.FundedAt != nil {
 			m.RefundableAt = addDays(*m.FundedAt, s.cfg.RefundAfterDays)
 		}
+		m.DeliverableMissing = m.Status == "submitted" && m.DeliverableURL == nil
 		if m.Status == "disputed" && m.DisputedAt != nil {
 			m.SettleAt = addDays(*m.DisputedAt, disputeDays)
 		}

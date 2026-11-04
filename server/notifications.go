@@ -99,15 +99,16 @@ func (s *Server) notifyOnce(kind string, ref, uid, jobID int64, subject, line st
 	}
 }
 
-// handleUnread is the small summary the navigation polls: unread notifications and messages, and per job / application.
-func (s *Server) handleUnread(w http.ResponseWriter, r *http.Request, uid int64) {
-	out := struct {
-		Notifications int           `json:"notifications"`
-		Messages      int           `json:"messages"`
-		Jobs          map[int64]int `json:"jobs"`
-		Apps          map[int64]int `json:"apps"`
-	}{Jobs: map[int64]int{}, Apps: map[int64]int{}}
+type unreadSummary struct {
+	Notifications int           `json:"notifications"`
+	Messages      int           `json:"messages"`
+	Jobs          map[int64]int `json:"jobs"`
+	Apps          map[int64]int `json:"apps"`
+}
 
+// unreadFor counts what the person has not read yet: notifications, and messages per job and per application thread.
+func (s *Server) unreadFor(uid int64) unreadSummary {
+	out := unreadSummary{Jobs: map[int64]int{}, Apps: map[int64]int{}}
 	s.db.QueryRow(`SELECT COUNT(*) FROM notifications WHERE user_id = ? AND read_at IS NULL`, uid).Scan(&out.Notifications)
 
 	rows, err := s.db.Query(`SELECT m.job_id, COUNT(*) FROM messages m JOIN jobs j ON j.id = m.job_id
@@ -139,7 +140,11 @@ func (s *Server) handleUnread(w http.ResponseWriter, r *http.Request, uid int64)
 		}
 		rows.Close()
 	}
-	writeJSON(w, 200, out)
+	return out
+}
+
+func (s *Server) handleUnread(w http.ResponseWriter, r *http.Request, uid int64) {
+	writeJSON(w, 200, s.unreadFor(uid))
 }
 
 // ---------- reminders ----------

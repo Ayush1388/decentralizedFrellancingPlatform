@@ -22,9 +22,7 @@ func (s *Server) routes() http.Handler {
 	mux := http.NewServeMux()
 	auth := s.requireAuth
 
-	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, 200, map[string]string{"status": "ok"})
-	})
+	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		cfg := map[string]any{
 			"feeBps": s.cfg.FeeBps, "claimAfterDays": s.cfg.ClaimAfterDays, "refundAfterDays": s.cfg.RefundAfterDays,
@@ -76,6 +74,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/jobs/{id}/hire", auth(s.handleHire))
 	mux.HandleFunc("POST /api/jobs/{id}/cancel", auth(s.handleCancelJob))
 	mux.HandleFunc("POST /api/jobs/{id}/escrow", auth(s.handleCreateEscrow))
+	mux.HandleFunc("POST /api/jobs/{id}/sync", auth(s.limitedAuth("sync", 30, time.Minute, s.handleSync)))
 	mux.HandleFunc("GET /api/jobs/{id}/messages", auth(s.handleListMessages))
 	mux.HandleFunc("POST /api/jobs/{id}/messages", auth(s.limitedAuth("message", 200, time.Hour, s.handlePostMessage)))
 	mux.HandleFunc("POST /api/jobs/{id}/attachments", auth(s.limitedAuth("upload", 40, time.Hour, s.handleJobAttachment)))
@@ -102,6 +101,13 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/jobs/{id}/save", auth(s.handleSaveJob))
 	mux.HandleFunc("DELETE /api/jobs/{id}/save", auth(s.handleUnsaveJob))
 	mux.HandleFunc("GET /api/admin/disputes", auth(s.handleAdminDisputes))
+	mux.HandleFunc("GET /api/dashboard", auth(s.handleDashboard))
+	mux.HandleFunc("POST /api/reports", auth(s.limitedAuth("report", 10, 24*time.Hour, s.handleReport)))
+	mux.HandleFunc("GET /api/admin/reports", auth(s.handleAdminReports))
+	mux.HandleFunc("POST /api/admin/reports/{id}/resolve", auth(s.handleResolveReport))
+	mux.HandleFunc("GET /api/admin/users", auth(s.handleAdminUsers))
+	mux.HandleFunc("POST /api/admin/users/{id}/ban", auth(s.handleBanUser))
+	mux.HandleFunc("POST /api/admin/jobs/{id}/remove", auth(s.handleAdminRemoveJob))
 	mux.HandleFunc("GET /api/files/{id}", s.handleGetFile)
 
 	return cors(s.cfg.FrontendURL, mux)
@@ -148,7 +154,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           s.routes(),
+		Handler:           s.logged(s.routes()),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,

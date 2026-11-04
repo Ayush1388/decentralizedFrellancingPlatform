@@ -44,6 +44,8 @@ type ChainEvent struct {
 // The real implementation reads a node; tests substitute a fake.
 type Verifier interface {
 	Events(ctx context.Context, txHash string) ([]ChainEvent, error)
+	// Milestone reads the contract's own record of one milestone, used to resync the site after a missed update.
+	Milestone(ctx context.Context, escrowID int64, index int) (ChainMilestone, error)
 }
 
 type Chain struct {

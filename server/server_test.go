@@ -239,3 +239,16 @@ func TestAuthBasics(t *testing.T) {
 	code, out = e.call("POST", "/api/jobs", "", map[string]any{})
 	e.mustOK(code, out, 401)
 }
+
+// callList is call for endpoints that answer with a JSON array.
+func (e *env_) callList(method, path, token string) (int, []map[string]any) {
+	req := httptest.NewRequest(method, path, nil)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := httptest.NewRecorder()
+	e.h.ServeHTTP(rec, req)
+	var out []map[string]any
+	json.Unmarshal(rec.Body.Bytes(), &out)
+	return rec.Code, out
+}
