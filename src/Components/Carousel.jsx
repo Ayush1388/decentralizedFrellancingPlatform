@@ -28,19 +28,30 @@ export function ViewToggle({ mode, onChange, label = "Layout" }) {
   );
 }
 
-// Slide widths for one, two or four cards in view. Several in view: two on phones, three on tablets.
+// Slide widths for one or two cards in a single row.
 const widths = {
   1: "w-[88%] snap-center sm:w-[640px] lg:w-[760px]",
   2: "w-[88%] snap-start sm:w-[640px] lg:w-[calc(50%-0.5rem)]",
-  4: "w-[calc(50%-0.5rem)] snap-start sm:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)]",
 };
 const slideIn = { type: "spring", stiffness: 380, damping: 32 };
 
-// Cards in a row you move through sideways: swipe on a phone, drag with a mouse, or use the arrows or the arrow keys.
+// Where card i sits in a two-row page. Phones: pages of two, one above the other. Wide screens: pages of four,
+// two columns wide, filled row by row, so newest-first reads left to right.
+const place = (i) => ({
+  "--c": Math.floor(i / 2) + 1,
+  "--r": (i % 2) + 1,
+  "--c-lg": Math.floor(i / 4) * 2 + (i % 2) + 1,
+  "--r-lg": Math.floor((i % 4) / 2) + 1,
+});
+
+// Cards you move through sideways: swipe on a phone, drag with a mouse, or use the arrows or the arrow keys.
+// With rows={2} the cards come in pages: four on wide screens (two across, two down, read row by row), two on
+// narrower ones (one above the other), and the arrows turn a whole page.
 // "lead" and "tools" put the page's own summary and controls on the same row as the arrows.
 // "resetKey" changes when a filter changes the set, so the row returns to its start.
-export default function Carousel({ children, label = "Cards", perView = 1, twoUp = false, lead, tools, resetKey }) {
-  const per = twoUp ? 2 : perView;
+export default function Carousel({ children, label = "Cards", perView = 1, twoUp = false, rows = 1, lead, tools, resetKey }) {
+  const grid = rows > 1;
+  const per = grid ? 2 : twoUp ? 2 : perView;
   const items = Children.toArray(children);
   const track = useRef(null);
   const drag = useRef(null);
@@ -74,11 +85,14 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
     const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
     setEdge((e) => (e.start === start && e.end === end ? e : { start, end }));
     const first = el.children[0];
-    const vis = first ? Math.max(1, Math.round(el.clientWidth / (first.offsetWidth + 16))) : 1;
+    const cols = first ? Math.max(1, Math.round(el.clientWidth / (first.offsetWidth + 16))) : 1;
+    const vis = cols * rows;
     setVisible(vis);
-    // At the far end the last cards count as the current ones, even when several are in view.
-    setIndex(end ? Math.max(0, el.children.length - vis) : nearest());
-  }, [nearest]);
+    // At the far end the last cards count as the current ones; in pages that is the start of the last page.
+    const total = el.children.length;
+    const lastStart = grid ? Math.max(0, Math.ceil(total / vis) - 1) * vis : Math.max(0, total - vis);
+    setIndex(end ? lastStart : nearest());
+  }, [nearest, rows, grid]);
 
   useEffect(() => {
     update();
@@ -162,7 +176,8 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
 
   if (items.length === 0) return null;
   const many = per > 1 && visible > 1 && items.length > 1;
-  const shown = many ? `${index + 1}–${Math.min(index + visible, items.length)} of ${items.length}` : `${index + 1} of ${items.length}`;
+  const last = Math.min(index + visible, items.length);
+  const shown = many && last > index + 1 ? `${index + 1}–${last} of ${items.length}` : `${index + 1} of ${items.length}`;
   const pages = per > 1 ? Math.ceil(items.length / visible) : items.length;
   const page = per > 1 ? Math.min(pages - 1, Math.ceil(index / visible)) : index;
   const counter = (
@@ -199,7 +214,8 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onPointerLeave={endDrag}
-        className="no-scrollbar relative flex cursor-grab snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth rounded-xl py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+        style={grid ? { "--cols": Math.ceil(items.length / 2), "--cols-lg": Math.ceil(items.length / 4) * 2 } : undefined}
+        className={`no-scrollbar relative cursor-grab snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth rounded-xl py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold ${grid ? "grid grid-rows-2 [grid-template-columns:repeat(var(--cols),100%)] lg:[grid-template-columns:repeat(var(--cols-lg),calc(50%-0.5rem))]" : "flex"}`}
       >
         <AnimatePresence initial={false} mode="popLayout">
           {items.map((child, i) => (
@@ -213,7 +229,8 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
               role="group"
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${items.length}`}
-              className={`flex shrink-0 [&>*]:min-w-0 [&>*]:flex-1 ${widths[per] || widths[1]}`}
+              style={grid ? place(i) : undefined}
+              className={`flex shrink-0 [&>*]:min-w-0 [&>*]:flex-1 ${grid ? "snap-start [grid-column:var(--c)] [grid-row:var(--r)] lg:[grid-column:var(--c-lg)] lg:[grid-row:var(--r-lg)]" : widths[per] || widths[1]}`}
             >
               {child}
             </m.div>

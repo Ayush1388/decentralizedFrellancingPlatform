@@ -85,24 +85,6 @@ export function Hang({ tilt = 2, className = "", children }) {
   );
 }
 
-// The wall a poster hangs on: a pool of light from above that warms when the poster is lifted.
-export function LitWall({ tilt, children }) {
-  return (
-    <div className="relative flex justify-center px-[15%] pb-3 pt-6">
-      <m.div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(62% 78% at 50% 0%, rgb(242 194 48 / 0.2), transparent 72%)" }}
-        variants={{ rest: { opacity: 0.55 }, lift: { opacity: 1 } }}
-        transition={{ duration: 0.35 }}
-      />
-      <Hang tilt={tilt} className="relative w-full max-w-[11rem]">
-        {children}
-      </Hang>
-    </div>
-  );
-}
-
 export function Spec({ label, children }) {
   return (
     <div className="min-w-0">
@@ -128,39 +110,6 @@ export function SaveButton({ jobId, className = "" }) {
     >
       <Icon name="bookmark" size={16} className={on ? "fill-current" : ""} />
     </button>
-  );
-}
-
-// A job on the lobby wall: a lit poster, then the few facts that decide a click. Four fit across a wide screen.
-export function PosterCard({ job, n = 1 }) {
-  const lift = useLift();
-  return (
-    <m.article {...lift} className="relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface transition-colors duration-300 hover:border-[#4a3d38]">
-      <LitWall tilt={n % 2 ? -3 : 3}>
-        <Poster genre={job.category} demo={job.demo} className="!max-w-none" />
-      </LitWall>
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
-        <p className="truncate text-xs text-muted sm:text-sm">
-          {job.client.name}, {timeAgo(job.createdAt)}
-        </p>
-        <h3 className="mt-1 line-clamp-2 font-semibold leading-snug text-ink sm:text-lg">
-          <Link to={`/jobs/${job.id}`} className="hover:text-gold">
-            {job.title}
-          </Link>
-        </h3>
-        <p className="mt-2 text-lg font-semibold tabular-nums">{usdc(job.total)}</p>
-        <p className="text-xs text-muted sm:text-sm">
-          {applicantsLabel(job)}
-          {job.closesAt && `, ${closesIn(job.closesAt).toLowerCase()}`}
-        </p>
-        <div className="mt-auto flex items-center gap-2 pt-4">
-          <Button to={`/jobs/${job.id}`} size="sm" className="!min-h-10 flex-1 !px-3">
-            View job
-          </Button>
-          <SaveButton jobId={job.id} />
-        </div>
-      </div>
-    </m.article>
   );
 }
 
@@ -243,29 +192,25 @@ export function Reel({ job, n = 1, stacked = false }) {
   );
 }
 
-// The last slot on the board: an invitation to post, hung on the same lit wall as the jobs.
+// The last slot on the board: an invitation to post.
 export function ComingSoon() {
   const lift = useLift();
   return (
-    <m.article {...lift} className="flex h-full flex-col overflow-hidden rounded-xl border border-dashed border-[#3d3332]">
-      <LitWall tilt={-3}>
+    <m.article {...lift} className="flex h-full flex-col items-start justify-center gap-4 rounded-xl border border-dashed border-[#3d3332] p-6">
+      <Hang tilt={-2}>
         <div
           aria-hidden="true"
-          className="poster-title flex aspect-[3/4] w-full items-center justify-center border-[3px] border-white/10 text-6xl text-white/30"
+          className="poster-title flex aspect-[3/4] w-20 items-center justify-center border border-white/10 text-4xl text-white/30"
           style={{ background: "repeating-linear-gradient(135deg, #201a19 0 8px, #191414 8px 16px)" }}
         >
           ?
         </div>
-      </LitWall>
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
-        <h3 className="font-semibold leading-snug text-ink sm:text-lg">Your job could be next</h3>
-        <p className="mt-1 text-sm text-ink-soft">Split the budget into milestones. The money waits in escrow until you approve each one.</p>
-        <div className="mt-auto pt-4">
-          <Button to="/jobs/new" variant="secondary" size="sm" className="!min-h-10 w-full">
-            Post a job
-          </Button>
-        </div>
-      </div>
+      </Hang>
+      <h3 className="text-xl font-semibold text-ink">Your job could be next</h3>
+      <p className="max-w-sm text-ink-soft">Split the budget into milestones. The money waits in escrow until you approve each one.</p>
+      <Button to="/jobs/new" variant="secondary" size="sm" className="!min-h-10 !px-4">
+        Post a job
+      </Button>
     </m.article>
   );
 }

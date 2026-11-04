@@ -3,7 +3,7 @@ import { m } from "motion/react";
 import { imageUrl } from "../lib/api";
 import { useLift } from "../lib/useLift";
 import { Button, Icon, SkillChip } from "./ui";
-import { DemoStamp, Hang, LitWall, Spec } from "./cinema";
+import { DemoStamp, Hang, Spec } from "./cinema";
 
 // A headshot printed on ticket stock, with the hourly rate set in poster type along the foot.
 // Its type is sized from its own width, so the rate prints the same in a big profile and a small card.
@@ -23,49 +23,6 @@ export function Headshot({ dev, tilt = 0, className = "" }) {
   );
 }
 
-// A developer on the lobby wall: the lit headshot, then name, speciality, rating and experience. Four fit across.
-export function CastCard({ dev, n = 1, isMine, onEdit }) {
-  const lift = useLift();
-  return (
-    <m.article {...lift} className="relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface transition-colors duration-300 hover:border-[#4a3d38]">
-      <LitWall tilt={n % 2 ? -3 : 3}>
-        <Headshot dev={dev} className="!max-w-none sm:!w-full" />
-      </LitWall>
-      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
-        <h3 className="truncate font-semibold text-ink sm:text-lg">
-          <Link to={`/developers/${dev.id}`} className="hover:text-gold">
-            {dev.name}
-          </Link>
-        </h3>
-        <p className="line-clamp-1 text-sm text-ink-soft">{dev.title}</p>
-        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          {dev.rating > 0 ? (
-            <span className="inline-flex items-center gap-1 font-medium tabular-nums">
-              <Icon name="star" size={14} className="fill-gold text-gold" />
-              {dev.rating.toFixed(1)}
-              {dev.ratingCount > 0 && <span className="font-normal text-muted">({dev.ratingCount})</span>}
-            </span>
-          ) : (
-            <span className="text-muted">No reviews yet</span>
-          )}
-          <span className="tabular-nums text-muted">{dev.jobsDone ? `${dev.jobsDone} jobs done` : "New here"}</span>
-        </p>
-        <div className="mt-auto pt-4">
-          {isMine ? (
-            <Button variant="secondary" size="sm" className="!min-h-10 w-full" onClick={() => onEdit?.(dev)}>
-              Edit my profile
-            </Button>
-          ) : (
-            <Button to={`/developers/${dev.id}`} size="sm" className="!min-h-10 w-full">
-              View profile
-            </Button>
-          )}
-        </div>
-      </div>
-    </m.article>
-  );
-}
-
 export default function DeveloperCard({ dev, onEdit, isMine, n }) {
   const lift = useLift();
   if (!dev) return null;
@@ -74,13 +31,13 @@ export default function DeveloperCard({ dev, onEdit, isMine, n }) {
   const tilt = (n ?? dev.id) % 2 ? -2 : 2;
 
   return (
-    <m.article {...lift} className="relative flex h-full flex-col gap-6 rounded-xl border border-line bg-surface p-5 sm:flex-row sm:p-6">
-      <Hang tilt={tilt} className="w-full max-w-[11rem] self-start sm:w-40">
+    <m.article {...lift} className="relative flex h-full gap-4 rounded-xl border border-line bg-surface p-4 sm:gap-6 sm:p-6">
+      <Hang tilt={tilt} className="w-24 shrink-0 self-start sm:w-40">
         <Headshot dev={dev} className="!max-w-none sm:!w-full" />
       </Hang>
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div>
-          <h3 className="text-2xl font-semibold leading-snug text-ink">
+          <h3 className="text-xl font-semibold leading-snug text-ink sm:text-2xl">
             <Link to={`/developers/${dev.id}`} className="hover:text-gold">
               {dev.name}
             </Link>

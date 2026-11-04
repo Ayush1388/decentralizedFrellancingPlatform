@@ -4,13 +4,13 @@ import { m } from "motion/react";
 import { api } from "../lib/api";
 import { castDefaults, chipOptions, filterCast } from "../lib/cast";
 import { useLift } from "../lib/useLift";
-import { CastCard } from "../Components/DeveloperCard";
+import DeveloperCard from "../Components/DeveloperCard";
 import Carousel from "../Components/Carousel";
 import CastFilters from "../Components/CastFilters";
 import FilterChips from "../Components/FilterChips";
 import Hero from "../Components/Hero";
 import Testimonial from "../Components/Testimonial";
-import { BillHeader, ComingSoon, Hang, HouseRules, PosterCard } from "../Components/cinema";
+import { BillHeader, ComingSoon, Hang, HouseRules, Reel } from "../Components/cinema";
 import { Button, CardSkeleton, EmptyState, Icon, Section } from "../Components/ui";
 import { useAuth } from "../context/useAuth";
 
@@ -78,9 +78,9 @@ function SeeAll({ to, children }) {
 
 function RowSkeleton() {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+    <div className="grid gap-4 lg:grid-cols-2">
       {Array.from({ length: 4 }).map((_, i) => (
-        <CardSkeleton key={i} className={`h-[26rem] ${i > 1 ? "hidden sm:block" : ""} ${i > 2 ? "sm:hidden lg:block" : ""}`} />
+        <CardSkeleton key={i} className={`h-80 ${i > 1 ? "hidden lg:block" : ""}`} />
       ))}
     </div>
   );
@@ -123,8 +123,8 @@ export default function HomePage() {
         <div className="mt-5">
           {jobs === null && <RowSkeleton />}
           {jobs && (
-            <Carousel label="Open jobs" perView={4} resetKey={kind}>
-              {[...shownJobs.slice(0, 12).map((j, i) => <PosterCard key={j.id} job={j} n={i + 1} />), <ComingSoon key="soon" />]}
+            <Carousel label="Open jobs" rows={2} resetKey={kind}>
+              {[...shownJobs.slice(0, 12).map((j, i) => <Reel key={j.id} job={j} n={i + 1} stacked />), <ComingSoon key="soon" />]}
             </Carousel>
           )}
         </div>
@@ -154,9 +154,9 @@ export default function HomePage() {
         <div className="mt-5">
           {developers === null && <RowSkeleton />}
           {shownCast.length > 0 && (
-            <Carousel label="Developers" perView={4} resetKey={JSON.stringify(cast)}>
+            <Carousel label="Developers" rows={2} resetKey={JSON.stringify(cast)}>
               {shownCast.slice(0, 12).map((d, i) => (
-                <CastCard key={d.id} dev={d} n={i + 1} isMine={user?.id === d.userId} />
+                <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={user?.id === d.userId} />
               ))}
             </Carousel>
           )}

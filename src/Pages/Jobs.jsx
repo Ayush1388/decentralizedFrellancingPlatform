@@ -5,7 +5,7 @@ import { jobStatus } from "../lib/jobStatus";
 import { useAuth } from "../context/useAuth";
 import { timeAgo, usdc } from "../lib/format";
 import { useSiteConfig } from "../lib/siteConfig";
-import { PosterCard, Reel } from "../Components/cinema";
+import { Reel } from "../Components/cinema";
 import FilterChips from "../Components/FilterChips";
 import Carousel, { ViewToggle } from "../Components/Carousel";
 import { useViewMode } from "../lib/useViewMode";
@@ -256,9 +256,9 @@ export default function Jobs() {
 
       {tab !== "mine" && view === "swipe" && jobs?.length > 0 ? (
         <div role="tabpanel">
-          <Carousel label="Jobs" perView={4} lead={summary} tools={toggle} resetKey={query}>
+          <Carousel label="Jobs" rows={2} lead={summary} tools={toggle} resetKey={query}>
             {jobs.map((j, i) => (
-              <PosterCard key={j.id} job={j} n={(page - 1) * PAGE + i + 1} />
+              <Reel key={j.id} job={j} n={(page - 1) * PAGE + i + 1} stacked />
             ))}
           </Carousel>
         </div>

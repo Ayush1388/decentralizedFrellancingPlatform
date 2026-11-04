@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/useAuth";
 import { castDefaults, filterCast } from "../lib/cast";
-import DeveloperCard, { CastCard } from "../Components/DeveloperCard";
+import DeveloperCard from "../Components/DeveloperCard";
 import CastFilters from "../Components/CastFilters";
 import Carousel, { ViewToggle } from "../Components/Carousel";
 import { useViewMode } from "../lib/useViewMode";
@@ -188,9 +188,9 @@ export default function Developers() {
       )}
 
       {view === "swipe" && shown?.length > 0 ? (
-        <Carousel label="Developers" perView={4} lead={summary} tools={toggle} resetKey={JSON.stringify(cast) + debounced}>
+        <Carousel label="Developers" rows={2} lead={summary} tools={toggle} resetKey={JSON.stringify(cast) + debounced}>
           {shown.map((d, i) => (
-            <CastCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />
+            <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />
           ))}
         </Carousel>
       ) : (
