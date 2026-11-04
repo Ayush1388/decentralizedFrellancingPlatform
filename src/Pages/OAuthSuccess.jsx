@@ -7,6 +7,7 @@ export default function OAuthSuccess() {
   const navigate = useNavigate();
   const { signInWithToken } = useAuth();
   const [failed, setFailed] = useState(false);
+  const suspended = new URLSearchParams(window.location.search).get("error") === "suspended";
 
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
@@ -21,7 +22,7 @@ export default function OAuthSuccess() {
     <div className="container-page flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
       {failed ? (
         <>
-          <ErrorNote>Google sign-in did not complete. Please try again.</ErrorNote>
+          <ErrorNote>{suspended ? "This account has been suspended or deleted." : "Google sign-in did not complete. Please try again."}</ErrorNote>
           <Button to="/">Back to home</Button>
         </>
       ) : (

@@ -182,6 +182,13 @@ export default function LoginPopup() {
                   <Icon name="globe" size={18} /> Continue with Google
                 </Button>
               )}
+              {googleEnabled && (
+                <p className="text-center text-xs text-muted">
+                  By continuing with Google you agree to the{" "}
+                  <Link to="/terms" className="text-gold underline-offset-2 hover:underline" onClick={closeLogin}>terms</Link> and{" "}
+                  <Link to="/privacy" className="text-gold underline-offset-2 hover:underline" onClick={closeLogin}>privacy policy</Link>.
+                </p>
+              )}
             </div>
           </>
         )}

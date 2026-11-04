@@ -285,11 +285,17 @@ func (s *Server) handleGoogleCallback(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			_, err = s.db.Exec(`UPDATE users SET google_id = ? WHERE id = ?`, info.ID, uid)
 		} else if errors.Is(err, sql.ErrNoRows) {
-			uid, err = insertID(s.db, `INSERT INTO users (name, email, google_id) VALUES (?, ?, ?)`, info.Name, email, info.ID)
+			uid, err = insertID(s.db, `INSERT INTO users (name, email, google_id, terms_accepted_at) VALUES (?, ?, ?, now())`, info.Name, email, info.ID)
 		}
 	}
 	if err != nil {
 		fail()
+		return
+	}
+	var banned, gone bool
+	s.db.QueryRow(`SELECT banned_at IS NOT NULL, deleted_at IS NOT NULL FROM users WHERE id = ?`, uid).Scan(&banned, &gone)
+	if banned || gone {
+		http.Redirect(w, r, s.cfg.FrontendURL+"/oauth-success?error=suspended", http.StatusFound)
 		return
 	}
 	t, err := s.issueToken(uid)
