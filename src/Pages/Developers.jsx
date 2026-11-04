@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/useAuth";
 import DeveloperCard from "../Components/DeveloperCard";
+import Carousel, { ViewToggle } from "../Components/Carousel";
+import { useViewMode } from "../lib/useViewMode";
 import { Button, CardSkeleton, EmptyState, ErrorNote, Field, Icon, PageHeader } from "../Components/ui";
 
 const emptyForm = { name: "", title: "", hourlyRate: "", bio: "", skills: "" };
@@ -80,6 +82,7 @@ function ProfileForm({ initial, editing, onSaved, onCancel }) {
 
 export default function Developers() {
   const { user, openLogin } = useAuth();
+  const [view, setView] = useViewMode("developers");
   const [devs, setDevs] = useState(null);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
@@ -161,10 +164,24 @@ export default function Developers() {
 
       <ErrorNote>{error}</ErrorNote>
 
-      <div className="grid gap-5 xl:grid-cols-2" aria-busy={devs === null}>
-        {devs === null && !error && Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
-        {devs?.map((d, i) => <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />)}
-      </div>
+      {devs?.length > 0 && (
+        <div className="mb-4 flex justify-end">
+          <ViewToggle mode={view} onChange={setView} label="How to browse developers" />
+        </div>
+      )}
+
+      {view === "swipe" && devs?.length > 0 ? (
+        <Carousel label="Developers">
+          {devs.map((d, i) => (
+            <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />
+          ))}
+        </Carousel>
+      ) : (
+        <div className="grid gap-5 xl:grid-cols-2" aria-busy={devs === null}>
+          {devs === null && !error && Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
+          {devs?.map((d, i) => <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />)}
+        </div>
+      )}
 
       {devs?.length === 0 && (
         <EmptyState image="/Working remotely-rafiki.svg" title={debounced ? "No developers match your search" : "No developers yet"}>

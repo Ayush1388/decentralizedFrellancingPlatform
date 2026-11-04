@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import DeveloperCard from "../Components/DeveloperCard";
+import Carousel from "../Components/Carousel";
 import Testimonial from "../Components/Testimonial";
 import { BillHeader, Bulbs, ComingSoon, HouseRules, Reel } from "../Components/cinema";
 import { reelDate } from "../lib/cinema";
@@ -221,9 +222,15 @@ export default function HomePage() {
       {/* The cast */}
       <Section aria-labelledby="cast-title">
         <BillHeader id="cast-title" title="The cast" note="developers available for hire" />
-        <div className="mt-6 grid gap-4 xl:grid-cols-2">
-          {developers === null && Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-72" />)}
-          {developers?.slice(0, 6).map((d, i) => <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={user?.id === d.userId} />)}
+        <div className="mt-6">
+          {developers === null && <CardSkeleton className="h-72" />}
+          {developers?.length > 0 && (
+            <Carousel label="Developers">
+              {developers.slice(0, 6).map((d, i) => (
+                <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={user?.id === d.userId} />
+              ))}
+            </Carousel>
+          )}
         </div>
         {developers?.length === 0 && (
           <EmptyState

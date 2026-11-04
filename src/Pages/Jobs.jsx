@@ -6,6 +6,8 @@ import { useAuth } from "../context/useAuth";
 import { timeAgo, usdc } from "../lib/format";
 import { useSiteConfig } from "../lib/siteConfig";
 import { Reel } from "../Components/cinema";
+import Carousel, { ViewToggle } from "../Components/Carousel";
+import { useViewMode } from "../lib/useViewMode";
 import { Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, PageHeader, SkillChip } from "../Components/ui";
 
 const PAGE = 10;
@@ -147,6 +149,7 @@ export default function Jobs() {
   const { user, openLogin } = useAuth();
   const [params, setParams] = useSearchParams();
   const tab = params.get("tab") || "open";
+  const [view, setView] = useViewMode("jobs");
   const page = Math.max(1, Number(params.get("page")) || 1);
   const [jobs, setJobs] = useState(null);
   const [total, setTotal] = useState(0);
@@ -240,10 +243,26 @@ export default function Jobs() {
       <ErrorNote>{error}</ErrorNote>
       {tab === "open" && jobs && <p className="mb-3 font-mono text-xs text-muted" aria-live="polite">{total} job{total === 1 ? "" : "s"}{activeCount ? " match your filters" : " open for applications"}</p>}
 
-      <div className="space-y-4" role="tabpanel" aria-busy={jobs === null}>
-        {jobs === null && !error && Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-40" />)}
-        {jobs?.map((j, i) => (tab === "mine" ? <JobCard key={j.id} job={j} /> : <Reel key={j.id} job={j} n={(page - 1) * PAGE + i + 1} />))}
-      </div>
+      {tab !== "mine" && jobs?.length > 0 && (
+        <div className="mb-4 flex justify-end">
+          <ViewToggle mode={view} onChange={setView} label="How to browse jobs" />
+        </div>
+      )}
+
+      {tab !== "mine" && view === "swipe" && jobs?.length > 0 ? (
+        <div role="tabpanel">
+          <Carousel label="Jobs">
+            {jobs.map((j, i) => (
+              <Reel key={j.id} job={j} n={(page - 1) * PAGE + i + 1} />
+            ))}
+          </Carousel>
+        </div>
+      ) : (
+        <div className="space-y-4" role="tabpanel" aria-busy={jobs === null}>
+          {jobs === null && !error && Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-40" />)}
+          {jobs?.map((j, i) => (tab === "mine" ? <JobCard key={j.id} job={j} /> : <Reel key={j.id} job={j} n={(page - 1) * PAGE + i + 1} />))}
+        </div>
+      )}
 
       {tab === "open" && jobs && total > PAGE && (
         <nav aria-label="Pages" className="mt-8 flex items-center justify-center gap-3">
