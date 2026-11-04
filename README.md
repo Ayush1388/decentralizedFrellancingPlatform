@@ -10,7 +10,7 @@ the freelancer delivers, and the client approves it to release payment.
   Jobs and developers stamped **DEMO** are sample data.
 - The live site runs in preview mode: milestones are tracked by the API and no real USDC moves.
   The escrow contract is deployed on Sepolia at
-  [`0x09d05FBebb755a9fB392E082D1B6f16132110167`](https://sepolia.etherscan.io/address/0x09d05FBebb755a9fB392E082D1B6f16132110167)
+  [`0x80Ae7dBD4F4C8a8d675aaE6e176957D796605B6B`](https://sepolia.etherscan.io/address/0x80Ae7dBD4F4C8a8d675aaE6e176957D796605B6B)
   (Circle's test USDC). See [Sepolia testnet](#sepolia-testnet) to connect an API to it, and the [roadmap](#roadmap) for what is next.
 
 ![Home: the ticket hero and film strip](docs/screenshots/home.jpg)
