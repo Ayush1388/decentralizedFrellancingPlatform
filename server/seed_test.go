@@ -26,6 +26,16 @@ func TestSeedDemo(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Open demo postings whose deadline is near get a fresh one; real users' postings are left alone.
+	e.srv.db.Exec(`UPDATE jobs SET closes_at = now() - interval '1 day' WHERE status = 'open'`)
+	keepDemoPostingsOpen(e.srv.db)
+	var demoOpen, realOpen int
+	e.srv.db.QueryRow(`SELECT COUNT(*) FROM jobs j JOIN users u ON u.id = j.client_id WHERE u.is_demo AND j.status = 'open' AND j.closes_at > now()`).Scan(&demoOpen)
+	e.srv.db.QueryRow(`SELECT COUNT(*) FROM jobs j JOIN users u ON u.id = j.client_id WHERE NOT u.is_demo AND j.status = 'open' AND j.closes_at > now()`).Scan(&realOpen)
+	if demoOpen != 4 || realOpen != 0 {
+		t.Fatalf("after refresh: %d demo postings open (want 4), %d real ones (want 0)", demoOpen, realOpen)
+	}
+
 	var devs, jobs int
 	e.srv.db.QueryRow(`SELECT COUNT(*) FROM developers`).Scan(&devs)
 	e.srv.db.QueryRow(`SELECT COUNT(*) FROM jobs`).Scan(&jobs)

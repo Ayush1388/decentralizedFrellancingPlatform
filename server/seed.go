@@ -149,11 +149,20 @@ var demoJobs = []demoJob{
 	},
 }
 
+// keepDemoPostingsOpen pushes the closing date of open demo postings out again once it gets close,
+// so the sample job board never empties while the demo is being shown.
+func keepDemoPostingsOpen(db *DB) {
+	db.Exec(`UPDATE jobs SET closes_at = now() + interval '10 days'
+		WHERE status = 'open' AND client_id IN (SELECT id FROM users WHERE is_demo)
+		AND (closes_at IS NULL OR closes_at < now() + interval '5 days')`)
+}
+
 func seedDemo(db *DB) error {
 	db.Exec(`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`)
 	var version string
 	db.QueryRow(`SELECT value FROM meta WHERE key = 'demo_version'`).Scan(&version)
 	if version == demoVersion {
+		keepDemoPostingsOpen(db)
 		return nil
 	}
 

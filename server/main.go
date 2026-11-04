@@ -91,6 +91,11 @@ func main() {
 		if err := seedDemo(db); err != nil {
 			log.Printf("demo seed: %v", err)
 		}
+		go func() { // a server that stays up for weeks must keep the sample postings open too
+			for range time.Tick(6 * time.Hour) {
+				keepDemoPostingsOpen(db)
+			}
+		}()
 	}
 
 	s := &Server{cfg: cfg, db: db, mailer: newMailer(cfg)}
