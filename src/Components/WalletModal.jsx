@@ -17,16 +17,7 @@ export default function WalletModal() {
   const ref = useRef(null);
   const { connectors, connectAsync, isPending, variables } = useConnect();
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    const d = ref.current;
-    if (!d) return;
-    if (open && !d.open) {
-      setError("");
-      d.showModal();
-    }
-    if (!open && d.open) d.close();
-  }, [open]);
+  const tried = useRef(false);
 
   const w = typeof window !== "undefined" ? window : {};
   // Wallets that announced themselves (EIP-6963) carry their own name and icon.
@@ -42,6 +33,8 @@ export default function WalletModal() {
     .filter((c) => (c.id === "phantom" ? phantomOnly : c.id === "injected" ? plainInjected : true))
     .sort((a, b) => Number(installed(b)) - Number(installed(a)));
   const hasBrowserWallet = announced.length > 0 || phantomOnly || plainInjected;
+  const browserWallets = list.filter(installed);
+  const others = list.filter((c) => !installed(c));
   const missing = popular.filter((p) => !has(p.match) && !(p.match === "phantom" && phantomOnly) && !(p.match === "metamask" && w.ethereum?.isMetaMask));
 
   async function pick(connector) {
@@ -54,6 +47,25 @@ export default function WalletModal() {
       setError(rejected ? "The connection was cancelled in your wallet." : err.shortMessage || err.message);
     }
   }
+
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) {
+      setError("");
+      d.showModal();
+      // One wallet in this browser: open it straight away, the way a single extension expects. The list stays
+      // underneath in case the person cancels or wants another way to connect.
+      if (browserWallets.length === 1 && !tried.current) {
+        tried.current = true;
+        pick(browserWallets[0]);
+      }
+    }
+    if (!open && d.open) d.close();
+    if (!open) tried.current = false;
+    // pick and the wallet list are read at the moment the picker opens
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const hint = (c) =>
     c.id === "coinbaseWalletSDK"
@@ -83,21 +95,46 @@ export default function WalletModal() {
         </h2>
         <p className="mt-2 text-sm text-muted">Pick the wallet you use. Connecting never moves money: you approve every transaction yourself.</p>
 
-        <ul className="mt-5 space-y-2">
-          {list.map((c) => (
+        {browserWallets.length > 0 && (
+          <>
+            <p className="mt-5 text-sm font-medium text-ink-soft">Installed in this browser</p>
+            <ul className="mt-2 space-y-2">
+              {browserWallets.map((c) => (
+                  <li key={c.uid}>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => pick(c)}
+                      className={`flex min-h-14 w-full items-center gap-3 rounded-lg border px-4 text-left transition-colors hover:border-gold disabled:opacity-60 ${isPending && variables?.connector?.uid === c.uid ? "border-gold bg-gold/[0.06]" : "border-[#3d3332]"}`}
+                    >
+                      {c.icon ? <img src={c.icon} alt="" width="28" height="28" className="h-7 w-7 rounded-[4px]" /> : <Icon name="wallet" size={24} className="text-gold" />}
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">{c.name}</span>
+                        <span className="block text-xs text-muted">{hint(c)}</span>
+                      </span>
+                      {isPending && variables?.connector?.uid === c.uid && <span className="text-xs text-gold">Approve in {c.name}…</span>}
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </>
+        )}
+        <p className="mt-5 text-sm font-medium text-ink-soft">{browserWallets.length > 0 ? "Other ways to connect" : "Ways to connect"}</p>
+        <ul className="mt-2 space-y-2">
+          {others.map((c) => (
             <li key={c.uid}>
               <button
                 type="button"
                 disabled={isPending}
                 onClick={() => pick(c)}
-                className="flex min-h-14 w-full items-center gap-3 rounded-lg border border-[#3d3332] px-4 text-left transition-colors hover:border-gold disabled:opacity-60"
+                className={`flex min-h-14 w-full items-center gap-3 rounded-lg border px-4 text-left transition-colors hover:border-gold disabled:opacity-60 ${isPending && variables?.connector?.uid === c.uid ? "border-gold bg-gold/[0.06]" : "border-[#3d3332]"}`}
               >
                 {c.icon ? <img src={c.icon} alt="" width="28" height="28" className="h-7 w-7 rounded-[4px]" /> : <Icon name="wallet" size={24} className="text-gold" />}
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{c.name}</span>
                   <span className="block text-xs text-muted">{hint(c)}</span>
                 </span>
-                {isPending && variables?.connector?.uid === c.uid && <span className="text-xs text-gold">Check your wallet…</span>}
+                {isPending && variables?.connector?.uid === c.uid && <span className="text-xs text-gold">Approve in {c.name}…</span>}
               </button>
             </li>
           ))}
