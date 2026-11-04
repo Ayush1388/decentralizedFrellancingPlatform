@@ -11,6 +11,9 @@
 @theme {
   --font-sans: "Jost", ui-sans-serif, system-ui, sans-serif;
   --font-poster: "Anton", Impact, "Arial Narrow", sans-serif;
+  /* The closing credits in the footer only: a serif tagline and typewriter lines. */
+  --font-serif: "Bodoni Moda", Didot, Georgia, serif;
+  --font-typewriter: "Courier Prime", "Courier New", ui-monospace, monospace;
   /* Only for wallet addresses and hashes, where every character must be unambiguous. */
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
@@ -238,28 +241,17 @@
   100% { transform: translate(0, 0); }
 }
 
-/* The marquee: dim warm bulbs with a light running along them, every sixth bulb lit at a time. */
+/* The marquee: a steady row of warm lamps that fades in once. */
 @keyframes marquee-on {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 .marquee {
-  animation: marquee-on 600ms ease-out both;
-}
-@keyframes chase {
-  0%, 16% {
-    background: #fff4cf;
-    box-shadow: 0 0 10px 3px rgb(255 205 90 / 0.8);
-  }
-  30%, 100% {
-    background: #8a6a2a;
-    box-shadow: 0 0 4px 0 rgb(255 205 90 / 0.25);
-  }
+  animation: marquee-on 900ms ease-out both;
 }
 .bulb {
-  background: #8a6a2a;
-  animation: chase 1.08s linear infinite;
-  animation-delay: calc(var(--i) * 0.18s - 1.08s);
+  background: #f6dfa2;
+  box-shadow: 0 0 6px 1px rgb(255 205 90 / 0.4);
 }
 
 /* The projector: a soft beam from the booth with dust turning in it. */
@@ -291,11 +283,6 @@
   }
   .mote {
     opacity: 0;
-  }
-  .bulb {
-    animation: none !important;
-    background: #fff4cf;
-    box-shadow: 0 0 8px 2px rgb(255 205 90 / 0.55);
   }
 }
 

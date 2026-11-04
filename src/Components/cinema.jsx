@@ -8,12 +8,12 @@ import { Badge, Button, Icon, SkillChip } from "./ui";
 
 // The printed side of the Picture House: marquee bulbs, one-sheet posters, the rubber stamp.
 
-// Marquee bulbs running a chase, the way a cinema front announces the show.
+// A row of steady marquee lamps over the ticket, the way a cinema front is lit.
 export function Bulbs({ count = 42, className = "" }) {
   return (
     <div aria-hidden="true" className={`marquee flex justify-between ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
-        <span key={i} className="bulb h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2" style={{ "--i": i % 6 }} />
+        <span key={i} className="bulb h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2" />
       ))}
     </div>
   );

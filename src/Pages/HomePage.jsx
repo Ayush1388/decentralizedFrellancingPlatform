@@ -40,30 +40,93 @@ const acts = [
   },
 ];
 
-// One step: its numeral on a small gold card that straightens when the step is pointed at.
-function Act({ a, i }) {
+// A small picture of each step as it looks on the site, so the cards show the thing instead of only describing it.
+const row = "flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2";
+const previews = [
+  <div key="post" className="space-y-1.5 text-sm">
+    <p className="text-xs text-muted">New job</p>
+    <p className="font-semibold">Token vesting dashboard</p>
+    {[
+      ["Design system", "$400"],
+      ["Wallet integration", "$900"],
+      ["Launch and handover", "$500"],
+    ].map(([t, v]) => (
+      <p key={t} className={row}>
+        <span className="truncate">{t}</span>
+        <span className="font-medium tabular-nums">{v}</span>
+      </p>
+    ))}
+  </div>,
+  <div key="hire" className="space-y-1.5 text-sm">
+    <p className="text-xs text-muted">2 applicants</p>
+    {[
+      ["/profile2.svg", "Lena Kovač", "$1,800, 3 weeks", true],
+      ["/profile1.svg", "Mei Tanaka", "$2,100, 2 weeks", false],
+    ].map(([img, name, quote, hired]) => (
+      <p key={name} className={row}>
+        <span className="flex min-w-0 items-center gap-2">
+          <img src={img} alt="" className="h-8 w-8 shrink-0 rounded-full bg-raised object-cover" style={{ objectPosition: "50% 18%" }} />
+          <span className="min-w-0">
+            <span className="block truncate font-medium">{name}</span>
+            <span className="block truncate text-xs text-muted">{quote}</span>
+          </span>
+        </span>
+        <span className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${hired ? "bg-gold text-poster" : "bg-white/[0.08] text-ink-soft"}`}>{hired ? "Hire" : "Shortlist"}</span>
+      </p>
+    ))}
+  </div>,
+  <div key="pay" className="space-y-1.5 text-sm">
+    <p className="text-xs text-muted">Milestone 2 of 3</p>
+    <p className={row}>
+      <span className="flex items-center gap-2">
+        <Icon name="lock" size={15} className="text-gold" />
+        <span className="font-medium">In escrow</span>
+      </span>
+      <span className="font-semibold tabular-nums">$900</span>
+    </p>
+    <p className={row}>
+      <span className="text-ink-soft">Approved, paid out</span>
+      <span className="font-semibold tabular-nums text-gold">$882</span>
+    </p>
+    <p className="px-1 text-xs text-muted">2% fee, $18, taken only on payout</p>
+  </div>,
+];
+
+// One step: a numeral card that straightens when the step is pointed at, a picture of the step, and the way in.
+function Act({ a, i, last }) {
   const lift = useLift();
   return (
-    <m.li {...lift} className="flex gap-5 md:flex-col">
-      <Hang tilt={i % 2 ? 2 : -2} className="self-start">
-        <span
-          aria-hidden="true"
-          className="poster-title flex h-20 w-16 shrink-0 items-center justify-center border-[3px] border-poster bg-gold text-4xl text-poster shadow-[0_12px_24px_-10px_rgb(0_0_0/0.8)]"
-        >
-          {a.numeral}
-        </span>
-      </Hang>
-      <div className="min-w-0">
-        <h3 className="text-xl font-semibold text-ink">
-          <span className="sr-only">Step {i + 1}: </span>
-          {a.title}
-        </h3>
-        <p className="mt-1.5 text-ink-soft">{a.text}</p>
-        <Link to={a.to} className="mt-3 inline-flex min-h-11 items-center gap-1.5 font-medium text-gold hover:underline">
+    <m.li {...lift} className="relative flex">
+      <div className="flex w-full flex-col rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-[#4a3d38]">
+        <div className="flex items-center gap-4">
+          <Hang tilt={i % 2 ? 2 : -2} className="shrink-0">
+            <span
+              aria-hidden="true"
+              className="poster-title flex h-16 w-14 items-center justify-center border-[3px] border-poster bg-gold text-3xl text-poster shadow-[0_12px_24px_-10px_rgb(0_0_0/0.8)]"
+            >
+              {a.numeral}
+            </span>
+          </Hang>
+          <h3 className="text-xl font-semibold leading-snug text-ink">
+            <span className="sr-only">Step {i + 1}: </span>
+            {a.title}
+          </h3>
+        </div>
+        <p className="mt-4 text-ink-soft">{a.text}</p>
+        <div aria-hidden="true" className="mt-5 rounded-xl border border-line bg-paper/70 p-4">
+          {previews[i]}
+        </div>
+        <Link to={a.to} className="mt-auto inline-flex min-h-11 items-center gap-1.5 pt-5 font-medium text-gold hover:underline">
           {a.cta}
           <Icon name="arrow" size={15} />
         </Link>
       </div>
+      {/* the arrow to the next step */}
+      {!last && (
+        <span aria-hidden="true" className="absolute -right-[1.35rem] top-8 z-10 hidden h-9 w-9 items-center justify-center rounded-full border border-gold/40 bg-paper text-gold md:flex">
+          <Icon name="arrow" size={16} />
+        </span>
+      )}
     </m.li>
   );
 }
@@ -141,9 +204,9 @@ export default function HomePage() {
 
       <Section aria-labelledby="acts-title">
         <BillHeader id="acts-title" title="In three acts" note="From posting a job to paying for it." />
-        <ol className="mt-10 grid gap-x-10 gap-y-8 md:grid-cols-3">
+        <ol className="mt-10 grid gap-x-10 gap-y-5 md:grid-cols-3">
           {acts.map((a, i) => (
-            <Act key={a.numeral} a={a} i={i} />
+            <Act key={a.numeral} a={a} i={i} last={i === acts.length - 1} />
           ))}
         </ol>
       </Section>

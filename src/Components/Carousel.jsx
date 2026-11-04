@@ -66,9 +66,13 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
     const el = track.current;
     if (!el) return 0;
     const mid = el.scrollLeft + el.clientWidth / 2;
+    // In pages, only the first card of a page counts, so settling always lands on a page.
+    const first = el.children[0];
+    const pageSize = grid && first ? Math.max(1, Math.round(el.clientWidth / (first.offsetWidth + 16))) * rows : 1;
     let best = 0;
     let bestDist = Infinity;
     [...el.children].forEach((s, i) => {
+      if (i % pageSize !== 0) return;
       const d = per > 1 ? Math.abs(s.offsetLeft - el.scrollLeft) : Math.abs(s.offsetLeft + s.offsetWidth / 2 - mid);
       if (d < bestDist) {
         best = i;
@@ -76,7 +80,7 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
       }
     });
     return best;
-  }, [per]);
+  }, [per, grid, rows]);
 
   const update = useCallback(() => {
     const el = track.current;
@@ -161,7 +165,7 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
       // Settle on the card the drag ended nearest to, then hand snapping back to the browser.
       let target = nearest();
       // A short flick still moves one card.
-      if (target === d.start && Math.abs(d.dx) > 60) target = d.start + (d.dx < 0 ? 1 : -1);
+      if (target === d.start && Math.abs(d.dx) > 60) target = d.start + (d.dx < 0 ? 1 : -1) * (grid ? visible : 1);
       go(target);
       setTimeout(() => {
         el.style.scrollSnapType = "";
@@ -230,7 +234,7 @@ export default function Carousel({ children, label = "Cards", perView = 1, twoUp
               aria-roledescription="slide"
               aria-label={`${i + 1} of ${items.length}`}
               style={grid ? place(i) : undefined}
-              className={`flex shrink-0 [&>*]:min-w-0 [&>*]:flex-1 ${grid ? "snap-start [grid-column:var(--c)] [grid-row:var(--r)] lg:[grid-column:var(--c-lg)] lg:[grid-row:var(--r-lg)]" : widths[per] || widths[1]}`}
+              className={`flex shrink-0 [&>*]:min-w-0 [&>*]:flex-1 ${grid ? `${i % 2 === 0 ? "snap-start snap-always" : "snap-align-none"} ${i % 4 === 0 ? "lg:snap-start lg:snap-always" : "lg:snap-align-none"} [grid-column:var(--c)] [grid-row:var(--r)] lg:[grid-column:var(--c-lg)] lg:[grid-row:var(--r-lg)]` : widths[per] || widths[1]}`}
             >
               {child}
             </m.div>

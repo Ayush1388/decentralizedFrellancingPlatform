@@ -10,18 +10,18 @@ const PRICE = 600;
 const FEE = 12;
 
 const phases = [
-  { id: "start", ms: 1800, step: 0 },
-  { id: "aimFund", ms: 1500, step: 0 },
-  { id: "pressFund", ms: 600, step: 0 },
-  { id: "toEscrow", ms: 2200, step: 0 },
-  { id: "locked", ms: 3400, step: 1 },
-  { id: "aimDeliver", ms: 1500, step: 2 },
-  { id: "pressDeliver", ms: 600, step: 2 },
-  { id: "delivered", ms: 3400, step: 2 },
-  { id: "aimApprove", ms: 1500, step: 3 },
-  { id: "pressApprove", ms: 600, step: 3 },
-  { id: "release", ms: 2400, step: 3 },
-  { id: "paid", ms: 4200, step: 3 },
+  { id: "start", ms: 1300, step: 0 },
+  { id: "aimFund", ms: 1100, step: 0 },
+  { id: "pressFund", ms: 450, step: 0 },
+  { id: "toEscrow", ms: 1700, step: 0 },
+  { id: "locked", ms: 2500, step: 1 },
+  { id: "aimDeliver", ms: 1100, step: 2 },
+  { id: "pressDeliver", ms: 450, step: 2 },
+  { id: "delivered", ms: 2500, step: 2 },
+  { id: "aimApprove", ms: 1100, step: 3 },
+  { id: "pressApprove", ms: 450, step: 3 },
+  { id: "release", ms: 1900, step: 3 },
+  { id: "paid", ms: 3200, step: 3 },
 ];
 const at = (id) => phases.findIndex((p) => p.id === id);
 // Where each step settles, for jumping to it or stepping through by hand.
@@ -48,7 +48,7 @@ function Amount({ value, className = "" }) {
       setShown(value);
       return;
     }
-    const run = animate(from.current, value, { duration: 1.6, ease: [0.16, 1, 0.3, 1], onUpdate: (v) => setShown(v) });
+    const run = animate(from.current, value, { duration: 1.2, ease: [0.16, 1, 0.3, 1], onUpdate: (v) => setShown(v) });
     from.current = value;
     return () => run.stop();
   }, [value, reduce]);
@@ -78,7 +78,7 @@ function Party({ refEl, photo, name, role, balance, active, tone }) {
 
 // The track money runs along between two parties; it lights up while money is on it.
 function Rail({ lit, done }) {
-  const fill = { type: "tween", duration: 1.6, ease };
+  const fill = { type: "tween", duration: 1.2, ease };
   const glow = "bg-gold shadow-[0_0_14px_rgb(242_194_48/0.75)]";
   return (
     <div aria-hidden="true" className="relative mx-auto h-10 w-0.5 sm:mx-0 sm:h-0.5 sm:w-auto sm:flex-1">
@@ -106,13 +106,13 @@ function Vault({ refEl, held, released }) {
         />
         <svg viewBox="0 0 112 112" className="absolute inset-0 -rotate-90">
           <circle cx="56" cy="56" r={r} fill="#171313" stroke="#3d3332" strokeWidth="4" />
-          <m.circle cx="56" cy="56" r={r} fill="none" stroke="#f2c230" strokeWidth="4" strokeLinecap="round" strokeDasharray={c} initial={false} animate={{ strokeDashoffset: held ? 0 : c }} transition={{ duration: 1.6, ease }} />
+          <m.circle cx="56" cy="56" r={r} fill="none" stroke="#f2c230" strokeWidth="4" strokeLinecap="round" strokeDasharray={c} initial={false} animate={{ strokeDashoffset: held ? 0 : c }} transition={{ duration: 1.2, ease }} />
         </svg>
         <m.span
           className={`absolute inset-0 m-auto flex h-14 w-14 items-center justify-center rounded-full transition-colors duration-700 ${held ? "bg-gold text-poster" : "bg-white/[0.05] text-muted"}`}
           initial={false}
           animate={held ? { rotate: [0, -12, 0], scale: [1, 1.12, 1] } : { rotate: 0, scale: 1 }}
-          transition={{ duration: 0.7, delay: held ? 1.2 : 0 }}
+          transition={{ duration: 0.6, delay: held ? 0.9 : 0 }}
         >
           <Icon name={held ? "lock" : "unlock"} size={22} />
         </m.span>
@@ -132,6 +132,7 @@ function Coin({ from, to, delay, small }) {
   const sideways = Math.abs(to.x - from.x) > Math.abs(to.y - from.y);
   return (
     <m.span
+      aria-hidden="true"
       className="pointer-events-none absolute left-0 top-0 z-20 flex items-center justify-center rounded-full border border-[#a07d14] bg-[radial-gradient(circle_at_35%_30%,#ffe9a8,#f2c230_55%,#c99a12)] font-poster text-poster shadow-[0_0_16px_rgb(242_194_48/0.7)]"
       style={{ width: size, height: size, marginLeft: -size / 2, marginTop: -size / 2, fontSize: small ? 9 : 12 }}
       initial={{ x: from.x, y: from.y, opacity: 0, scale: 0.4 }}
@@ -141,7 +142,7 @@ function Coin({ from, to, delay, small }) {
         opacity: [0, 1, 1, 0],
         scale: [0.4, 1, 1, 0.5],
       }}
-      transition={{ duration: 1.5, delay, ease, times: [0, 0.5, 1] }}
+      transition={{ duration: 1.15, delay, ease, times: [0, 0.5, 1] }}
     >
       $
     </m.span>
@@ -206,7 +207,7 @@ export default function EscrowDemo() {
         ? { who: "Developer", label: "Deliver work", icon: "send" }
         : status === "In review"
           ? { who: "Client", label: "Approve and release", icon: "check" }
-          : { who: null, label: "Paid", icon: "check" };
+          : { who: null, label: "Run it again", icon: "refresh" };
   const pressing = id.startsWith("press");
   const aiming = id.startsWith("aim") || pressing;
   // Between presses the pointer waits out of the way; its tag only shows while someone is reaching for a button.
@@ -226,6 +227,16 @@ export default function EscrowDemo() {
   function jump(s) {
     setP(settled[s]);
     setPlaying(false);
+  }
+
+  // Pressing the milestone's own button does the step it names and carries on from there.
+  function press() {
+    const target = status === "Not funded" ? "pressFund" : status === "In escrow" ? "pressDeliver" : status === "In review" ? "pressApprove" : null;
+    if (target) setP(at(target));
+    else {
+      setP(0);
+      setPlaying(true);
+    }
   }
 
   return (
@@ -254,10 +265,11 @@ export default function EscrowDemo() {
         ))}
       </ol>
 
-      {/* The stage is a picture of the subtitles below it, so it is hidden from screen readers. */}
+      {/* The stage shows what the subtitles below it say. Its coins and pointer are decoration. */}
       <div
         ref={stage}
-        aria-hidden="true"
+        role="group"
+        aria-label="Escrow walkthrough"
         className="relative select-none px-4 pb-6 pt-8 sm:px-8 sm:pb-8 sm:pt-10"
         style={{ background: "radial-gradient(60% 70% at 50% 0%, rgb(242 194 48 / 0.09), transparent 70%)" }}
       >
@@ -294,16 +306,19 @@ export default function EscrowDemo() {
             </div>
             <div className="mt-5 flex items-center gap-3 border-t border-line pt-4">
               <span className="text-xs text-muted">{act.who ? `${act.who}'s button` : "Done"}</span>
-              <m.span
+              <m.button
+                type="button"
                 ref={action}
+                onClick={press}
+                whileHover={{ scale: 1.04 }}
                 animate={{ scale: pressing ? 0.93 : 1 }}
                 transition={{ type: "spring", stiffness: 420, damping: 22 }}
-                className={`relative ml-auto inline-flex min-h-11 items-center gap-2 rounded-xl px-5 text-sm font-semibold transition-colors duration-500 ${act.who ? "bg-gold text-poster shadow-[0_10px_30px_-10px_rgb(242_194_48/0.7)]" : "bg-gold/10 text-gold"}`}
+                className={`relative ml-auto inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl px-5 text-sm font-semibold transition-colors duration-500 ${act.who ? "bg-gold text-poster shadow-[0_10px_30px_-10px_rgb(242_194_48/0.7)] hover:brightness-110" : "bg-gold/10 text-gold hover:bg-gold/20"}`}
               >
                 <Icon name={act.icon} size={16} />
                 {act.label}
-                {pressing && <m.span className="absolute inset-0 rounded-xl border-2 border-gold" initial={{ opacity: 0.9, scale: 1 }} animate={{ opacity: 0, scale: 1.6 }} transition={{ duration: 0.7 }} />}
-              </m.span>
+                {pressing && <m.span aria-hidden="true" className="absolute inset-0 rounded-xl border-2 border-gold" initial={{ opacity: 0.9, scale: 1 }} animate={{ opacity: 0, scale: 1.6 }} transition={{ duration: 0.7 }} />}
+              </m.button>
             </div>
           </div>
           <div ref={fee} className={`flex flex-col items-center justify-center rounded-2xl border px-6 py-4 text-center transition-colors duration-700 sm:w-48 ${released ? "border-gold/40 bg-gold/[0.05]" : "border-line bg-[#171313]"}`}>
@@ -318,15 +333,16 @@ export default function EscrowDemo() {
         {/* the money and the delivery in flight */}
         {pos && !reduce && (
           <>
-            {id === "toEscrow" && Array.from({ length: 7 }).map((_, i) => <Coin key={`in${i}`} from={pos.client} to={pos.vault} delay={i * 0.12} />)}
-            {id === "release" && Array.from({ length: 7 }).map((_, i) => <Coin key={`out${i}`} from={pos.vault} to={pos.dev} delay={i * 0.12} />)}
-            {id === "release" && <Coin key="fee" from={pos.vault} to={pos.fee} delay={0.9} small />}
+            {id === "toEscrow" && Array.from({ length: 7 }).map((_, i) => <Coin key={`in${i}`} from={pos.client} to={pos.vault} delay={i * 0.09} />)}
+            {id === "release" && Array.from({ length: 7 }).map((_, i) => <Coin key={`out${i}`} from={pos.vault} to={pos.dev} delay={i * 0.09} />)}
+            {id === "release" && <Coin key="fee" from={pos.vault} to={pos.fee} delay={0.7} small />}
             {id === "delivered" && (
               <m.span
+                aria-hidden="true"
                 className="pointer-events-none absolute left-0 top-0 z-20 -ml-5 -mt-5 flex h-10 w-10 items-center justify-center rounded-lg bg-ticket text-poster shadow-[0_12px_30px_-8px_rgb(0_0_0/0.8)]"
                 initial={{ x: pos.dev.x, y: pos.dev.y, opacity: 0, rotate: -8 }}
                 animate={{ x: [pos.dev.x, pos.job.x], y: [pos.dev.y, pos.job.y], opacity: [0, 1, 1, 0], rotate: [-8, 4, 0] }}
-                transition={{ duration: 1.8, ease, times: [0, 0.2, 0.85, 1] }}
+                transition={{ duration: 1.4, ease, times: [0, 0.2, 0.85, 1] }}
               >
                 <Icon name="file" size={18} />
               </m.span>
@@ -337,10 +353,11 @@ export default function EscrowDemo() {
         {/* the pointer, with a tag saying whose hand it is */}
         {pos && (
           <m.div
+            aria-hidden="true"
             className="pointer-events-none absolute left-0 top-0 z-30"
             initial={false}
             animate={{ x: cursorAt.x, y: cursorAt.y, scale: pressing ? 0.82 : 1 }}
-            transition={{ x: { duration: 1.3, ease }, y: { duration: 1.3, ease }, scale: { duration: 0.2 } }}
+            transition={{ x: { duration: 1, ease }, y: { duration: 1, ease }, scale: { duration: 0.2 } }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" className="drop-shadow-[0_3px_6px_rgb(0_0_0/0.7)]">
               <path d="M4 2.5 19.5 12l-7 1.6L9.4 20.5Z" fill="#f3ece2" stroke="#1b1214" strokeWidth="1.5" strokeLinejoin="round" />
