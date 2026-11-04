@@ -24,15 +24,17 @@ export function ViewToggle({ mode, onChange, label = "Layout" }) {
 }
 
 // Cards in a row you move through sideways: swipe on a phone, drag with a mouse, or use the arrows or the arrow keys.
-export default function Carousel({ children, label = "Cards" }) {
+// With twoUp, two cards sit side by side on wide screens (one per view on narrower ones).
+export default function Carousel({ children, label = "Cards", twoUp = false }) {
   const items = Children.toArray(children);
   const track = useRef(null);
   const drag = useRef(null);
   const [index, setIndex] = useState(0);
+  const [edge, setEdge] = useState({ start: true, end: false });
 
   const slides = () => [...(track.current?.children || [])];
 
-  // The card whose middle is closest to the middle of the row.
+  // One card per view: the card closest to the middle. Two per view: the one closest to the left edge.
   const nearest = useCallback(() => {
     const el = track.current;
     if (!el) return 0;
@@ -40,16 +42,24 @@ export default function Carousel({ children, label = "Cards" }) {
     let best = 0;
     let bestDist = Infinity;
     [...el.children].forEach((s, i) => {
-      const d = Math.abs(s.offsetLeft + s.offsetWidth / 2 - mid);
+      const d = twoUp ? Math.abs(s.offsetLeft - el.scrollLeft) : Math.abs(s.offsetLeft + s.offsetWidth / 2 - mid);
       if (d < bestDist) {
         best = i;
         bestDist = d;
       }
     });
     return best;
-  }, []);
+  }, [twoUp]);
 
-  const update = useCallback(() => setIndex(nearest()), [nearest]);
+  const update = useCallback(() => {
+    const el = track.current;
+    if (!el) return;
+    const start = el.scrollLeft <= 2;
+    const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+    setEdge((e) => (e.start === start && e.end === end ? e : { start, end }));
+    // At the far end the last card counts as the current one, even when two cards are in view.
+    setIndex(end ? el.children.length - 1 : nearest());
+  }, [nearest]);
 
   useEffect(() => {
     update();
@@ -60,12 +70,16 @@ export default function Carousel({ children, label = "Cards" }) {
     const target = list[Math.max(0, Math.min(list.length - 1, to))];
     if (!target || !track.current) return;
     const el = track.current;
-    el.scrollTo({ left: target.offsetLeft - (el.clientWidth - target.offsetWidth) / 2, behavior: "smooth" });
+    const left = twoUp ? target.offsetLeft : target.offsetLeft - (el.clientWidth - target.offsetWidth) / 2;
+    el.scrollTo({ left, behavior: "smooth" });
   }
 
+  // Steps are taken from where the row actually is, so they still work at the far end where the counter shows the last card.
+  const step = (dir) => go(nearest() + dir);
+
   function onKeyDown(e) {
-    if (e.key === "ArrowRight") (e.preventDefault(), go(index + 1));
-    if (e.key === "ArrowLeft") (e.preventDefault(), go(index - 1));
+    if (e.key === "ArrowRight") (e.preventDefault(), step(1));
+    if (e.key === "ArrowLeft") (e.preventDefault(), step(-1));
   }
 
   // Touch and trackpads scroll natively. A mouse drags the row, and a drag never counts as a click on a card.
@@ -83,6 +97,9 @@ export default function Carousel({ children, label = "Cards" }) {
       track.current.style.scrollSnapType = "none";
       track.current.style.scrollBehavior = "auto";
       track.current.style.cursor = "grabbing";
+      // Dragging across text would otherwise select it.
+      track.current.style.userSelect = "none";
+      window.getSelection()?.removeAllRanges();
     }
     if (d.moved) track.current.scrollLeft = d.left - dx;
   }
@@ -92,6 +109,7 @@ export default function Carousel({ children, label = "Cards" }) {
     drag.current = null;
     const el = track.current;
     el.style.cursor = "";
+    el.style.userSelect = "";
     el.style.scrollBehavior = "";
     if (d.moved) {
       // Settle on the card the drag ended nearest to, then hand snapping back to the browser.
@@ -121,8 +139,8 @@ export default function Carousel({ children, label = "Cards" }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => go(index - 1)}
-            disabled={index <= 0}
+            onClick={() => step(-1)}
+            disabled={edge.start}
             aria-label="Previous card"
             className="flex h-11 w-11 items-center justify-center border border-[#3a3733] hover:border-gold hover:text-gold disabled:opacity-30 disabled:hover:border-[#3a3733] disabled:hover:text-inherit"
           >
@@ -130,8 +148,8 @@ export default function Carousel({ children, label = "Cards" }) {
           </button>
           <button
             type="button"
-            onClick={() => go(index + 1)}
-            disabled={index >= items.length - 1}
+            onClick={() => step(1)}
+            disabled={edge.end}
             aria-label="Next card"
             className="flex h-11 w-11 items-center justify-center border border-[#3a3733] hover:border-gold hover:text-gold disabled:opacity-30 disabled:hover:border-[#3a3733] disabled:hover:text-inherit"
           >
@@ -159,7 +177,7 @@ export default function Carousel({ children, label = "Cards" }) {
             role="group"
             aria-roledescription="slide"
             aria-label={`${i + 1} of ${items.length}`}
-            className="flex w-[88%] shrink-0 snap-center sm:w-[640px] lg:w-[760px] [&>*]:min-w-0 [&>*]:flex-1"
+            className={`flex shrink-0 [&>*]:min-w-0 [&>*]:flex-1 ${twoUp ? "w-[88%] snap-start sm:w-[640px] lg:w-[calc(50%-0.5rem)]" : "w-[88%] snap-center sm:w-[640px] lg:w-[760px]"}`}
           >
             {child}
           </div>

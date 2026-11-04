@@ -195,16 +195,20 @@ export default function HomePage() {
       <FilmStrip devCount={developers?.length} jobCount={jobs?.length} />
 
       {/* On the bill: open jobs as reels */}
-      <Section aria-labelledby="bill-title" className="max-w-4xl">
+      <Section aria-labelledby="bill-title">
         <BillHeader id="bill-title" title="On the bill" note="open jobs, dated like reels in a can · newest first" />
-        <div className="mt-5 space-y-5">
+        <div className="mt-5">
           {jobs === null && <div className="h-72 animate-pulse bg-surface" />}
-          {jobs?.slice(0, 4).map((j, i) => (
-            <Reel key={j.id} job={j} n={i + 1} />
-          ))}
-          {jobs && <ComingSoon n={Math.min(jobs.length, 4) + 1} />}
+          {jobs && (
+            <Carousel label="Open jobs" twoUp>
+              {[
+                ...jobs.slice(0, 5).map((j, i) => <Reel key={j.id} job={j} n={i + 1} />),
+                <ComingSoon key="soon" n={Math.min(jobs.length, 5) + 1} />,
+              ]}
+            </Carousel>
+          )}
         </div>
-        {jobs?.length > 4 && (
+        {jobs?.length > 5 && (
           <div className="mt-6 text-center">
             <Button to="/jobs" variant="secondary">
               See the full programme
