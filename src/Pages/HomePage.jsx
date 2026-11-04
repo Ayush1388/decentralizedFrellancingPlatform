@@ -92,41 +92,35 @@ function Ticket({ devCount }) {
   );
 }
 
-// Strip of film with live numbers in the frames; drifts sideways, pauses on hover.
+// A still strip of film with live numbers in the frames: the same sprocket holes, no motion, and only as wide as the page.
 function FilmStrip({ devCount, jobCount }) {
   const frames = [
     ["In the cast", devCount ?? "—", "developers"],
     ["On the bill", jobCount ?? "—", "open jobs"],
     ["Intermission", "7", "days to auto-release"],
-    ["Refunds", "14", "days if nothing lands"],
     ["Concessions", "2%", "only on release"],
-    ["Tender", "USDC", "on Ethereum"],
   ];
   const holes = (
-    <div aria-hidden="true" className="flex h-5 items-center gap-4 overflow-hidden px-2">
-      {Array.from({ length: 80 }).map((_, i) => (
-        <span key={i} className="h-2.5 w-4 shrink-0 rounded-[2px] bg-paper" />
+    <div aria-hidden="true" className="flex h-4 items-center justify-between gap-3 overflow-hidden px-2">
+      {Array.from({ length: 28 }).map((_, i) => (
+        <span key={i} className="h-2 w-3 shrink-0 rounded-[2px] bg-paper" />
       ))}
     </div>
   );
-  const row = (hidden) =>
-    frames.map(([k, v, unit]) => (
-      <li key={k + hidden} aria-hidden={hidden || undefined} className="w-56 shrink-0 border-x border-black/60 bg-[#191716] px-5 py-4">
-        <p className="eyebrow text-gold">{k}</p>
-        <p className="poster-title mt-2 text-5xl text-ink">{v}</p>
-        <p className="font-mono text-[0.75rem] text-muted">{unit}</p>
-      </li>
-    ));
   return (
-    // The wrapper clips the tilted strip so the page never scrolls sideways.
-    <div className="mt-16 overflow-x-clip py-4">
-      <section aria-label="Tonight in numbers" className="filmstrip -mx-4 -rotate-1 overflow-hidden bg-[#050505] py-1">
-      {holes}
-      <ul className="filmstrip-track flex w-max">
-        {row(false)}
-        {row(true)}
-      </ul>
-      {holes}
+    <div className="container-page mt-14">
+      <section aria-label="Tonight in numbers" className="bg-[#050505] py-1">
+        {holes}
+        <ul className="grid grid-cols-2 sm:grid-cols-4">
+          {frames.map(([k, v, unit]) => (
+            <li key={k} className="border-x border-black/60 bg-[#191716] px-5 py-4">
+              <p className="eyebrow text-gold">{k}</p>
+              <p className="poster-title mt-1 text-4xl text-ink">{v}</p>
+              <p className="font-mono text-[0.75rem] text-muted">{unit}</p>
+            </li>
+          ))}
+        </ul>
+        {holes}
       </section>
     </div>
   );
@@ -202,7 +196,7 @@ export default function HomePage() {
           {jobs && (
             <Carousel label="Open jobs" twoUp>
               {[
-                ...jobs.slice(0, 5).map((j, i) => <Reel key={j.id} job={j} n={i + 1} />),
+                ...jobs.slice(0, 5).map((j, i) => <Reel key={j.id} job={j} n={i + 1} stacked />),
                 <ComingSoon key="soon" n={Math.min(jobs.length, 5) + 1} />,
               ]}
             </Carousel>

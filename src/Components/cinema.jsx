@@ -99,35 +99,66 @@ export function SaveButton({ jobId, className = "" }) {
   );
 }
 
-export function Reel({ job, n }) {
+// A programme entry for a job. "stacked" is for narrow slots (two to a row): the poster sits beside the title and the
+// details run full width underneath, instead of being squeezed into a thin column next to a tall poster.
+export function Reel({ job, n, stacked = false }) {
+  const specs = (
+    <dl className={`grid gap-x-8 gap-y-3 sm:grid-cols-2 ${stacked ? "" : "mt-5 max-w-xl"}`}>
+      <Spec label="Budget">{usdc(job.total)} in USDC</Spec>
+      <Spec label="Directed by">{job.client.name}</Spec>
+      <Spec label="Cast">{job.skills.slice(0, 3).join(", ") || "Open casting"}</Spec>
+      <Spec label="Audience">
+        {plural(job.applicants, "applicant")} · {openingsLabel(job)}
+      </Spec>
+      {job.closesAt && <Spec label="Showing until">{closesIn(job.closesAt)}</Spec>}
+      {(job.duration || job.level) && <Spec label="Running time">{[job.duration, job.level && `${job.level} level`].filter(Boolean).join(" · ")}</Spec>}
+    </dl>
+  );
+  const cta = (
+    <Link
+      to={`/jobs/${job.id}`}
+      className="inline-flex min-h-11 items-center gap-2 bg-gold px-4 text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-poster hover:brightness-110"
+    >
+      Take your seat <Icon name="arrow" size={14} />
+    </Link>
+  );
+  const tag = (
+    <ReelTag n={n} demo={job.demo}>
+      {reelDate(job.createdAt)}
+      {job.category && <span className="text-ink-soft">· {job.category}</span>}
+    </ReelTag>
+  );
+
+  if (stacked)
+    return (
+      <article className="relative flex flex-col gap-5 border border-white/10 bg-surface p-4 sm:p-5">
+        <SaveButton jobId={job.id} className="absolute right-3 top-3 z-10" />
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          {/* The Demo tag beside it already says so, and a stamp this size would cover the title. */}
+          <Poster title={job.title} tilt={n % 2 ? -2 : 2} className="!w-36 shrink-0" />
+          <div className="min-w-0 flex-1 sm:pr-10">
+            {tag}
+            <h3 className="poster-title mt-3 text-3xl text-ink sm:text-4xl">{job.title}</h3>
+            <p className="mt-2 font-serif text-lg italic text-gold">A picture in USDC, paid on delivery</p>
+          </div>
+        </div>
+        <p className="line-clamp-3 text-[0.95rem] leading-relaxed text-ink-soft">{job.description}</p>
+        {specs}
+        <div className="mt-auto pt-1">{cta}</div>
+      </article>
+    );
+
   return (
     <article className="relative flex flex-col gap-6 border border-white/10 bg-surface p-4 sm:flex-row sm:p-5">
       <SaveButton jobId={job.id} className="absolute right-3 top-3 z-10" />
       <Poster title={job.title} tilt={n % 2 ? -2 : 2} demo={job.demo} />
       <div className="min-w-0 flex-1">
-        <ReelTag n={n} demo={job.demo}>
-          {reelDate(job.createdAt)}
-          {job.category && <span className="text-ink-soft">· {job.category}</span>}
-        </ReelTag>
+        {tag}
         <h3 className="poster-title mt-3 text-4xl text-ink sm:text-5xl">{job.title}</h3>
         <p className="mt-3 font-serif text-lg italic text-gold">A picture in USDC, paid on delivery</p>
         <p className="mt-3 line-clamp-3 max-w-xl text-[0.95rem] leading-relaxed text-ink-soft">{job.description}</p>
-        <dl className="mt-5 grid max-w-xl gap-x-8 gap-y-3 sm:grid-cols-2">
-          <Spec label="Budget">{usdc(job.total)} in USDC</Spec>
-          <Spec label="Directed by">{job.client.name}</Spec>
-          <Spec label="Cast">{job.skills.slice(0, 3).join(", ") || "Open casting"}</Spec>
-          <Spec label="Audience">
-            {plural(job.applicants, "applicant")} · {openingsLabel(job)}
-          </Spec>
-          {job.closesAt && <Spec label="Showing until">{closesIn(job.closesAt)}</Spec>}
-          {(job.duration || job.level) && <Spec label="Running time">{[job.duration, job.level && `${job.level} level`].filter(Boolean).join(" · ")}</Spec>}
-        </dl>
-        <Link
-          to={`/jobs/${job.id}`}
-          className="mt-6 inline-flex min-h-11 items-center gap-2 bg-gold px-4 text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-poster hover:brightness-110"
-        >
-          Take your seat <Icon name="arrow" size={14} />
-        </Link>
+        {specs}
+        <div className="mt-6">{cta}</div>
       </div>
     </article>
   );

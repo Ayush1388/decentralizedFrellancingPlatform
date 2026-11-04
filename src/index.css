@@ -244,18 +244,6 @@
   animation: twinkle 1.6s ease-in-out infinite;
 }
 
-@keyframes reel {
-  to {
-    transform: translateX(-50%);
-  }
-}
-.filmstrip-track {
-  animation: reel 40s linear infinite;
-}
-.filmstrip:hover .filmstrip-track {
-  animation-play-state: paused;
-}
-
 /* Receipts and anything else marked for paper: only the document prints. */
 @media print {
   header,
