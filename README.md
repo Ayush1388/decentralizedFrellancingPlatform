@@ -39,6 +39,21 @@ the freelancer delivers, and the client approves it to release payment.
 - **Email notifications** (optional, set `SMTP_HOST`): applicants, clients and freelancers are emailed when something needs their
   action: a new application, shortlisted or hired, work delivered, changes requested, payment released, a dispute. People can turn them
   off from their dashboard.
+- **Accounts:** email and password sign-up with terms acceptance, email confirmation and password reset (when SMTP is set), sign out
+  everywhere, change email or password, export your data, delete your account. Wallet sign-in works with MetaMask and other browser
+  wallets, Coinbase Wallet, and phone wallets through WalletConnect.
+- **Jobs:** categories, filters, sorting, drafts, editing, reposting, saved jobs, applicant comparison, and hiring at an agreed price.
+  Scope changes and follow-up work can be added as new milestones.
+- **Chat:** per-job chat and pre-hire messages with up to 3 attachments per message (10 MB each), unread badges, and a reminder email
+  when a message sits unread.
+- **Notifications:** an in-app bell for every event, plus emails and reminders (unfunded milestone, work waiting for review,
+  claim and refund windows, dispute timeout).
+- **Trust and safety:** reports, an admin page for reports, people and disputes, account suspension, rate limiting, optional
+  Cloudflare Turnstile, and Terms, Privacy and Help pages.
+- **Reviews both ways:** the client rates the freelancer and the freelancer rates the client, with replies, public profiles and a
+  printable receipt for every paid job.
+- **Resilience:** the API can re-read the chain and repair its records if an update was missed, a pending transaction is remembered
+  and replayed after a page reload, and wallet and balance mismatches are caught before a transaction is sent.
 - Every job has an activity log and a "next step" hint. Deliverables are visible only to the two parties and the arbiter.
   Resumes open only for the applicant and the client they applied to.
 
@@ -135,9 +150,11 @@ Put the three printed values into the API's environment and restart it.
 | `FEE_BPS`, `CLAIM_AFTER_DAYS`, `REFUND_AFTER_DAYS` | Escrow rules: fee in basis points (200 = 2%) and the two time windows. Keep them equal to the contract's. |
 | `ESCROW_ADDRESS`, `CHAIN_ID`, `RPC_URL` | Turn on on-chain mode. Leave empty for preview mode. |
 | `SEED_DEMO` | `true` adds the labelled demo data and the public demo login. |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Turn on email notifications. Port 587 with STARTTLS works with Gmail (app password), Brevo, Resend, SendGrid and most providers. Leave `SMTP_HOST` empty for no email. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Turn on email: confirmation, password reset and notifications. Port 587 with STARTTLS works with Gmail (app password), Brevo, Resend, SendGrid and most providers. Leave `SMTP_HOST` empty for no email; accounts are then not forced to confirm an email. |
+| `TURNSTILE_SECRET`, `TURNSTILE_SITE_KEY` | Optional Cloudflare Turnstile check on sign-up and login. |
 
-The frontend reads one variable at build time: `VITE_API_URL`, the API's address (defaults to `http://localhost:3001`).
+The frontend reads two variables at build time: `VITE_API_URL`, the API's address (defaults to `http://localhost:3001`), and the optional
+`VITE_WALLETCONNECT_PROJECT_ID` (free from WalletConnect Cloud), which adds phone wallets to the wallet picker.
 
 ## Deploy your own
 
@@ -155,7 +172,7 @@ Pushing to `main` redeploys both.
 | Method and path | Purpose |
 |---|---|
 | `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me` | Email accounts |
-| `POST /api/auth/notifications` | Turn the caller's email notifications on or off |
+| `POST /api/auth/{verify,resend-verification,forgot,reset,password,email,logout-all,export,delete,notifications}` | Email confirmation, password reset, account settings, data export and deletion |
 | `GET /api/auth/wallet/nonce`, `POST /api/auth/wallet/verify` | Sign-In with Ethereum |
 | `GET /api/developers`, `POST/PUT/DELETE /api/developers/{id}` | Developer profiles |
 | `GET /api/jobs`, `GET /api/jobs/mine`, `POST /api/jobs`, `GET /api/jobs/{id}` | Jobs |
@@ -165,7 +182,10 @@ Pushing to `main` redeploys both.
 | `POST /api/jobs/{id}/hire`, `POST /api/jobs/{id}/cancel` | Hire an applicant; close a posting or end an unfunded contract |
 | `POST /api/milestones/{id}/{action}` | `fund`, `submit`, `revise`, `approve`, `claim`, `refund`, `dispute`, `resolve` |
 | `GET/POST /api/jobs/{id}/messages` | Chat between the client and the hired freelancer |
-| `POST /api/jobs/{id}/review` | Client rates the freelancer after completion |
+| `POST /api/jobs/{id}/review`, `POST /api/jobs/{id}/review/reply` | Review the other side after completion; reply to a review |
+| `POST /api/jobs/{id}/{publish,repost,milestones,followup,save,sync,attachments}` | Drafts, reposting, scope changes, saved jobs, resync with the chain, job files |
+| `GET /api/notifications`, `GET /api/unread`, `GET /api/dashboard` | In-app notifications, unread counts, the user's overview |
+| `POST /api/reports`, `GET /api/admin/{reports,users}` | Report a job or person; the admin's queues |
 | `GET /api/admin/disputes` | The arbiter's queue |
 | `GET /api/files/{id}` | Profile photos (public) and resumes (applicant and client only) |
 | `POST /api/jobs/{id}/escrow` | Attach the on-chain escrow a client opened |
@@ -173,7 +193,7 @@ Pushing to `main` redeploys both.
 ## Tests
 
 ```sh
-npm run contracts:test        # 31 contract tests, including a randomised conservation check
+npm run contracts:test        # 35 contract tests, including a randomised conservation check
 cd server && go test ./...    # API tests: the whole hiring and payment flow, chain verification, demo seed (needs `npm run db`)
 node scripts/e2e.mjs          # real chain + real contract + real API + Postgres, the whole money path
 ```
@@ -186,7 +206,8 @@ node scripts/e2e.mjs          # real chain + real contract + real API + Postgres
   fresh refund window, so it cannot be used to stall a payment or to force a refund.
 - Payouts are credited and pulled with `withdraw()`. The 2% fee comes out of the freelancer's share only.
 - Client silent for 7 days after a submission: the freelancer can `claim`. No submission for 14 days: the client can `refund`.
-- Either side can `dispute`; the arbiter can only split that milestone between the two parties.
+- Either side can `dispute`; the arbiter can only split that milestone between the two parties. If the arbiter says nothing for
+  30 days, anyone can call `resolveStale` and the milestone is split 50/50.
 - `pause()` stops new money coming in. It never blocks withdrawals or exits.
 - The fee and both waiting windows are copied into each escrow when it is created. The owner can change the defaults for
   future escrows but never the terms of work that is already under way.
@@ -207,4 +228,7 @@ node scripts/e2e.mjs          # real chain + real contract + real API + Postgres
 - The live demo runs in preview mode; no real USDC moves until a contract is connected.
 - Disputes are decided by a single arbiter account.
 - Render's free tier sleeps when idle, so the first request after a quiet spell is slow.
-- Email is off on the live demo until SMTP settings are added.
+- Email is off on the live demo until SMTP settings are added, so there is no email confirmation or password reset there yet.
+- Updates arrive by polling (every few seconds), not websockets. Uploads get basic type and size checks, not antivirus scanning.
+- Not built: hourly contracts, gas sponsorship, appeals, KYC, and a fiat off-ramp. The Terms and Privacy pages are templates and
+  need a lawyer's review before real use.

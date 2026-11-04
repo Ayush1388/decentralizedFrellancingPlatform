@@ -9,19 +9,36 @@ import NavigationBar from "./Components/NavigationBar";
 import Footer from "./Components/Footer";
 import ApiStatus from "./Components/ApiStatus";
 import DemoBanner from "./Components/DemoBanner";
+import WalletModal from "./Components/WalletModal";
 import LoginPopup from "./Components/LoginPopup";
 import HomePage from "./Pages/HomePage";
 import Developers from "./Pages/Developers";
 import Jobs from "./Pages/Jobs";
-import PostJob from "./Pages/PostJob";
+import PostJob, { EditJob } from "./Pages/PostJob";
 import JobDetail from "./Pages/JobDetail";
 import Wallet from "./Pages/Wallet";
 import Dashboard from "./Pages/Dashboard";
+import DeveloperProfile from "./Pages/DeveloperProfile";
+import Receipt from "./Pages/Receipt";
+import Settings from "./Pages/Settings";
+import Notifications from "./Pages/Notifications";
+import Admin from "./Pages/Admin";
+import Help from "./Pages/Help";
+import { Privacy, Terms } from "./Pages/Legal";
+import { ResetPassword, VerifyEmail } from "./Pages/AuthPages";
+import VerifyBanner from "./Components/VerifyBanner";
+import ErrorBoundary from "./Components/ErrorBoundary";
 import OAuthSuccess from "./Pages/OAuthSuccess";
 import { Button, EmptyState } from "./Components/ui";
 
 const queryClient = new QueryClient();
 
+
+// A crash on one page shows a friendly screen, and moving to another page clears it.
+function Boundary({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -45,15 +62,28 @@ export default function App() {
             <ApiStatus />
             <NavigationBar />
             <DemoBanner />
+            <VerifyBanner />
             <main id="main" className="min-h-[60vh]">
+              <Boundary>
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/developers" element={<Developers />} />
+                <Route path="/developers/:id" element={<DeveloperProfile />} />
                 <Route path="/jobs" element={<Jobs />} />
                 <Route path="/jobs/new" element={<PostJob />} />
                 <Route path="/jobs/:id" element={<JobDetail />} />
+                <Route path="/jobs/:id/edit" element={<EditJob />} />
+                <Route path="/jobs/:id/receipt/:mid" element={<Receipt />} />
                 <Route path="/wallet" element={<Wallet />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/help" element={<Help />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/verify" element={<VerifyEmail />} />
+                <Route path="/reset" element={<ResetPassword />} />
                 <Route path="/oauth-success" element={<OAuthSuccess />} />
                 <Route
                   path="*"
@@ -66,9 +96,11 @@ export default function App() {
                   }
                 />
               </Routes>
+              </Boundary>
             </main>
             <Footer />
             <LoginPopup />
+            <WalletModal />
           </BrowserRouter>
           </ChainConfigProvider>
         </AuthProvider>

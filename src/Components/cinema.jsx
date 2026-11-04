@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { closesIn, openingsLabel, plural, usdc } from "../lib/format";
 import { houseRules, reelDate } from "../lib/cinema";
+import { useSaved } from "../lib/useSaved";
 import { Icon } from "./ui";
 
 // Shared pieces of the picture-house look: posters, reels, bulbs, ticket stubs.
@@ -79,13 +80,34 @@ export function ReelTag({ n, children, dim, demo }) {
   );
 }
 
+// A bookmark button for a job card. Hidden for visitors who are not signed in.
+export function SaveButton({ jobId, className = "" }) {
+  const { saved, toggle, signedIn } = useSaved();
+  if (!signedIn) return null;
+  const on = saved.has(jobId);
+  return (
+    <button
+      type="button"
+      onClick={() => toggle(jobId)}
+      aria-pressed={on}
+      aria-label={on ? "Remove from saved jobs" : "Save this job"}
+      title={on ? "Saved" : "Save for later"}
+      className={`flex h-10 w-10 items-center justify-center border transition-colors ${on ? "border-gold bg-gold text-poster" : "border-[#3a3733] text-ink-soft hover:border-gold hover:text-gold"} ${className}`}
+    >
+      <Icon name="bookmark" size={16} className={on ? "fill-current" : ""} />
+    </button>
+  );
+}
+
 export function Reel({ job, n }) {
   return (
-    <article className="flex flex-col gap-6 border border-white/10 bg-surface p-4 sm:flex-row sm:p-5">
+    <article className="relative flex flex-col gap-6 border border-white/10 bg-surface p-4 sm:flex-row sm:p-5">
+      <SaveButton jobId={job.id} className="absolute right-3 top-3 z-10" />
       <Poster title={job.title} tilt={n % 2 ? -2 : 2} demo={job.demo} />
       <div className="min-w-0 flex-1">
         <ReelTag n={n} demo={job.demo}>
           {reelDate(job.createdAt)}
+          {job.category && <span className="text-ink-soft">· {job.category}</span>}
         </ReelTag>
         <h3 className="poster-title mt-3 text-4xl text-ink sm:text-5xl">{job.title}</h3>
         <p className="mt-3 font-serif text-lg italic text-gold">A picture in USDC, paid on delivery</p>

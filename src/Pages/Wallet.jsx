@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useAccount, useBalance, useChainId, useConnect, useConfig, useDisconnect, useReadContract, useSwitchChain } from "wagmi";
+import { Link } from "react-router-dom";
+import { useAccount, useBalance, useChainId, useConfig, useDisconnect, useReadContract, useSwitchChain } from "wagmi";
+import { openWalletPicker } from "../lib/walletModal";
 import { waitForTransactionReceipt, writeContract } from "wagmi/actions";
 import { sepolia } from "wagmi/chains";
 import { formatUnits } from "viem";
@@ -111,13 +113,11 @@ export default function Wallet() {
   const { user, openLogin } = useAuth();
   const chain = useChainConfig();
   const { address, isConnected, chain: current } = useAccount();
-  const { connect, connectors, isPending, error: connectError } = useConnect();
   const { disconnect } = useDisconnect();
   const { switchChain } = useSwitchChain();
   const link = useWalletAuth();
 
   const linked = user?.walletAddress && address && user.walletAddress.toLowerCase() === address.toLowerCase();
-  const hasInjected = connectors.length > 0;
   const targetChain = chain?.chainId ?? sepolia.id;
   const wrongNetwork = current && current.id !== targetChain;
 
@@ -136,14 +136,10 @@ export default function Wallet() {
             <Icon name="wallet" size={26} />
           </span>
           <h2 className="mt-4 text-xl font-semibold">Connect your wallet</h2>
-          <p className="mt-1 max-w-sm text-sm text-muted">We use MetaMask or any browser wallet. Connecting never moves funds; you approve every transaction yourself.</p>
-          <Button className="mt-6" loading={isPending} disabled={!hasInjected} onClick={() => connect({ connector: connectors[0] })}>
+          <p className="mt-1 max-w-sm text-sm text-muted">MetaMask, Coinbase Wallet, any browser wallet, or a phone wallet. Connecting never moves funds; you approve every transaction yourself.</p>
+          <Button className="mt-6" onClick={() => openWalletPicker().catch(() => {})}>
             Connect wallet
           </Button>
-          {!hasInjected && <p className="mt-3 text-sm text-muted">No browser wallet detected. Install MetaMask to continue.</p>}
-          <div className="mt-4 w-full max-w-sm">
-            <ErrorNote>{connectError?.shortMessage}</ErrorNote>
-          </div>
         </div>
       ) : (
         <div className="space-y-6">
@@ -202,9 +198,29 @@ export default function Wallet() {
           </div>
 
           {current?.id === sepolia.id && (
-            <p className="border border-dashed border-white/10 px-4 py-3 font-mono text-sm text-muted">
-              You are on the Sepolia test network. Get free test USDC from Circle's faucet and test ETH from any Sepolia faucet.
-            </p>
+            <section className="card space-y-2 p-5 text-sm">
+              <h2 className="poster-title text-2xl">Test funds</h2>
+              <p className="text-ink-soft">You are on the Sepolia test network, where everything is free and has no real value.</p>
+              <ul className="space-y-1">
+                <li>
+                  <a className="text-gold underline-offset-2 hover:underline" href="https://faucet.circle.com" target="_blank" rel="noopener noreferrer">
+                    Free test USDC (Circle faucet) ↗
+                  </a>
+                </li>
+                <li>
+                  <a className="text-gold underline-offset-2 hover:underline" href="https://cloud.google.com/application/web3/faucet/ethereum/sepolia" target="_blank" rel="noopener noreferrer">
+                    Free test ETH for network fees ↗
+                  </a>
+                </li>
+              </ul>
+              <p className="text-xs text-muted">
+                On a real network, USDC is turned into local currency through an exchange that supports your country. See the{" "}
+                <Link to="/help" className="text-gold underline-offset-2 hover:underline">
+                  help page
+                </Link>
+                .
+              </p>
+            </section>
           )}
         </div>
       )}

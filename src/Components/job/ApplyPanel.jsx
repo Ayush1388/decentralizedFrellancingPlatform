@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api, openProtectedFile } from "../../lib/api";
+import { useChainConfig } from "../../context/useChainConfig";
 import { isClosed, toUsdc, usdc } from "../../lib/format";
 import { Badge, Button, ErrorNote, Field, Icon } from "../ui";
 import { appStatus } from "../../lib/jobStatus";
@@ -63,6 +64,21 @@ export function Quote({ app, budget }) {
   );
 }
 
+// On an on-chain site the client cannot hire someone with no linked wallet, because the payment has nowhere to go.
+function WalletNotice({ user }) {
+  const chain = useChainConfig();
+  if (!chain || !user || user.walletAddress) return null;
+  return (
+    <p className="border border-amber-800/50 bg-butter/60 px-3 py-2 text-sm">
+      Contracts here are paid on-chain, so you need a linked wallet to be hired.{" "}
+      <Link to="/wallet" className="text-gold underline-offset-2 hover:underline">
+        Link your wallet
+      </Link>{" "}
+      (free, it takes a minute).
+    </p>
+  );
+}
+
 function MyApplication({ job, user, onChange }) {
   const app = job.myApplication;
   const st = appStatus[app.status] || appStatus.pending;
@@ -95,6 +111,11 @@ function MyApplication({ job, user, onChange }) {
           </Button>
         )}
         {app.status === "declined" && <p className="mt-2 text-sm text-muted">The client went with someone else this time.</p>}
+        {(app.status === "pending" || app.status === "shortlisted") && (
+          <div className="mt-3">
+            <WalletNotice user={user} />
+          </div>
+        )}
         <Quote app={app} budget={job.total} />
         <p className="mt-3 whitespace-pre-wrap text-sm text-ink-soft">{app.cover}</p>
         <ProofOfWork app={app} />
@@ -203,6 +224,7 @@ export default function ApplyPanel({ job, user, openLogin, onChange }) {
   return (
     <form onSubmit={submit} className="card space-y-4 p-5">
       {header}
+      <WalletNotice user={user} />
       <Field label="Cover note" htmlFor="cover" hint={`Why you are a fit, and how you would approach it. ${form.cover.trim().length}/2000, at least 20.`}>
         <textarea id="cover" name="cover" required minLength={20} maxLength={2000} rows={5} value={form.cover} onChange={set} className="input" />
       </Field>

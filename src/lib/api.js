@@ -38,6 +38,23 @@ export async function api(path, { method = "GET", body, signal } = {}) {
   return data;
 }
 
+// Like api(), but also returns the total count the server reports for a paged list.
+export async function apiList(path, { signal } = {}) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, { headers, signal });
+  } catch (err) {
+    if (err.name === "AbortError") throw err;
+    throw new ApiError("Cannot reach the server. Is the API running?", 0);
+  }
+  const data = await res.json().catch(() => []);
+  if (!res.ok) throw new ApiError(data.message || "Something went wrong", res.status);
+  return { items: data, total: Number(res.headers.get("X-Total-Count")) || data.length };
+}
+
 export const imageUrl = (path) => (path ? `${API}${path}` : null);
 
 // Opens a protected file (a resume) in a new tab. A plain link would not carry the token.
@@ -54,4 +71,23 @@ export async function openProtectedFile(path) {
     tab?.close();
     throw err;
   }
+}
+
+// Fetches a protected file and saves it to disk.
+export async function downloadProtectedFile(path, name = "download") {
+  const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!res.ok) throw new ApiError((await res.json().catch(() => ({}))).message || "Could not download the file", res.status);
+  const url = URL.createObjectURL(await res.blob());
+  const a = Object.assign(document.createElement("a"), { href: url, download: name });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+// A protected image as an object URL, for <img> tags that cannot send the login token themselves.
+export async function fetchProtectedBlobUrl(path) {
+  const res = await fetch(`${API}${path}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+  if (!res.ok) throw new ApiError("Could not load the file", res.status);
+  return URL.createObjectURL(await res.blob());
 }

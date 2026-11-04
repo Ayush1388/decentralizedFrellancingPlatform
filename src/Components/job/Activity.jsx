@@ -17,10 +17,15 @@ const lines = {
   claimed: ["coins", (e) => `${who(e)} claimed “${e.detail}” after the review window`],
   refunded: ["coins", (e) => `${who(e)} reclaimed “${e.detail}”`],
   disputed: ["alert", (e) => `${who(e)} opened a dispute on ${quoteTitle(e.detail)}`],
-  resolved: ["shield", (e) => `The arbiter ruled on “${e.detail}”`],
+  resolved: ["shield", (e) => `The dispute on “${e.detail}” was settled`],
   cancelled: ["x", (e) => `${who(e)} cancelled the job`],
   completed: ["check", () => "Every milestone is settled. Job complete."],
   reviewed: ["star", (e) => `${who(e)} left a ${e.detail} review`],
+  review_reply: ["chat", (e) => `${who(e)} replied to a review`],
+  edited: ["edit", (e) => `${who(e)} edited the posting`],
+  scope_changed: ["edit", (e) => `${who(e)} changed the milestones before funding`],
+  followup: ["plus", (e) => `${who(e)} added follow-up work: “${e.detail}”`],
+  synced: ["refresh", (e) => e.detail || "Brought in line with the blockchain"],
 };
 
 const who = (e) => e.actor?.name || "Someone";

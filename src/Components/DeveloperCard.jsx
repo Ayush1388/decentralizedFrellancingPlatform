@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { Avatar, Button, Icon, SkillChip } from "./ui";
 import { DemoStamp } from "./cinema";
 
@@ -15,7 +16,11 @@ export default function DeveloperCard({ dev, onEdit, isMine }) {
           <Avatar src={dev.image} seed={dev.id} size={64} />
         </div>
         <div className="min-w-0 pr-12">
-          <h3 className="poster-title truncate text-3xl">{dev.name}</h3>
+          <h3 className="poster-title truncate text-3xl">
+            <Link to={`/developers/${dev.id}`} className="hover:text-gold">
+              {dev.name}
+            </Link>
+          </h3>
           <p className="truncate font-serif italic text-gold">{dev.title}</p>
         </div>
       </div>
@@ -35,6 +40,7 @@ export default function DeveloperCard({ dev, onEdit, isMine }) {
             {dev.rating > 0 ? (
               <>
                 <Icon name="star" size={13} className="fill-gold text-gold" /> {dev.rating.toFixed(1)}
+                {dev.ratingCount > 0 && <span className="text-muted">({dev.ratingCount})</span>}
               </>
             ) : (
               "—"

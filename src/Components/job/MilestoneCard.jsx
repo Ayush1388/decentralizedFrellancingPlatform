@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useChainConfig } from "../../context/useChainConfig";
+import { explorerTx } from "../../lib/wagmi";
 import { shortDate, usdc } from "../../lib/format";
 import { friendlyError } from "../../lib/useEscrow";
 import { Badge, Button, ErrorNote, Field, Icon } from "../ui";
@@ -44,13 +47,15 @@ function NoteForm({ id, label, hint, cta, variant, busy, onSubmit, onCancel, min
   );
 }
 
-export default function MilestoneCard({ m, job, user, onChange, perform, step, chainOn }) {
+export default function MilestoneCard({ m, job, user, onChange, perform, step, chainOn, sync }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [url, setUrl] = useState("");
   const [note, setNote] = useState("");
   const [pct, setPct] = useState(50);
   const [panel, setPanel] = useState(""); // "revise" | "dispute" | ""
+  const [link, setLink] = useState("");
+  const chain = useChainConfig();
   const st = msStatus[m.status];
   const role = job.viewerRole;
   const fee = (m.amount * job.feeBps) / 10000;
@@ -113,11 +118,75 @@ export default function MilestoneCard({ m, job, user, onChange, perform, step, c
         </div>
       )}
 
+      {/* Freelancer: the delivery is on-chain but the site never recorded the link (the tab closed, or the API was down) */}
+      {role === "freelancer" && m.deliverableMissing && (
+        <form
+          className="mt-3 space-y-2 border border-amber-800/50 bg-butter/60 p-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setBusy(true);
+            setError("");
+            try {
+              await sync({ [m.id]: link });
+              setLink("");
+            } catch (err) {
+              setError(err.message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <p className="text-sm">Your delivery is recorded on the blockchain, but the site does not have the link. Paste the exact link you submitted so the client can open it.</p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <label htmlFor={`miss-${m.id}`} className="sr-only">
+              Delivery link
+            </label>
+            <input id={`miss-${m.id}`} required type="url" value={link} onChange={(e) => setLink(e.target.value)} className="input" placeholder="https://…" />
+            <Button type="submit" size="sm" loading={busy}>
+              Save link
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {(m.fundTx || m.releaseTx) && chain && (
+        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-muted">
+          {explorerTx(chain.chainId, m.fundTx) && (
+            <a href={explorerTx(chain.chainId, m.fundTx)} target="_blank" rel="noopener noreferrer" className="hover:text-gold">
+              Funding transaction ↗
+            </a>
+          )}
+          {explorerTx(chain.chainId, m.releaseTx) && (
+            <a href={explorerTx(chain.chainId, m.releaseTx)} target="_blank" rel="noopener noreferrer" className="hover:text-gold">
+              Payment transaction ↗
+            </a>
+          )}
+        </p>
+      )}
+      {(m.status === "released" || m.status === "resolved") && (role === "client" || role === "freelancer") && (
+        <p className="mt-2">
+          <Link to={`/jobs/${job.id}/receipt/${m.id}`} className="inline-flex items-center gap-1.5 text-xs text-gold underline-offset-2 hover:underline">
+            <Icon name="file" size={12} /> View receipt
+          </Link>
+        </p>
+      )}
+
       {m.status === "disputed" && m.disputeReason && (
         <div className="mt-3 border-l-2 border-red-700 bg-red-50 px-4 py-3 text-sm">
           <p className="stat-label !text-red-700">Dispute</p>
           <p className="mt-1 whitespace-pre-wrap">{m.disputeReason}</p>
-          <p className="mt-2 text-xs text-muted">Funds are frozen until the platform arbiter rules.</p>
+          <p className="mt-2 text-xs text-muted">
+            Funds are frozen until the platform arbiter rules.
+            {m.settleAt && !isPast(m.settleAt) && ` If there is no ruling by ${shortDate(m.settleAt)}, either of you can settle it 50/50.`}
+          </p>
+          {m.settleAt && isPast(m.settleAt) && (role === "client" || role === "freelancer") && (
+            <div className="mt-3">
+              <p className="mb-2 text-sm">The arbiter has not ruled in time. Either of you can now split this milestone 50/50.</p>
+              <Button size="sm" loading={busy} onClick={() => act("resolve-stale")}>
+                Settle 50/50
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

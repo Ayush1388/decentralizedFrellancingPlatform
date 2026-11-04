@@ -147,6 +147,29 @@
   .hatch {
     background-image: repeating-linear-gradient(135deg, rgb(242 194 48 / 0.35) 0 2px, transparent 2px 7px);
   }
+  /* Long-form text pages (terms, privacy). */
+  .doc h2 {
+    font-family: var(--font-poster);
+    text-transform: uppercase;
+    color: var(--color-gold);
+    font-size: 1.9rem;
+    line-height: 1;
+    margin-bottom: 0.6rem;
+  }
+  .doc p + p {
+    margin-top: 0.75rem;
+  }
+  .doc ul {
+    margin-top: 0.5rem;
+    list-style: disc;
+    padding-left: 1.25rem;
+  }
+  .doc li + li {
+    margin-top: 0.4rem;
+  }
+  .doc strong {
+    color: var(--color-ink);
+  }
   .arch {
     border-radius: 2px;
   }
@@ -231,4 +254,20 @@
 }
 .filmstrip:hover .filmstrip-track {
   animation-play-state: paused;
+}
+
+/* Receipts and anything else marked for paper: only the document prints. */
+@media print {
+  header,
+  footer,
+  .no-print,
+  .grain::after {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .receipt {
+    box-shadow: none !important;
+  }
 }

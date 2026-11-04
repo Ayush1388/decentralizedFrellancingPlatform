@@ -1,26 +1,30 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, downloadProtectedFile } from "../lib/api";
 import { useAuth } from "../context/useAuth";
 import { timeAgo, usdc } from "../lib/format";
 import { Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, SkillChip } from "../Components/ui";
-import { Poster } from "../Components/cinema";
+import { Poster, SaveButton } from "../Components/cinema";
 import { reelDate } from "../lib/cinema";
 import { jobStatus } from "../lib/jobStatus";
 import { useChainConfig } from "../context/useChainConfig";
 import { friendlyError, useEscrow } from "../lib/useEscrow";
+import { usePendingTx } from "../lib/usePendingTx";
+import { explorerAddress } from "../lib/wagmi";
 import MilestoneCard from "../Components/job/MilestoneCard";
 import ApplyPanel from "../Components/job/ApplyPanel";
 import ApplicantsPanel from "../Components/job/ApplicantsPanel";
 import Activity from "../Components/job/Activity";
 import ReviewPanel from "../Components/job/ReviewPanel";
+import ManagePanel from "../Components/job/ManagePanel";
 import JobFacts from "../Components/job/JobFacts";
 import Thread from "../Components/job/Thread";
+import ReportButton from "../Components/ReportButton";
 
 function OpenEscrow({ job, eth, onChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const missing = !job.clientWallet ? "Link your wallet on the Wallet page first." : !job.freelancerWallet ? `${job.freelancer.name} has not linked a wallet yet.` : "";
+  const missing = !job.clientWallet ? "Link your wallet on the Box office page first." : !job.freelancerWallet ? `${job.freelancer.name} has not linked a wallet yet.` : "";
 
   async function open() {
     setBusy(true);
@@ -63,7 +67,8 @@ function NextStep({ job }) {
   const first = (s) => ms.find((m) => m.status === s);
   let text = "";
   if (role === "client") {
-    if (job.status === "open") {
+    if (job.status === "draft") text = "This is a draft: nobody can see it yet. Review it, then publish.";
+    else if (job.status === "open") {
       const toReview = (job.applications || []).filter((a) => a.status === "pending" || a.status === "shortlisted").length;
       text = toReview ? `You have ${toReview} application${toReview > 1 ? "s" : ""} to review. Shortlist, message, then hire.` : "Waiting for applications. Share the link to get more.";
     } else if (job.status === "filled") text = "Every opening is filled. Each hire has their own contract below.";
@@ -71,14 +76,14 @@ function NextStep({ job }) {
     else if (first("disputed")) text = "A milestone is in dispute. The arbiter will rule on it.";
     else if (first("pending") && !ms.some((m) => m.status === "funded")) text = `Fund “${first("pending").title}” so ${job.freelancer?.name || "the freelancer"} can start.`;
     else if (first("funded")) text = `${job.freelancer?.name} is working on “${first("funded").title}”.`;
-    else if (job.status === "completed") text = job.review ? "All done. Thanks for reviewing." : "All done. Leave a review for the freelancer.";
+    else if (job.status === "completed") text = job.reviews?.some((r) => r.kind === "client_to_freelancer") ? "All done. Thanks for reviewing." : "All done. Leave a review for the freelancer.";
   } else if (role === "freelancer") {
     const rework = ms.find((m) => m.status === "funded" && m.feedback);
     if (rework) text = `The client asked for changes on “${rework.title}”. Read the note and resubmit.`;
     else if (first("funded")) text = `“${first("funded").title}” is funded. Deliver it when it is ready.`;
     else if (first("submitted")) text = "Your work is with the client for review.";
     else if (first("pending")) text = "Waiting for the client to fund the next milestone.";
-    else if (job.status === "completed") text = "Every milestone is paid. Withdraw from the Box office if you are on-chain.";
+    else if (job.status === "completed") text = "Every milestone is paid. If you are on-chain, withdraw from the Box office.";
   }
   if (!text) return null;
   return (
@@ -92,43 +97,27 @@ function NextStep({ job }) {
   );
 }
 
-function CancelJob({ job, onChange }) {
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
+function BriefFiles({ files }) {
   const [error, setError] = useState("");
-  const untouched = job.milestones.every((m) => m.status === "pending");
-  const allowed = job.viewerRole === "client" && (job.status === "open" || job.status === "filled" || (job.status === "in_progress" && untouched));
-  if (!allowed) return null;
-
-  async function cancel() {
-    setBusy(true);
-    try {
-      onChange(await api(`/api/jobs/${job.id}/cancel`, { method: "POST" }));
-    } catch (err) {
-      setError(err.message);
-      setBusy(false);
-    }
-  }
-  const what = job.status === "in_progress" ? "End this contract? Nothing has been funded, so no money moves." : "Close this posting? Pending applicants are declined.";
+  if (!files?.length) return null;
   return (
-    <div className="space-y-2">
-      {confirm ? (
-        <div className="card space-y-3 p-4 text-sm">
-          <p>{what}</p>
-          <div className="flex gap-2">
-            <Button size="sm" variant="danger" loading={busy} onClick={cancel}>
-              Yes, cancel
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>
-              Keep it
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button variant="outline" size="sm" onClick={() => setConfirm(true)}>
-          {job.status === "in_progress" ? "End contract" : "Close posting"}
-        </Button>
-      )}
+    <div>
+      <p className="stat-label mb-2">Files from the client</p>
+      <ul className="flex flex-wrap gap-2">
+        {files.map((f) => (
+          <li key={f.id}>
+            <button
+              type="button"
+              onClick={() => downloadProtectedFile(f.url, f.name).catch((e) => setError(e.message))}
+              className="flex items-center gap-2 border border-[#3a3733] px-3 py-2 text-sm hover:border-gold"
+            >
+              <Icon name="file" size={14} className="text-gold" />
+              <span className="max-w-56 truncate">{f.name}</span>
+              <span className="text-xs text-muted">{f.size >= 1048576 ? `${(f.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(f.size / 1024))} KB`}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
       <ErrorNote>{error}</ErrorNote>
     </div>
   );
@@ -139,10 +128,13 @@ export default function JobDetail() {
   const { user, openLogin, ready } = useAuth();
   const [job, setJob] = useState(null);
   const [error, setError] = useState("");
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncNote, setSyncNote] = useState("");
   const chain = useChainConfig();
   const eth = useEscrow();
+  const pending = usePendingTx(job, setJob);
 
-  // On-chain mode: send the wallet transaction first, then give its hash to the API to verify and mirror.
+  // On-chain mode: send the wallet transaction first, remember it, then give its hash to the API to verify and mirror.
   const perform = async (m, action, body = {}) => {
     let txHash;
     if (chain) {
@@ -150,12 +142,48 @@ export default function JobDetail() {
         escrowId: job.escrowId,
         index: m.position - 1,
         amount: m.amount,
+        // approve once for every milestone still to fund, so later ones need a single confirmation
+        approveAmount: job.milestones.filter((x) => x.status === "pending").reduce((s, x) => s + x.amount, 0),
         deliverableUrl: body.deliverableUrl,
         freelancerPercent: body.freelancerPercent,
       });
+      pending.remember({ milestoneId: m.id, action, body, txHash });
     }
-    return api(`/api/milestones/${m.id}/${action}`, { method: "POST", body: { ...body, txHash } });
+    try {
+      const updated = await api(`/api/milestones/${m.id}/${action}`, { method: "POST", body: { ...body, txHash } });
+      if (txHash) pending.forget(txHash);
+      return updated;
+    } catch (err) {
+      if (txHash && (!err.status || err.status >= 500 || err.status === 409)) {
+        // The money moved but the site could not record it. It is remembered and retried; sync is the manual way.
+        throw Object.assign(new Error("Your transaction went through, but the site could not record it yet. It will retry automatically the next time you open this job, or press “Sync with blockchain”."), { friendly: true });
+      }
+      throw err;
+    }
   };
+
+  const sync = useCallback(
+    async (deliverables) => {
+      setSyncNote("");
+      const updated = await api(`/api/jobs/${id}/sync`, { method: "POST", body: deliverables ? { deliverables } : undefined });
+      setJob(updated);
+      return updated;
+    },
+    [id],
+  );
+
+  async function manualSync() {
+    setSyncBusy(true);
+    try {
+      const before = JSON.stringify(job.milestones.map((m) => m.status));
+      const updated = await sync();
+      setSyncNote(JSON.stringify(updated.milestones.map((m) => m.status)) === before ? "Already up to date with the blockchain." : "Updated to match the blockchain.");
+    } catch (err) {
+      setSyncNote(err.message);
+    } finally {
+      setSyncBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (!ready) return;
@@ -188,8 +216,10 @@ export default function JobDetail() {
   const inEscrow = job.milestones.filter((m) => m.status === "funded" || m.status === "submitted" || m.status === "disputed").reduce((s, m) => s + m.amount, 0);
   const paid = job.milestones.filter((m) => m.status === "released" || m.status === "resolved").reduce((s, m) => s + m.amount, 0);
   const participant = role === "client" || role === "freelancer";
-  const posting = job.status === "open" || job.status === "filled" || (job.status === "cancelled" && !job.freelancer);
+  const posting = job.status === "open" || job.status === "filled" || job.status === "draft" || (job.status === "cancelled" && !job.freelancer);
   const showApplicants = role === "client" && (posting || job.applications?.length > 1);
+  const arbiterView = !participant && user?.isAdmin && job.milestones.some((m) => m.status === "disputed");
+  const needsWallet = chain && participant && !user?.walletAddress;
 
   return (
     <div className="container-page pb-8 pt-8">
@@ -201,20 +231,29 @@ export default function JobDetail() {
         <Poster title={job.title} tilt={-2} demo={job.demo} className="hidden !max-w-[10rem] sm:flex" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge tone={st.tone}>{st.label}</Badge>
+            <Badge tone={job.status === "draft" ? "amber" : st.tone}>{job.status === "draft" ? "Draft" : st.label}</Badge>
             {job.parentId && <Badge tone="blue">Contract</Badge>}
             {role !== "visitor" && <Badge tone="violet">You are the {role}</Badge>}
             {job.demo && <Badge tone="red">Demo data</Badge>}
+            {job.category && <Badge tone="gray">{job.category}</Badge>}
+            <span className="ml-auto flex items-center gap-2">
+              {job.status !== "draft" && <SaveButton jobId={job.id} />}
+            </span>
           </div>
           <h1 className="poster-title mt-3 text-5xl text-gold sm:text-6xl">{job.title}</h1>
           <p className="mt-3 font-serif text-lg italic text-ink-soft">
             Directed by {job.client.name}
+            {job.clientReviews > 0 && (
+              <span className="ml-2 font-mono text-sm not-italic text-gold" title={`${job.clientReviews} review${job.clientReviews === 1 ? "" : "s"} from freelancers`}>
+                ★ {job.clientRating.toFixed(1)} ({job.clientReviews})
+              </span>
+            )}
             {job.freelancer && `, starring ${job.freelancer.name}`}
           </p>
           <p className="mt-1 font-mono text-xs text-muted">
             Posted {reelDate(job.createdAt)} · {timeAgo(job.createdAt)}
           </p>
-          {!job.parentId && <JobFacts job={job} className="mt-4" />}
+          {!job.parentId && job.status !== "draft" && <JobFacts job={job} className="mt-4" />}
           <dl className="mt-5 grid max-w-md grid-cols-3 gap-px border border-white/10 bg-white/10">
             {[
               ["Budget", job.total],
@@ -230,6 +269,15 @@ export default function JobDetail() {
         </div>
       </header>
 
+      {needsWallet && (
+        <p className="mt-6 border border-amber-800/50 bg-butter/60 px-4 py-3 text-sm">
+          This contract is paid on-chain and your account has no linked wallet yet.{" "}
+          <Link to="/wallet" className="text-gold underline-offset-2 hover:underline">
+            Link your wallet
+          </Link>{" "}
+          before funding, delivering or withdrawing.
+        </p>
+      )}
       <NextStep job={job} />
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
@@ -246,15 +294,39 @@ export default function JobDetail() {
                 ))}
               </div>
             )}
+            {job.attachments?.length > 0 && (
+              <div className="mt-5">
+                <BriefFiles files={job.attachments} />
+              </div>
+            )}
+            {!user && !participant && <p className="mt-4 text-xs text-muted">Log in to open the files attached to this job.</p>}
           </section>
 
           <section>
-            <h2 className="poster-title text-3xl text-gold">Scenes &amp; milestones</h2>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 className="poster-title text-3xl text-gold">Scenes &amp; milestones</h2>
+              {chain && participant && job.escrowId != null && (
+                <div className="text-right">
+                  <Button size="sm" variant="outline" loading={syncBusy} onClick={manualSync}>
+                    <Icon name="refresh" size={14} /> Sync with blockchain
+                  </Button>
+                </div>
+              )}
+            </div>
+            {syncNote && <p className="mt-2 text-right text-xs text-muted" role="status">{syncNote}</p>}
             {chain ? (
               <p className="mb-4 mt-1 flex items-start gap-2 bg-green-50 px-4 py-3 text-sm text-green-900">
                 <Icon name="shield" size={18} className="mt-0.5" />
                 <span>
-                  Payments are held by the escrow contract <code className="break-all">{chain.escrow}</code> (chain {chain.chainId}). Every step below is a wallet transaction.
+                  Payments are held by the escrow contract{" "}
+                  {explorerAddress(chain.chainId, chain.escrow) ? (
+                    <a href={explorerAddress(chain.chainId, chain.escrow)} target="_blank" rel="noopener noreferrer" className="break-all underline underline-offset-2">
+                      {chain.escrow}
+                    </a>
+                  ) : (
+                    <code className="break-all">{chain.escrow}</code>
+                  )}{" "}
+                  (chain {chain.chainId}). Every step below is a wallet transaction.
                 </span>
               </p>
             ) : (
@@ -263,13 +335,13 @@ export default function JobDetail() {
                 <span>Preview mode: no escrow contract is connected to this server, so balances are tracked by the platform and no real USDC moves.</span>
               </p>
             )}
-            {job.openings > 1 && !job.parentId && (
+            {job.openings > 1 && !job.parentId && job.status !== "in_progress" && (
               <p className="mb-4 text-sm text-muted">Each person hired gets their own copy of these milestones, funded and paid separately.</p>
             )}
             {chain && role === "client" && job.freelancer && job.escrowId == null && <OpenEscrow job={job} eth={eth} onChange={setJob} />}
             <ol className="space-y-4">
               {job.milestones.map((m) => (
-                <MilestoneCard key={m.id} m={m} job={job} user={user} onChange={setJob} perform={perform} step={eth.step} chainOn={!!chain} />
+                <MilestoneCard key={m.id} m={m} job={job} user={user} onChange={setJob} perform={perform} step={eth.step} chainOn={!!chain} sync={sync} />
               ))}
             </ol>
           </section>
@@ -277,10 +349,12 @@ export default function JobDetail() {
 
         <aside className="space-y-5">
           {(role === "visitor" || role === "applicant") && <ApplyPanel job={job} user={user} openLogin={openLogin} onChange={setJob} />}
-          <ReviewPanel job={job} onChange={setJob} />
+          <ReviewPanel job={job} user={user} onChange={setJob} />
           {participant && job.freelancer && <Thread id="chat" path={`/api/jobs/${job.id}/messages`} user={user} />}
-          {participant && <Activity events={job.events} />}
-          <CancelJob job={job} onChange={setJob} />
+          {arbiterView && <Thread id="chat" path={`/api/jobs/${job.id}/messages`} user={user} readOnly title="Messages (arbiter view)" />}
+          {(participant || arbiterView) && <Activity events={job.events} />}
+          <ManagePanel job={job} onChange={setJob} />
+          {user && !participant && job.status !== "draft" && <ReportButton kind="job" targetId={job.id} label="Report this job" />}
         </aside>
       </div>
     </div>

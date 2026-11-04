@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useAccount, useConnect, useSignMessage } from "wagmi";
+import { useAccount, useSignMessage } from "wagmi";
 import { api } from "./api";
 import { useAuth } from "../context/useAuth";
+import { openWalletPicker } from "./walletModal";
 
 // Sign-In with Ethereum: fetch a one-time message, have the wallet sign it
 // (no gas, no transaction), and let the server verify it. If the visitor is
@@ -9,7 +10,6 @@ import { useAuth } from "../context/useAuth";
 export function useWalletAuth() {
   const { signIn } = useAuth();
   const { address, isConnected } = useAccount();
-  const { connectAsync, connectors } = useConnect();
   const { signMessageAsync } = useSignMessage();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -19,11 +19,7 @@ export function useWalletAuth() {
     setError("");
     try {
       let addr = address;
-      if (!isConnected) {
-        if (!connectors.length) throw new Error("No browser wallet found. Install MetaMask to continue.");
-        const res = await connectAsync({ connector: connectors[0] });
-        addr = res.accounts[0];
-      }
+      if (!isConnected) addr = await openWalletPicker();
       const { message } = await api(`/api/auth/wallet/nonce?address=${addr}`);
       const signature = await signMessageAsync({ message });
       const session = await api("/api/auth/wallet/verify", { method: "POST", body: { address: addr, signature } });

@@ -31,7 +31,13 @@ export default function Footer() {
         </div>
       </dl>
 
-      <p className="eyebrow mt-14 text-muted">The Blockchain Picture House · Payments in USDC on Ethereum</p>
+      <nav aria-label="Legal and help" className="mt-12 flex flex-wrap justify-center gap-x-6 gap-y-2 font-mono text-xs text-muted">
+        <Link to="/help" className="hover:text-gold">Help</Link>
+        <Link to="/terms" className="hover:text-gold">Terms</Link>
+        <Link to="/privacy" className="hover:text-gold">Privacy</Link>
+        <a href="https://github.com/Ayush1388/decentralizedFrellancingPlatform" target="_blank" rel="noopener noreferrer" className="hover:text-gold">Source</a>
+      </nav>
+      <p className="eyebrow mt-6 text-muted">The Blockchain Picture House · Payments in USDC on Ethereum</p>
     </footer>
   );
 }

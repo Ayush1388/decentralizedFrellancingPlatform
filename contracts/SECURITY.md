@@ -58,6 +58,8 @@ the strength of this document.
 3. The windows logic after `requestChanges` (`fundedAt` reset, `submittedAt` cleared) and the claim/refund races around it.
 4. The owner and arbiter powers, and the plan for multisig, timelock and dispute resolution.
 5. Gas griefing: `MAX_MILESTONES` is 20 and every loop is bounded by it.
+6. `resolveStale`: the 30-day arbiter timeout (50/50 split) and `disputedAt`, so a dispute cannot be re-opened to reset the clock.
+7. `freelancerBps`, the stored split of a resolved milestone, which the API reads back when it resyncs from the chain.
 
 ## Reporting
 

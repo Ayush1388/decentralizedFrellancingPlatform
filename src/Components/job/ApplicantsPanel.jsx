@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../lib/api";
 import { useChainConfig } from "../../context/useChainConfig";
-import { openingsLabel, plural, timeAgo } from "../../lib/format";
+import { openingsLabel, plural, timeAgo, usdc } from "../../lib/format";
 import { appStatus, jobStatus } from "../../lib/jobStatus";
 import { Avatar, Badge, Button, ErrorNote, Icon, SkillChip } from "../ui";
 import { ProofOfWork, Quote } from "./ApplyPanel";
@@ -20,6 +20,7 @@ function Applicant({ a, job, user, onChange }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [confirmHire, setConfirmHire] = useState(false);
+  const [price, setPrice] = useState(a.bid != null ? "quote" : "budget"); // which price the contract starts at
   const [talk, setTalk] = useState(false);
   const st = appStatus[a.status];
   const open = job.status === "open";
@@ -76,14 +77,29 @@ function Applicant({ a, job, user, onChange }) {
           </Button>
         )}
         {confirmHire && (
-          <span className="flex flex-wrap items-center gap-2 bg-black/30 px-3 py-2 text-sm">
-            {job.openings > 1 ? `Hire for one of ${job.openings} openings?` : "Hire and decline the others?"}
-            <Button size="sm" loading={busy === "hire"} onClick={() => run("hire", `/api/jobs/${job.id}/hire`, { applicationId: a.id })}>
-              Confirm
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setConfirmHire(false)}>
-              Cancel
-            </Button>
+          <span className="flex w-full flex-col gap-3 bg-black/30 px-3 py-3 text-sm">
+            <span>{job.openings > 1 ? `Hire for one of ${job.openings} openings?` : "Hire and decline the others?"}</span>
+            {a.bid != null && a.bid !== job.total && (
+              <fieldset className="space-y-1.5">
+                <legend className="stat-label mb-1">Agreed price</legend>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name={`price-${a.id}`} checked={price === "quote"} onChange={() => setPrice("quote")} className="accent-[#f2c230]" />
+                  Their quote: <strong>{usdc(a.bid)}</strong> <span className="text-xs text-muted">(milestones scale to match)</span>
+                </label>
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input type="radio" name={`price-${a.id}`} checked={price === "budget"} onChange={() => setPrice("budget")} className="accent-[#f2c230]" />
+                  Your posted budget: <strong>{usdc(job.total)}</strong>
+                </label>
+              </fieldset>
+            )}
+            <span className="flex gap-2">
+              <Button size="sm" loading={busy === "hire"} onClick={() => run("hire", `/api/jobs/${job.id}/hire`, { applicationId: a.id, useQuote: price === "quote" && a.bid != null })}>
+                Confirm hire
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmHire(false)}>
+                Cancel
+              </Button>
+            </span>
           </span>
         )}
         {live && a.status === "pending" && (
@@ -117,10 +133,16 @@ function Applicant({ a, job, user, onChange }) {
           </Button>
         )}
       </div>
-      {chain && !a.hasWallet && live && <p className="mt-2 text-xs text-amber-800">No wallet linked yet, so they cannot be paid on-chain.</p>}
+      {chain && !a.hasWallet && live && <p className="mt-2 text-xs text-amber-800">No wallet linked yet, so they cannot be paid on-chain. Message them to link one on the Box office page.</p>}
       {talk && (
         <div className="mt-4 border-t border-white/10 pt-4">
-          <Thread compact path={`/api/applications/${a.id}/messages`} user={user} empty={`Ask ${a.user.name.split(" ")[0]} anything before you decide.`} />
+          <Thread
+            compact
+            path={`/api/applications/${a.id}/messages`}
+            user={user}
+            empty={`Ask ${a.user.name.split(" ")[0]} anything before you decide.`}
+            starters={["Can you share a similar project you built?", "When could you start?", "How would you split this into steps?"]}
+          />
         </div>
       )}
       <div className="mt-2">
@@ -130,11 +152,59 @@ function Applicant({ a, job, user, onChange }) {
   );
 }
 
+// Side by side, for choosing between several applicants.
+function CompareTable({ apps, job }) {
+  const rows = [
+    ["Quote", (a) => (a.bid != null ? usdc(a.bid) : "—")],
+    ["vs budget", (a) => (a.bid != null ? (a.bid === job.total ? "same" : `${a.bid > job.total ? "+" : "−"}${usdc(Math.abs(a.bid - job.total))}`) : "—")],
+    ["Delivery", (a) => (a.etaDays != null ? `${a.etaDays} days` : "—")],
+    ["Rate", (a) => (a.developer ? `$${a.developer.hourlyRate}/hr` : "—")],
+    ["Rating", (a) => (a.developer?.rating > 0 ? `★ ${a.developer.rating.toFixed(1)}` : "—")],
+    ["Jobs done", (a) => (a.developer ? a.developer.jobsDone : "—")],
+    ["GitHub", (a) => (a.githubUrl ? "yes" : "no")],
+    ["Portfolio", (a) => (a.portfolioUrl ? "yes" : "no")],
+    ["Resume", (a) => (a.resume ? "yes" : "no")],
+    ["Wallet", (a) => (a.hasWallet ? "linked" : "not yet")],
+    ["Status", (a) => appStatus[a.status]?.label || a.status],
+  ];
+  return (
+    <div className="mt-4 overflow-x-auto border border-white/10">
+      <table className="w-full min-w-[32rem] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-white/10 text-left">
+            <th scope="col" className="stat-label p-3"></th>
+            {apps.map((a) => (
+              <th key={a.id} scope="col" className="poster-title p-3 text-xl">
+                {a.user.name}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, get]) => (
+            <tr key={label} className="border-b border-white/5">
+              <th scope="row" className="stat-label p-3 text-left font-normal">
+                {label}
+              </th>
+              {apps.map((a) => (
+                <td key={a.id} className="p-3 font-mono">
+                  {get(a)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function ApplicantsPanel({ job, user, onChange }) {
   const apps = job.applications || [];
   const [filter, setFilter] = useState("active");
   const f = filters.find((x) => x.id === filter);
   const shown = apps.filter(f.match);
+  const [compare, setCompare] = useState(false);
 
   return (
     <section aria-labelledby="applicants-title">
@@ -180,7 +250,16 @@ export default function ApplicantsPanel({ job, user, onChange }) {
         })}
       </div>
 
-      {shown.length === 0 ? (
+      {shown.length >= 2 && (
+        <div className="mt-4">
+          <Button size="sm" variant="outline" onClick={() => setCompare(!compare)} aria-pressed={compare}>
+            {compare ? "Back to the list" : "Compare side by side"}
+          </Button>
+        </div>
+      )}
+      {compare && shown.length >= 2 ? (
+        <CompareTable apps={shown} job={job} />
+      ) : shown.length === 0 ? (
         <p className="mt-4 border border-dashed border-white/10 px-4 py-6 text-center text-sm text-muted">
           {apps.length === 0 ? "No applications yet. They will appear here as freelancers apply." : "Nobody in this list."}
         </p>
