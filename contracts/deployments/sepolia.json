@@ -1,0 +1,11 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "escrow": "0x09d05FBebb755a9fB392E082D1B6f16132110167",
+  "usdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+  "mockUsdc": false,
+  "arbiter": "0xf3f1DF5A3a547B9e275839c06400CCb86B8B8f36",
+  "treasury": "0xf3f1DF5A3a547B9e275839c06400CCb86B8B8f36",
+  "feeBps": 200,
+  "deployer": "0xf3f1DF5A3a547B9e275839c06400CCb86B8B8f36"
+}
