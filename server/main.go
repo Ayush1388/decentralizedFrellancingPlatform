@@ -13,6 +13,7 @@ type Server struct {
 	db        *DB
 	chain     Verifier   // nil in off-chain preview mode
 	chainInfo *ChainInfo // nil in off-chain preview mode
+	mailer    Mailer     // nil when SMTP is not configured
 }
 
 func (s *Server) routes() http.Handler {
@@ -26,6 +27,7 @@ func (s *Server) routes() http.Handler {
 		cfg := map[string]any{
 			"feeBps": s.cfg.FeeBps, "claimAfterDays": s.cfg.ClaimAfterDays, "refundAfterDays": s.cfg.RefundAfterDays,
 			"googleEnabled": s.cfg.GoogleClientID != "",
+			"emailEnabled":  s.mailer != nil,
 			"chain":         s.chainInfo,
 		}
 		// The demo account is public on purpose: it only owns seeded demo data.
@@ -39,6 +41,7 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/auth/signup", s.handleSignup)
 	mux.HandleFunc("POST /api/auth/login", s.handleLogin)
 	mux.HandleFunc("GET /api/auth/me", auth(s.handleMe))
+	mux.HandleFunc("POST /api/auth/notifications", auth(s.handleNotifications))
 	mux.HandleFunc("GET /api/auth/google", s.handleGoogleStart)
 	mux.HandleFunc("GET /api/auth/google/callback", s.handleGoogleCallback)
 	mux.HandleFunc("GET /api/auth/wallet/nonce", s.handleWalletNonce)
@@ -73,8 +76,6 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/admin/disputes", auth(s.handleAdminDisputes))
 	mux.HandleFunc("GET /api/files/{id}", s.handleGetFile)
 
-	mux.Handle("GET /uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir(s.cfg.UploadDir))))
-
 	return cors(s.cfg.FrontendURL, mux)
 }
 
@@ -92,7 +93,13 @@ func main() {
 		}
 	}
 
-	s := &Server{cfg: cfg, db: db}
+	s := &Server{cfg: cfg, db: db, mailer: newMailer(cfg)}
+	if s.mailer != nil {
+		go s.runNotifier(context.Background())
+		log.Printf("Email notifications on (SMTP %s:%s)", cfg.SMTPHost, cfg.SMTPPort)
+	} else {
+		log.Println("SMTP_HOST not set: email notifications are off")
+	}
 	if cfg.EscrowAddress != "" && cfg.RPCURL != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		c, info, err := newChain(ctx, cfg.RPCURL, cfg.EscrowAddress, cfg.ChainID)

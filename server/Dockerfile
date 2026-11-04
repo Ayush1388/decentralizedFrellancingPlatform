@@ -8,5 +8,4 @@ RUN CGO_ENABLED=0 go build -o /api .
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates
 COPY --from=build /api /api
-ENV UPLOAD_DIR=/tmp/uploads
 CMD ["/api"]

@@ -9,7 +9,7 @@ the freelancer delivers, and the client approves it to release payment.
 - Demo login: `demo@blockchainfreelance.dev` / `demo1234`, or click **Watch as the demo client** on the site.
   Jobs and developers stamped **DEMO** are sample data.
 - The live site runs in preview mode: milestones are tracked by the API and no real USDC moves.
-  See [Sepolia testnet](#sepolia-testnet) to connect the escrow contract.
+  See [Sepolia testnet](#sepolia-testnet) to connect the escrow contract, and the [roadmap](#roadmap) for what is next.
 
 ![Home: the ticket hero and film strip](docs/screenshots/home.jpg)
 
@@ -29,11 +29,14 @@ the freelancer delivers, and the client approves it to release payment.
 - **Apply:** a cover note, a price quote, a delivery estimate, and at least one of a PDF resume, a GitHub link or a portfolio link.
   Applicants can withdraw while the client is still deciding.
 - **Hire:** the client shortlists, declines and messages applicants before hiring, then confirms the hire.
-- **Work:** the client funds each milestone, the freelancer delivers a link with a note, and the client approves it or requests changes.
-  Either side can open a dispute with a reason; the arbiter rules on a split.
+- **Work:** the client funds each milestone, the freelancer delivers a link with a note, and the client approves it or requests changes
+  (up to 3 times per milestone, in preview mode and on-chain). Either side can open a dispute with a reason; the arbiter rules on a split.
 - **Get paid:** approval releases the milestone (2% fee from the freelancer's share). A silent client lets the freelancer claim after 7 days;
   no delivery lets the client reclaim after 14.
 - **Afterwards:** the client reviews the freelancer and the profile rating becomes the average of their reviews.
+- **Email notifications** (optional, set `SMTP_HOST`): applicants, clients and freelancers are emailed when something needs their
+  action: a new application, shortlisted or hired, work delivered, changes requested, payment released, a dispute. People can turn them
+  off from their dashboard.
 - Every job has an activity log and a "next step" hint. Deliverables are visible only to the two parties and the arbiter.
   Resumes open only for the applicant and the client they applied to.
 
@@ -42,9 +45,9 @@ the freelancer delivers, and the client approves it to release payment.
 - `src/` React 19 + Vite + Tailwind 4 frontend, wagmi/viem for the Ethereum wallet
 - `server/` Go API (stdlib `net/http`, PostgreSQL via pgx): auth (email, Google, Sign-In with Ethereum), developers, jobs,
   applications, milestones, chat, reviews. Uploaded files are stored in Postgres.
-- `contracts/` Solidity escrow (`JobEscrow.sol`) with Hardhat tests
+- `contracts/` Solidity escrow (`JobEscrow.sol`) with Hardhat tests, and [security notes](contracts/SECURITY.md)
 - `docker-compose.yml` a dedicated Postgres 17 on port 5434 (so it never clashes with other local databases)
-- `backend/` the previous Express/Mongo API, kept for reference
+- `backend/` the previous Express/Mongo API, superseded by `server/` and safe to delete
 
 Deployed with the frontend on Vercel, the API on Render (`server/Dockerfile`) and the database on Neon.
 Set `SEED_DEMO=true` on the API to add the labelled demo data and the public demo login.
@@ -130,6 +133,7 @@ Put the three printed values into the API's environment and restart it.
 | `FEE_BPS`, `CLAIM_AFTER_DAYS`, `REFUND_AFTER_DAYS` | Escrow rules: fee in basis points (200 = 2%) and the two time windows. Keep them equal to the contract's. |
 | `ESCROW_ADDRESS`, `CHAIN_ID`, `RPC_URL` | Turn on on-chain mode. Leave empty for preview mode. |
 | `SEED_DEMO` | `true` adds the labelled demo data and the public demo login. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Turn on email notifications. Port 587 with STARTTLS works with Gmail (app password), Brevo, Resend, SendGrid and most providers. Leave `SMTP_HOST` empty for no email. |
 
 The frontend reads one variable at build time: `VITE_API_URL`, the API's address (defaults to `http://localhost:3001`).
 
@@ -149,6 +153,7 @@ Pushing to `main` redeploys both.
 | Method and path | Purpose |
 |---|---|
 | `POST /api/auth/signup`, `POST /api/auth/login`, `GET /api/auth/me` | Email accounts |
+| `POST /api/auth/notifications` | Turn the caller's email notifications on or off |
 | `GET /api/auth/wallet/nonce`, `POST /api/auth/wallet/verify` | Sign-In with Ethereum |
 | `GET /api/developers`, `POST/PUT/DELETE /api/developers/{id}` | Developer profiles |
 | `GET /api/jobs`, `GET /api/jobs/mine`, `POST /api/jobs`, `GET /api/jobs/{id}` | Jobs |
@@ -166,7 +171,7 @@ Pushing to `main` redeploys both.
 ## Tests
 
 ```sh
-npm run contracts:test        # contract tests, including a randomised conservation check
+npm run contracts:test        # 31 contract tests, including a randomised conservation check
 cd server && go test ./...    # API tests: the whole hiring and payment flow, chain verification, demo seed (needs `npm run db`)
 node scripts/e2e.mjs          # real chain + real contract + real API + Postgres, the whole money path
 ```
@@ -174,16 +179,30 @@ node scripts/e2e.mjs          # real chain + real contract + real API + Postgres
 ## Contract rules (`contracts/contracts/JobEscrow.sol`)
 
 - A client opens an escrow with a list of milestones and funds each one (USDC) before work starts.
-- The freelancer submits a hash of the deliverable link; the client approves to release.
+- The freelancer submits a hash of the deliverable link; the client approves to release, or calls `requestChanges`
+  (at most 3 times per milestone). That sends the milestone back to funded, keeps the money locked and gives the freelancer a
+  fresh refund window, so it cannot be used to stall a payment or to force a refund.
 - Payouts are credited and pulled with `withdraw()`. The 2% fee comes out of the freelancer's share only.
 - Client silent for 7 days after a submission: the freelancer can `claim`. No submission for 14 days: the client can `refund`.
 - Either side can `dispute`; the arbiter can only split that milestone between the two parties.
 - `pause()` stops new money coming in. It never blocks withdrawals or exits.
-- The contract has no change-request step, so in on-chain mode changes are asked for in the chat or through a dispute.
+- The fee and both waiting windows are copied into each escrow when it is created. The owner can change the defaults for
+  future escrows but never the terms of work that is already under way.
+- Funding checks the tokens that actually arrived, so a token that skims transfers is refused.
+
+## Roadmap
+
+1. **Deploy to Sepolia** and run the full flow with testnet USDC (needs an RPC URL and a funded test wallet; see above).
+2. **Professional security review** of the contract. The author's own review is in [contracts/SECURITY.md](contracts/SECURITY.md);
+   it is not a substitute.
+3. **Decentralise disputes.** Today one arbiter address rules on disputes. Next: a multisig or a panel of arbiters, then an
+   on-chain court such as Kleros.
+4. **Mainnet or an L2**, once the review is done.
 
 ## Limits
 
 - The contract is not audited. Get a professional review before putting real funds through it.
 - The live demo runs in preview mode; no real USDC moves until a contract is connected.
+- Disputes are decided by a single arbiter account.
 - Render's free tier sleeps when idle, so the first request after a quiet spell is slow.
-- There are no email notifications yet: people see updates when they open the site.
+- Email is off on the live demo until SMTP settings are added.

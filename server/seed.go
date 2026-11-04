@@ -222,7 +222,8 @@ func seedDemo(db *DB) error {
 			if actor != 0 {
 				a = actor
 			}
-			tx.Exec(`INSERT INTO job_events (job_id, actor_id, kind, detail, created_at) VALUES (?, ?, ?, ?, ?)`, jobID, a, kind, detail, t)
+			// notified_at is set so sample history is never emailed.
+			tx.Exec(`INSERT INTO job_events (job_id, actor_id, kind, detail, created_at, notified_at) VALUES (?, ?, ?, ?, ?, now())`, jobID, a, kind, detail, t)
 		}
 		event(created, client, "posted", "")
 

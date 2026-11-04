@@ -153,9 +153,22 @@ describe("JobEscrow", () => {
       expect(await escrow.withdrawable(freelancer.address)).to.equal(USDC(392));
     });
 
-    it("respects a changed window", async () => {
+    it("keeps the window the escrow was created with when the owner changes it later", async () => {
       const { escrow, owner, freelancer } = await loadFixture(submitted);
-      await escrow.connect(owner).setWindows(2 * DAY, 14 * DAY);
+      await escrow.connect(owner).setWindows(DAY, DAY);
+      await time.increase(2 * DAY);
+      await expect(escrow.connect(freelancer).claim(1, 0)).to.be.revertedWithCustomError(escrow, "TooEarly");
+      await time.increase(5 * DAY + 1);
+      await escrow.connect(freelancer).claim(1, 0);
+    });
+
+    it("uses a changed window for escrows created afterwards", async () => {
+      const { escrow, owner, client, freelancer } = await loadFixture(deploy);
+      await escrow.connect(owner).setWindows(2 * DAY, 3 * DAY);
+      await escrow.connect(client).createEscrow(freelancer.address, [USDC(100)]);
+      expect(await escrow.getTerms(1)).to.deep.equal([200n, BigInt(2 * DAY), BigInt(3 * DAY)]);
+      await escrow.connect(client).fund(1, 0);
+      await escrow.connect(freelancer).submit(1, 0, DELIVERABLE);
       await time.increase(2 * DAY + 1);
       await escrow.connect(freelancer).claim(1, 0);
     });
@@ -245,11 +258,89 @@ describe("JobEscrow", () => {
   });
 
   describe("fee changes", () => {
-    it("uses the fee in force at release", async () => {
+    it("never changes the fee of an escrow that already exists", async () => {
       const { escrow, owner, client, freelancer } = await loadFixture(submitted);
+      await escrow.connect(owner).setFeeBps(500);
+      await escrow.connect(client).approve(1, 0);
+      expect(await escrow.withdrawable(freelancer.address)).to.equal(USDC(392)); // still 2%
+    });
+
+    it("applies a new fee to escrows created afterwards", async () => {
+      const { escrow, owner, client, freelancer } = await loadFixture(deploy);
       await escrow.connect(owner).setFeeBps(0);
+      await escrow.connect(client).createEscrow(freelancer.address, [USDC(400)]);
+      await escrow.connect(client).fund(1, 0);
+      await escrow.connect(freelancer).submit(1, 0, DELIVERABLE);
       await escrow.connect(client).approve(1, 0);
       expect(await escrow.withdrawable(freelancer.address)).to.equal(USDC(400));
+    });
+  });
+
+  describe("requestChanges", () => {
+    it("sends submitted work back to funded, keeps the money locked and restarts the refund clock", async () => {
+      const { escrow, usdc, client, freelancer } = await loadFixture(submitted);
+      await time.increase(13 * DAY); // nearly the refund window
+      await expect(escrow.connect(client).requestChanges(1, 0)).to.emit(escrow, "ChangesRequested").withArgs(1, 0, 1);
+      const m = await escrow.getMilestone(1, 0);
+      expect(m.status).to.equal(S.Funded);
+      expect(m.revisions).to.equal(1);
+      expect(m.submittedAt).to.equal(0);
+      expect(m.deliverable).to.equal(ethers.ZeroHash);
+      expect(await usdc.balanceOf(await escrow.getAddress())).to.equal(USDC(400));
+
+      // The client cannot reclaim right away: the freelancer has a fresh window.
+      await expect(escrow.connect(client).refund(1, 0)).to.be.revertedWithCustomError(escrow, "TooEarly");
+      // The freelancer redelivers and the normal flow continues.
+      await escrow.connect(freelancer).submit(1, 0, DELIVERABLE);
+      await escrow.connect(client).approve(1, 0);
+      expect(await escrow.withdrawable(freelancer.address)).to.equal(USDC(392));
+    });
+
+    it("is client-only and needs submitted work", async () => {
+      const { escrow, client, freelancer, stranger } = await loadFixture(submitted);
+      await expect(escrow.connect(freelancer).requestChanges(1, 0)).to.be.revertedWithCustomError(escrow, "NotClient");
+      await expect(escrow.connect(stranger).requestChanges(1, 0)).to.be.revertedWithCustomError(escrow, "NotClient");
+      await expect(escrow.connect(client).requestChanges(1, 1)).to.be.revertedWithCustomError(escrow, "BadStatus").withArgs(S.Pending);
+    });
+
+    it("stops after MAX_REVISIONS so a client cannot stall forever", async () => {
+      const { escrow, client, freelancer } = await loadFixture(submitted);
+      for (let i = 0; i < 3; i++) {
+        await escrow.connect(client).requestChanges(1, 0);
+        await escrow.connect(freelancer).submit(1, 0, DELIVERABLE);
+      }
+      await expect(escrow.connect(client).requestChanges(1, 0)).to.be.revertedWithCustomError(escrow, "TooManyRevisions");
+      // Still able to approve, and the freelancer can still claim after silence.
+      await time.increase(7 * DAY + 1);
+      await escrow.connect(freelancer).claim(1, 0);
+    });
+
+    it("does not let the client skip the claim window by sending the work back and forth", async () => {
+      const { escrow, client, freelancer } = await loadFixture(submitted);
+      await time.increase(6 * DAY);
+      await escrow.connect(client).requestChanges(1, 0);
+      await escrow.connect(freelancer).submit(1, 0, DELIVERABLE); // submittedAt is reset
+      await expect(escrow.connect(freelancer).claim(1, 0)).to.be.revertedWithCustomError(escrow, "TooEarly");
+    });
+
+    it("can still be disputed after changes were requested", async () => {
+      const { escrow, client, freelancer } = await loadFixture(submitted);
+      await escrow.connect(client).requestChanges(1, 0);
+      await escrow.connect(freelancer).dispute(1, 0);
+      expect((await escrow.getMilestone(1, 0)).status).to.equal(S.Disputed);
+    });
+  });
+
+  describe("token that skims transfers", () => {
+    it("refuses to fund rather than credit tokens that never arrived", async () => {
+      const [, client, freelancer, arbiter, treasury] = await ethers.getSigners();
+      const skim = await ethers.deployContract("SkimmingToken");
+      const escrow = await ethers.deployContract("JobEscrow", [await skim.getAddress(), arbiter.address, treasury.address, 200]);
+      await skim.mint(client.address, USDC(1000));
+      await skim.connect(client).approve(await escrow.getAddress(), ethers.MaxUint256);
+      await escrow.connect(client).createEscrow(freelancer.address, [USDC(100)]);
+      await expect(escrow.connect(client).fund(1, 0)).to.be.revertedWithCustomError(escrow, "UnexpectedTransferAmount");
+      expect((await escrow.getMilestone(1, 0)).status).to.equal(S.Pending);
     });
   });
 
@@ -284,8 +375,16 @@ describe("JobEscrow", () => {
 
       for (let i = 0; i < amounts.length; i++) {
         await escrow.connect(client).fund(1, i);
-        const path = rnd(5);
-        if (path === 0) {
+        const path = rnd(6);
+        if (path === 5) {
+          // changes requested twice, then approved
+          for (let r = 0; r < 2; r++) {
+            await escrow.connect(freelancer).submit(1, i, DELIVERABLE);
+            await escrow.connect(client).requestChanges(1, i);
+          }
+          await escrow.connect(freelancer).submit(1, i, DELIVERABLE);
+          await escrow.connect(client).approve(1, i);
+        } else if (path === 0) {
           await time.increase(15 * DAY);
           await escrow.connect(client).refund(1, i);
         } else if (path === 1) {

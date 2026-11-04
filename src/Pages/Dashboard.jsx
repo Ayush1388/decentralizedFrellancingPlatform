@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/useAuth";
+import { useEmailSetting } from "../lib/useEmailSetting";
 import { appStatus, jobStatus } from "../lib/jobStatus";
 import { timeAgo, toUsdc, usdc } from "../lib/format";
 import { Avatar, Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, IconButton } from "../Components/ui";
@@ -48,6 +49,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all");
   const [disputes, setDisputes] = useState(null);
+  const email = useEmailSetting();
 
   // The arbiter's queue: every frozen milestone waiting for a ruling.
   useEffect(() => {
@@ -160,6 +162,14 @@ export default function Dashboard() {
           <IconButton icon="wallet" label="Wallet" to="/wallet" tone="sage" />
         </div>
       </div>
+
+      {email.available && (
+        <label className="mt-5 flex w-fit cursor-pointer items-center gap-3 px-1 text-sm text-ink-soft">
+          <input type="checkbox" checked={email.enabled} disabled={email.busy} onChange={(e) => email.set(e.target.checked)} className="h-4 w-4 accent-[#f2c230]" />
+          Email me when something needs my action
+          {email.error && <span className="text-xs text-red-700">{email.error}</span>}
+        </label>
+      )}
 
       <div className="mt-6">
         <ErrorNote>{error}</ErrorNote>

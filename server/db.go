@@ -149,7 +149,11 @@ CREATE TABLE IF NOT EXISTS reviews (
 	created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE job_events ADD COLUMN IF NOT EXISTS target_id BIGINT REFERENCES users(id) ON DELETE SET NULL;
+ALTER TABLE job_events ADD COLUMN IF NOT EXISTS notified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS notify_email BOOLEAN NOT NULL DEFAULT true;
 CREATE INDEX IF NOT EXISTS idx_events_job ON job_events(job_id, id);
+CREATE INDEX IF NOT EXISTS idx_events_unsent ON job_events(id) WHERE notified_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(application_id, id);
 CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_id);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_escrow ON jobs(escrow_id) WHERE escrow_id IS NOT NULL;

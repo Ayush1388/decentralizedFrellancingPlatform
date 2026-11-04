@@ -29,6 +29,7 @@ type User struct {
 	Email         *string `json:"email"`
 	WalletAddress *string `json:"walletAddress"`
 	IsAdmin       bool    `json:"isAdmin"`
+	NotifyEmail   bool    `json:"notifyEmail"`
 }
 
 type authBody struct {
@@ -44,8 +45,8 @@ func (s *Server) issueToken(uid int64) (string, error) {
 
 func (s *Server) userByID(id int64) (User, error) {
 	var u User
-	err := s.db.QueryRow(`SELECT id, name, email, wallet_address FROM users WHERE id = ?`, id).
-		Scan(&u.ID, &u.Name, &u.Email, &u.WalletAddress)
+	err := s.db.QueryRow(`SELECT id, name, email, wallet_address, notify_email FROM users WHERE id = ?`, id).
+		Scan(&u.ID, &u.Name, &u.Email, &u.WalletAddress, &u.NotifyEmail)
 	if u.Email != nil {
 		u.IsAdmin = s.cfg.AdminEmails[strings.ToLower(*u.Email)]
 	}
@@ -150,6 +151,27 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request, uid int64) {
+	u, err := s.userByID(uid)
+	if err != nil {
+		writeErr(w, 401, "account no longer exists")
+		return
+	}
+	writeJSON(w, 200, u)
+}
+
+// handleNotifications turns the caller's email notifications on or off.
+func (s *Server) handleNotifications(w http.ResponseWriter, r *http.Request, uid int64) {
+	var b struct {
+		Enabled bool `json:"enabled"`
+	}
+	if decodeJSON(r, &b) != nil {
+		writeErr(w, 400, "invalid request body")
+		return
+	}
+	if _, err := s.db.Exec(`UPDATE users SET notify_email = ? WHERE id = ?`, b.Enabled, uid); err != nil {
+		writeErr(w, 500, "could not save the setting")
+		return
+	}
 	u, err := s.userByID(uid)
 	if err != nil {
 		writeErr(w, 401, "account no longer exists")

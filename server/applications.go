@@ -235,7 +235,7 @@ func (s *Server) handleApplicationStatus(w http.ResponseWriter, r *http.Request,
 		writeErr(w, 400, "status must be pending, shortlisted or declined")
 		return
 	}
-	jobID, _, client, status, jobStatus, err := s.applicationAccess(id)
+	jobID, applicant, client, status, jobStatus, err := s.applicationAccess(id)
 	switch {
 	case err != nil:
 		writeErr(w, 404, "application not found")
@@ -260,7 +260,7 @@ func (s *Server) handleApplicationStatus(w http.ResponseWriter, r *http.Request,
 	if b.Status != "pending" {
 		var name string
 		tx.QueryRow(`SELECT u.name FROM applications a JOIN users u ON u.id = a.user_id WHERE a.id = ?`, id).Scan(&name)
-		logEvent(tx, jobID, uid, b.Status, name)
+		logEventTo(tx, jobID, uid, applicant, b.Status, name)
 	}
 	if err := tx.Commit(); err != nil {
 		writeErr(w, 500, "could not update application")

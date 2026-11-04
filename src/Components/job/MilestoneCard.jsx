@@ -13,6 +13,9 @@ const msStatus = {
   resolved: { label: "Resolved", tone: "violet" },
 };
 
+// Mirrors JobEscrow.MAX_REVISIONS and the API.
+const MAX_REVISIONS = 3;
+
 const isPast = (iso) => iso && new Date(iso).getTime() <= Date.now();
 
 // One open text box at a time: request changes, or explain a dispute.
@@ -168,10 +171,12 @@ export default function MilestoneCard({ m, job, user, onChange, perform, step, c
               <Button size="sm" loading={busy} onClick={() => act("approve")}>
                 <Icon name="check" size={16} /> Approve &amp; release
               </Button>
-              {!chainOn && (
+              {m.revisions < MAX_REVISIONS ? (
                 <Button size="sm" variant="secondary" onClick={() => setPanel("revise")}>
                   Request changes
                 </Button>
+              ) : (
+                <span className="self-center text-xs text-muted">All {MAX_REVISIONS} change requests used. Approve, or open a dispute.</span>
               )}
             </>
           )}
@@ -197,7 +202,7 @@ export default function MilestoneCard({ m, job, user, onChange, perform, step, c
         <NoteForm
           id={`revise-${m.id}`}
           label="What needs to change?"
-          hint="Be specific. The milestone goes back to the freelancer with this note; the money stays in escrow."
+          hint={`Be specific. The milestone goes back to the freelancer with this note and the money stays in escrow. You can do this ${MAX_REVISIONS - m.revisions} more time${MAX_REVISIONS - m.revisions === 1 ? "" : "s"}.`}
           cta="Send change request"
           busy={busy}
           onSubmit={(feedback) => act("revise", { feedback })}

@@ -145,7 +145,7 @@ try {
     milestones: [{ title: "Design", amount: 400 }, { title: "Build", amount: 900 }],
   });
   const jobId = job.id;
-  await ok("POST", `/api/jobs/${jobId}/apply`, devT, { cover: "I can do this work quickly and well." });
+  await ok("POST", `/api/jobs/${jobId}/apply`, devT, { cover: "I can do this work quickly and well.", githubUrl: "https://github.com/freelancer/work" });
   job = await ok("GET", `/api/jobs/${jobId}`, clientT);
   job = await ok("POST", `/api/jobs/${jobId}/hire`, clientT, { applicationId: job.applications[0].id });
   assert.equal(job.freelancerWallet, ethers.getAddress(await devSigner.getAddress()));
@@ -185,6 +185,23 @@ try {
   r = await call("POST", `/api/milestones/${m0.id}/approve`, strangerT, { txHash: sub0 });
   assert.equal(r.status, 403, "strangers cannot push state");
 
+  // the client sends the work back; money stays locked and the freelancer redelivers
+  await reverts(escrow(devSigner).requestChanges(escrowId, 0), "NotClient", "only the client can request changes");
+  const rev0 = await wait(escrow(clientSigner).requestChanges(escrowId, 0));
+  r = await call("POST", `/api/milestones/${m0.id}/revise`, clientT, { txHash: rev0, feedback: "x" });
+  assert.equal(r.status, 400, "a change request needs a real explanation");
+  job = await ok("POST", `/api/milestones/${m0.id}/revise`, clientT, { txHash: rev0, feedback: "Please add the mobile layout." });
+  assert.equal(job.milestones[0].status, "funded");
+  assert.equal(job.milestones[0].revisions, 1);
+  assert.equal(job.milestones[0].feedback, "Please add the mobile layout.");
+  assert.equal(Number((await escrow(devSigner).getMilestone(escrowId, 0)).status), 1, "on-chain milestone is Funded again");
+  r = await call("POST", `/api/milestones/${m0.id}/revise`, clientT, { txHash: rev0, feedback: "Please add the mobile layout." });
+  assert.equal(r.status, 409, "the same change request cannot be replayed");
+  const sub0b = await wait(escrow(devSigner).submit(escrowId, 0, ethers.keccak256(ethers.toUtf8Bytes(url))));
+  job = await ok("POST", `/api/milestones/${m0.id}/submit`, devT, { txHash: sub0b, deliverableUrl: url });
+  assert.equal(job.milestones[0].status, "submitted");
+  step("client requested changes on-chain; freelancer redelivered");
+
   const app0 = await wait(escrow(clientSigner).approve(escrowId, 0));
   job = await ok("POST", `/api/milestones/${m0.id}/approve`, clientT, { txHash: app0 });
   assert.equal(job.milestones[0].status, "released");
@@ -202,7 +219,7 @@ try {
   const fund1 = await wait(escrow(clientSigner).fund(escrowId, 1));
   await ok("POST", `/api/milestones/${m1.id}/fund`, clientT, { txHash: fund1 });
   const dsp = await wait(escrow(devSigner).dispute(escrowId, 1));
-  job = await ok("POST", `/api/milestones/${m1.id}/dispute`, devT, { txHash: dsp });
+  job = await ok("POST", `/api/milestones/${m1.id}/dispute`, devT, { txHash: dsp, reason: "The client has not replied about the final handover." });
   assert.equal(job.milestones[1].status, "disputed");
   await reverts(escrow(clientSigner).approve(escrowId, 1), "BadStatus", "a disputed milestone is frozen");
   await reverts(escrow(devSigner).resolve(escrowId, 1, 6000), "NotArbiter", "only the arbiter can rule");

@@ -25,6 +25,7 @@ type chainAction struct {
 var chainActions = map[string]chainAction{
 	"fund":    {"MilestoneFunded", "funded", []string{"pending"}},
 	"submit":  {"WorkSubmitted", "submitted", []string{"funded"}},
+	"revise":  {"ChangesRequested", "funded", []string{"submitted"}},
 	"approve": {"MilestoneReleased", "released", []string{"submitted"}},
 	"claim":   {"MilestoneReleased", "released", []string{"submitted"}},
 	"refund":  {"MilestoneRefunded", "refunded", []string{"funded"}},
@@ -193,7 +194,9 @@ func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, ui
 		writeErr(w, 409, "Open the on-chain escrow for this job first")
 		return
 	}
-	if status == spec.to { // already mirrored; makes retries and double-clicks harmless
+	// "revise" ends in the same state as "fund", so a state check cannot tell a retry from a mistake:
+	// for it the allowed-from check below and the event decide.
+	if status == spec.to && action != "revise" { // already mirrored; makes retries and double-clicks harmless
 		s.writeJobDetail(w, 200, jobID, uid)
 		return
 	}
@@ -244,18 +247,22 @@ func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, ui
 	}
 
 	at := ev.BlockTime
-	switch spec.to {
-	case "funded":
+	switch {
+	case action == "revise":
+		// The contract restarts the refund clock and clears the delivery; the note is off-chain.
+		rev, _ := ev.small("revision")
+		_, err = tx.Exec(`UPDATE milestones SET status='funded', funded_at=?, submitted_at=NULL, feedback=?, revisions=? WHERE id=?`, at, b.Feedback, int(rev), id)
+	case spec.to == "funded":
 		_, err = tx.Exec(`UPDATE milestones SET status='funded', funded_at=?, fund_tx=? WHERE id=?`, at, txHash, id)
-	case "submitted":
+	case spec.to == "submitted":
 		_, err = tx.Exec(`UPDATE milestones SET status='submitted', submitted_at=?, deliverable_url=?, submission_note=? WHERE id=?`, at, deliverableURL, b.Note, id)
-	case "disputed":
+	case spec.to == "disputed":
 		_, err = tx.Exec(`UPDATE milestones SET status='disputed', dispute_reason=? WHERE id=?`, b.Reason, id)
-	case "released":
+	case spec.to == "released":
 		_, err = tx.Exec(`UPDATE milestones SET status='released', resolved_at=?, freelancer_bps=10000, release_tx=? WHERE id=?`, at, txHash, id)
-	case "refunded":
+	case spec.to == "refunded":
 		_, err = tx.Exec(`UPDATE milestones SET status='refunded', resolved_at=?, freelancer_bps=0, release_tx=? WHERE id=?`, at, txHash, id)
-	case "resolved":
+	case spec.to == "resolved":
 		bps, _ := ev.bps("freelancerBps")
 		_, err = tx.Exec(`UPDATE milestones SET status='resolved', resolved_at=?, freelancer_bps=?, release_tx=? WHERE id=?`, at, bps, txHash, id)
 	}
@@ -264,16 +271,36 @@ func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, ui
 		return
 	}
 	detail := title
-	if action == "dispute" {
+	switch action {
+	case "dispute":
 		detail = title + ": " + b.Reason
+	case "revise":
+		detail = title + ": " + b.Feedback
 	}
-	logEvent(tx, jobID, uid, eventKind[action], detail)
+	// Any participant may relay a confirmed transaction, so credit the person the contract says acted, not the caller.
+	logEvent(tx, jobID, s.chainActor(action, ev, client, freelancer), eventKind[action], detail)
 	closeJobIfDone(tx, jobID, freelancer)
 	if err := tx.Commit(); err != nil {
 		writeErr(w, 500, "could not update milestone")
 		return
 	}
 	s.writeJobDetail(w, 200, jobID, uid)
+}
+
+// chainActor names who performed an action, from what the contract enforces. 0 means the platform arbiter.
+func (s *Server) chainActor(action string, ev *ChainEvent, client int64, freelancer sql.NullInt64) int64 {
+	switch action {
+	case "fund", "revise", "approve", "refund":
+		return client
+	case "submit", "claim":
+		return freelancer.Int64
+	case "dispute":
+		if opener := ev.address("openedBy"); freelancer.Valid && opener != (common.Address{}) && opener == common.HexToAddress(s.userWallet(freelancer.Int64)) {
+			return freelancer.Int64
+		}
+		return client
+	}
+	return 0
 }
 
 // closeJobIfDone completes the job once every milestone has been paid out or refunded.

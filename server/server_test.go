@@ -41,7 +41,7 @@ func newEnv(t *testing.T) *env_ {
 	})
 
 	cfg := Config{
-		DatabaseURL: base + "&search_path=" + schemaName, UploadDir: t.TempDir(), JWTSecret: []byte("test"),
+		DatabaseURL: base + "&search_path=" + schemaName, JWTSecret: []byte("test"),
 		FrontendURL: "http://localhost:5173", AdminEmails: map[string]bool{"admin@x.io": true},
 		ClaimAfterDays: 7, RefundAfterDays: 14, FeeBps: 200,
 	}

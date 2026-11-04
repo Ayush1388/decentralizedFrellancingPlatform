@@ -44,9 +44,16 @@ func TestParseLogsDecodesEscrowEvents(t *testing.T) {
 	hash := crypto.Keccak256Hash([]byte("https://example.com/work"))
 	subData, _ := submitted.Inputs.NonIndexed().Pack([32]byte(hash))
 
+	changes := a.Events["ChangesRequested"]
+	chData, err := changes.Inputs.NonIndexed().Pack(uint8(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	logs := []*types.Log{
 		{Address: escrowAddr, Topics: []common.Hash{created.ID, word(7), common.BytesToHash(clientAddr.Bytes()), common.BytesToHash(freelancerAddr.Bytes())}, Data: data},
 		{Address: escrowAddr, Topics: []common.Hash{submitted.ID, word(7), word(1)}, Data: subData},
+		{Address: escrowAddr, Topics: []common.Hash{changes.ID, word(7), word(1)}, Data: chData},
 		// a log from some other contract must be ignored
 		{Address: common.HexToAddress("0x9999999999999999999999999999999999999999"), Topics: []common.Hash{created.ID, word(1), word(1), word(1)}, Data: data},
 		// an unknown event from our contract must be ignored too
@@ -56,8 +63,8 @@ func TestParseLogsDecodesEscrowEvents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(evs) != 2 {
-		t.Fatalf("decoded %d events, want 2", len(evs))
+	if len(evs) != 3 {
+		t.Fatalf("decoded %d events, want 3", len(evs))
 	}
 
 	c := evs[0]
@@ -77,6 +84,12 @@ func TestParseLogsDecodesEscrowEvents(t *testing.T) {
 	got, _ := s.bytes32("deliverable")
 	if s.Name != "WorkSubmitted" || idx != 1 || common.Hash(got) != hash {
 		t.Fatalf("bad WorkSubmitted: %+v", s)
+	}
+
+	// uint8 arguments arrive as Go uint8, not *big.Int: the accessor must still read them
+	r := evs[2]
+	if rev, ok := r.small("revision"); r.Name != "ChangesRequested" || !ok || rev != 2 {
+		t.Fatalf("bad ChangesRequested: %+v", r)
 	}
 }
 
@@ -278,6 +291,28 @@ func TestChainMilestoneLifecycle(t *testing.T) {
 	if m := out["milestones"].([]any)[0].(map[string]any); m["status"] != "submitted" || m["deliverableUrl"] != url {
 		t.Fatalf("milestone after submit: %v", m)
 	}
+
+	// the client sends the work back; the API mirrors the event and keeps their note
+	reviseTx := c.fake.add(msEv("ChangesRequested", 5, 0, map[string]any{"revision": uint8(1)}))
+	code, out = c.milestone(0, "revise", c.client, map[string]any{"txHash": reviseTx, "feedback": "no"})
+	c.mustOK(code, out, 400) // a change request needs a real explanation
+	code, out = c.milestone(0, "revise", c.client, map[string]any{"txHash": reviseTx, "feedback": "Please add the mobile layout."})
+	out = c.mustOK(code, out, 200)
+	if m := out["milestones"].([]any)[0].(map[string]any); m["status"] != "funded" || m["revisions"] != float64(1) || m["feedback"] != "Please add the mobile layout." {
+		t.Fatalf("milestone after revise: %v", m)
+	}
+	// the activity log credits the client, who the contract says acted, even when the freelancer relays the hash
+	acts := out["events"].([]any)
+	if first := acts[0].(map[string]any); first["kind"] != "changes_requested" || first["actor"].(map[string]any)["name"] != "Client" {
+		t.Fatalf("latest activity: %v", first)
+	}
+	// a milestone that is no longer submitted cannot be sent back again with the same transaction
+	code, out = c.milestone(0, "revise", c.client, map[string]any{"txHash": reviseTx, "feedback": "Please add the mobile layout."})
+	c.mustOK(code, out, 409)
+	// redelivery after the changes
+	subTx = c.fake.add(msEv("WorkSubmitted", 5, 0, map[string]any{"deliverable": hash}))
+	code, out = c.milestone(0, "submit", c.dev, map[string]any{"txHash": subTx, "deliverableUrl": url})
+	c.mustOK(code, out, 200)
 
 	// out-of-order: cannot be refunded once submitted
 	code, out = c.milestone(0, "refund", c.client, map[string]any{"txHash": c.fake.add(msEv("MilestoneRefunded", 5, 0, nil))})

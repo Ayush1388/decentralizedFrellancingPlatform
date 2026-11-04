@@ -172,6 +172,26 @@ func (e ChainEvent) uint(name string) (uint64, bool) {
 	return 0, false
 }
 
+// small reads a numeric argument of any width: go-ethereum decodes uint8/16/32/64 as Go integers
+// and wider ones as *big.Int.
+func (e ChainEvent) small(name string) (uint64, bool) {
+	switch v := e.Args[name].(type) {
+	case uint8:
+		return uint64(v), true
+	case uint16:
+		return uint64(v), true
+	case uint32:
+		return uint64(v), true
+	case uint64:
+		return v, true
+	case *big.Int:
+		if v.IsUint64() {
+			return v.Uint64(), true
+		}
+	}
+	return 0, false
+}
+
 func (e ChainEvent) address(name string) common.Address {
 	a, _ := e.Args[name].(common.Address)
 	return a

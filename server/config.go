@@ -13,7 +13,6 @@ import (
 type Config struct {
 	Port               string
 	DatabaseURL        string
-	UploadDir          string
 	JWTSecret          []byte
 	FrontendURL        string
 	GoogleClientID     string
@@ -26,6 +25,11 @@ type Config struct {
 	EscrowAddress      string // JobEscrow contract; empty runs the API in off-chain preview mode
 	ChainID            int64
 	RPCURL             string
+	SMTPHost           string // empty turns email notifications off
+	SMTPPort           string
+	SMTPUser           string
+	SMTPPass           string
+	SMTPFrom           string
 }
 
 // loadDotEnv reads KEY=VALUE lines from path into the process environment
@@ -90,7 +94,6 @@ func loadConfig() Config {
 	return Config{
 		Port:               port,
 		DatabaseURL:        env("DATABASE_URL", "postgres://freelance:freelance@localhost:5434/freelance?sslmode=disable"),
-		UploadDir:          env("UPLOAD_DIR", "uploads"),
 		JWTSecret:          []byte(secret),
 		FrontendURL:        strings.TrimRight(env("FRONTEND_URL", "http://localhost:5173"), "/"),
 		GoogleClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
@@ -103,5 +106,10 @@ func loadConfig() Config {
 		EscrowAddress:      os.Getenv("ESCROW_ADDRESS"),
 		ChainID:            int64(envInt("CHAIN_ID", 0)),
 		RPCURL:             os.Getenv("RPC_URL"),
+		SMTPHost:           os.Getenv("SMTP_HOST"),
+		SMTPPort:           env("SMTP_PORT", "587"),
+		SMTPUser:           os.Getenv("SMTP_USER"),
+		SMTPPass:           os.Getenv("SMTP_PASS"),
+		SMTPFrom:           env("SMTP_FROM", os.Getenv("SMTP_USER")),
 	}
 }

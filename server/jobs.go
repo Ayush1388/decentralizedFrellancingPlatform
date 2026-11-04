@@ -12,6 +12,9 @@ import (
 
 const usdcUnit = 1_000_000 // USDC has 6 decimals
 
+// maxRevisions mirrors JobEscrow.MAX_REVISIONS.
+const maxRevisions = 3
+
 type Party struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
@@ -421,11 +424,20 @@ func (s *Server) writeJobDetail(w http.ResponseWriter, status int, id, viewer in
 
 // logEvent appends to a job's activity log. Failures are ignored: the log is informational.
 func logEvent(tx *Tx, jobID, actor int64, kind, detail string) {
-	var a any
+	logEventTo(tx, jobID, actor, 0, kind, detail)
+}
+
+// logEventTo is logEvent for events about one specific person (an applicant who was shortlisted,
+// declined or hired), so the email worker knows who to tell.
+func logEventTo(tx *Tx, jobID, actor, target int64, kind, detail string) {
+	var a, t any
 	if actor != 0 {
 		a = actor
 	}
-	tx.Exec(`INSERT INTO job_events (job_id, actor_id, kind, detail) VALUES (?,?,?,?)`, jobID, a, kind, detail)
+	if target != 0 {
+		t = target
+	}
+	tx.Exec(`INSERT INTO job_events (job_id, actor_id, target_id, kind, detail) VALUES (?,?,?,?,?)`, jobID, a, t, kind, detail)
 }
 
 // handleHire accepts one application. A posting with a single opening becomes the contract
@@ -491,7 +503,7 @@ func (s *Server) handleHire(w http.ResponseWriter, r *http.Request, uid int64) {
 	}
 
 	tx.Exec(`UPDATE applications SET status = 'accepted' WHERE id = ?`, b.ApplicationID)
-	logEvent(tx, id, uid, "hired", devName)
+	logEventTo(tx, id, uid, dev, "hired", devName)
 	if openings <= 1 {
 		tx.Exec(`UPDATE applications SET status = 'declined' WHERE job_id = ? AND status IN ('pending','shortlisted')`, id)
 		tx.Exec(`UPDATE jobs SET freelancer_id = ?, status = 'in_progress' WHERE id = ?`, dev, id)
@@ -623,10 +635,6 @@ func (s *Server) handleMilestoneAction(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 	if s.chainInfo != nil {
-		if action == "revise" {
-			writeErr(w, 409, "The escrow contract has no change-request step. Ask for changes in the chat, or open a dispute.")
-			return
-		}
 		s.handleChainMilestone(w, r, uid, id, action, b)
 		return
 	}
@@ -699,6 +707,12 @@ func (s *Server) handleMilestoneAction(w http.ResponseWriter, r *http.Request, u
 		}
 		if status != "submitted" {
 			wrongState()
+			return
+		}
+		var used int
+		tx.QueryRow(`SELECT revisions FROM milestones WHERE id = ?`, id).Scan(&used)
+		if used >= maxRevisions {
+			deny(409, "You have used all change requests for this milestone. Approve it, or open a dispute if it is still not right.")
 			return
 		}
 		// Back to funded. The refund clock restarts so a change request can never be

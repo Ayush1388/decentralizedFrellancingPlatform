@@ -13,8 +13,8 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 /// Lifecycle of one milestone:
 ///
 ///   Pending --fund--> Funded --submit--> Submitted --approve/claim--> Released
-///                        |                   |
-///                        |                   +--dispute--> Disputed --resolve--> Resolved
+///                        |   ^               |  |
+///                        |   +-requestChanges+  +--dispute--> Disputed --resolve--> Resolved
 ///                        +--refund (after refundAfter, no delivery)--> Refunded
 ///
 /// Money rules:
@@ -25,6 +25,10 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 ///  - `pause()` stops new money entering (createEscrow, fund). Every exit path stays open,
 ///    so a pause can never trap funds.
 ///  - The arbiter can only split a disputed milestone between the two parties.
+///  - The fee and both waiting windows are copied into each escrow when it is created, so the
+///    owner can never change the terms of work that is already under way.
+///  - A client can send work back for changes at most MAX_REVISIONS times per milestone; after
+///    that the only ways forward are approve, claim (after silence) or dispute.
 contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -41,27 +45,33 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
     struct Milestone {
         uint128 amount;
         Status status;
-        uint64 fundedAt;
+        uint8 revisions; // how many times the client sent the work back
+        uint64 fundedAt; // restarts when changes are requested, so the freelancer gets a fresh refund window
         uint64 submittedAt;
         bytes32 deliverable; // keccak256 of the deliverable link the freelancer submitted
     }
 
     struct Escrow {
         address client;
-        address freelancer;
         uint32 milestoneCount;
+        uint32 claimAfter; // terms copied from the global settings at creation
+        uint32 refundAfter;
+        address freelancer;
+        uint16 feeBps;
     }
 
     uint16 public constant MAX_FEE_BPS = 500; // 5% hard cap
     uint32 public constant MIN_WINDOW = 1 days;
     uint32 public constant MAX_WINDOW = 90 days;
     uint256 public constant MAX_MILESTONES = 20;
+    uint8 public constant MAX_REVISIONS = 3;
 
     IERC20 public immutable token;
 
     address public arbiter;
     address public treasury;
     uint16 public feeBps;
+    // Defaults for NEW escrows. Each escrow keeps the values it was created with.
     uint32 public claimAfter; // freelancer may claim a submitted milestone after this long without a client response
     uint32 public refundAfter; // client may reclaim a funded milestone after this long without a submission
 
@@ -73,6 +83,7 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
     event EscrowCreated(uint256 indexed escrowId, address indexed client, address indexed freelancer, uint128[] amounts);
     event MilestoneFunded(uint256 indexed escrowId, uint256 indexed index, uint128 amount);
     event WorkSubmitted(uint256 indexed escrowId, uint256 indexed index, bytes32 deliverable);
+    event ChangesRequested(uint256 indexed escrowId, uint256 indexed index, uint8 revision);
     event MilestoneReleased(uint256 indexed escrowId, uint256 indexed index, uint128 freelancerAmount, uint128 fee);
     event MilestoneRefunded(uint256 indexed escrowId, uint256 indexed index, uint128 amount);
     event MilestoneDisputed(uint256 indexed escrowId, uint256 indexed index, address indexed openedBy);
@@ -93,6 +104,8 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
     error TooEarly(uint256 availableAt);
     error InvalidParams();
     error NothingToWithdraw();
+    error TooManyRevisions();
+    error UnexpectedTransferAmount();
 
     constructor(IERC20 token_, address arbiter_, address treasury_, uint16 feeBps_) Ownable(msg.sender) {
         if (address(token_) == address(0) || arbiter_ == address(0) || treasury_ == address(0) || feeBps_ > MAX_FEE_BPS) {
@@ -113,6 +126,12 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         return (e.client, e.freelancer, e.milestoneCount);
     }
 
+    /// @notice The fee and waiting windows this escrow was created with.
+    function getTerms(uint256 escrowId) external view returns (uint16 feeBps_, uint32 claimAfter_, uint32 refundAfter_) {
+        Escrow storage e = _escrow(escrowId);
+        return (e.feeBps, e.claimAfter, e.refundAfter);
+    }
+
     function getMilestone(uint256 escrowId, uint256 index) external view returns (Milestone memory) {
         _escrow(escrowId);
         return _milestoneAt(escrowId, index);
@@ -126,7 +145,14 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         if (amounts.length == 0 || amounts.length > MAX_MILESTONES) revert InvalidParams();
 
         escrowId = nextEscrowId++;
-        _escrows[escrowId] = Escrow({client: msg.sender, freelancer: freelancer, milestoneCount: uint32(amounts.length)});
+        _escrows[escrowId] = Escrow({
+            client: msg.sender,
+            milestoneCount: uint32(amounts.length),
+            claimAfter: claimAfter,
+            refundAfter: refundAfter,
+            freelancer: freelancer,
+            feeBps: feeBps
+        });
         for (uint256 i = 0; i < amounts.length; i++) {
             if (amounts[i] == 0) revert InvalidParams();
             _milestones[escrowId][i].amount = amounts[i];
@@ -143,7 +169,10 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
 
         m.status = Status.Funded;
         m.fundedAt = uint64(block.timestamp);
+        // Credit only what actually arrived, so a token that skims transfers can never leave the contract insolvent.
+        uint256 before = token.balanceOf(address(this));
         token.safeTransferFrom(msg.sender, address(this), m.amount);
+        if (token.balanceOf(address(this)) - before != m.amount) revert UnexpectedTransferAmount();
         emit MilestoneFunded(escrowId, index, m.amount);
     }
 
@@ -161,6 +190,23 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         emit WorkSubmitted(escrowId, index, deliverable);
     }
 
+    /// @notice Client sends submitted work back. The money stays locked; the freelancer gets a fresh
+    /// refund window to redeliver, so this can never be used to turn a delivery into an instant refund.
+    function requestChanges(uint256 escrowId, uint256 index) external {
+        Escrow storage e = _escrow(escrowId);
+        if (msg.sender != e.client) revert NotClient();
+        Milestone storage m = _milestoneAt(escrowId, index);
+        if (m.status != Status.Submitted) revert BadStatus(m.status);
+        if (m.revisions >= MAX_REVISIONS) revert TooManyRevisions();
+
+        m.revisions += 1;
+        m.status = Status.Funded;
+        m.fundedAt = uint64(block.timestamp);
+        m.submittedAt = 0;
+        m.deliverable = bytes32(0);
+        emit ChangesRequested(escrowId, index, m.revisions);
+    }
+
     /// @notice Client accepts the work; the freelancer's payout becomes withdrawable.
     function approve(uint256 escrowId, uint256 index) external {
         Escrow storage e = _escrow(escrowId);
@@ -174,7 +220,7 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         if (msg.sender != e.freelancer) revert NotFreelancer();
         Milestone storage m = _milestoneAt(escrowId, index);
         if (m.status != Status.Submitted) revert BadStatus(m.status);
-        uint256 availableAt = uint256(m.submittedAt) + claimAfter;
+        uint256 availableAt = uint256(m.submittedAt) + e.claimAfter;
         if (block.timestamp < availableAt) revert TooEarly(availableAt);
         _release(e, escrowId, index);
     }
@@ -185,7 +231,7 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         if (msg.sender != e.client) revert NotClient();
         Milestone storage m = _milestoneAt(escrowId, index);
         if (m.status != Status.Funded) revert BadStatus(m.status);
-        uint256 availableAt = uint256(m.fundedAt) + refundAfter;
+        uint256 availableAt = uint256(m.fundedAt) + e.refundAfter;
         if (block.timestamp < availableAt) revert TooEarly(availableAt);
 
         m.status = Status.Refunded;
@@ -251,13 +297,14 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         emit TreasuryChanged(treasury_);
     }
 
-    /// @dev Applies to milestones released from now on; funded milestones keep no locked-in rate.
+    /// @dev Applies to escrows created from now on. Existing escrows keep the fee they were created with.
     function setFeeBps(uint16 feeBps_) external onlyOwner {
         if (feeBps_ > MAX_FEE_BPS) revert InvalidParams();
         feeBps = feeBps_;
         emit FeeChanged(feeBps_);
     }
 
+    /// @dev Applies to escrows created from now on, like the fee.
     function setWindows(uint32 claimAfter_, uint32 refundAfter_) external onlyOwner {
         if (claimAfter_ < MIN_WINDOW || claimAfter_ > MAX_WINDOW || refundAfter_ < MIN_WINDOW || refundAfter_ > MAX_WINDOW) {
             revert InvalidParams();
@@ -279,7 +326,7 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
 
     /// @dev Credits the freelancer (minus fee), the treasury (fee) and the client. Returns the fee.
     function _credit(Escrow storage e, uint128 freelancerShare, uint128 clientShare) private returns (uint128 fee) {
-        fee = uint128((uint256(freelancerShare) * feeBps) / 10_000);
+        fee = uint128((uint256(freelancerShare) * e.feeBps) / 10_000);
         if (fee > 0) withdrawable[treasury] += fee;
         if (freelancerShare > fee) withdrawable[e.freelancer] += freelancerShare - fee;
         if (clientShare > 0) withdrawable[e.client] += clientShare;

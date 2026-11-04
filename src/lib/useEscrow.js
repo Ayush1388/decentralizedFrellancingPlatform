@@ -11,6 +11,8 @@ export function friendlyError(err) {
   const msg = err?.shortMessage || err?.message || String(err);
   if (err?.name === "UserRejectedRequestError" || /user rejected|denied/i.test(msg)) return "You cancelled the request in your wallet.";
   if (/TooEarly/.test(msg)) return "It is too early for that. The waiting period has not ended yet.";
+  if (/TooManyRevisions/.test(msg)) return "You have used all change requests for this milestone. Approve it, or open a dispute.";
+  if (/UnexpectedTransferAmount/.test(msg)) return "The token did not transfer the full amount, so the funding was refused.";
   if (/BadStatus/.test(msg)) return "This milestone is not in the right state for that action.";
   if (/NotClient|NotFreelancer|NotParty|NotArbiter/.test(msg)) return "This wallet is not allowed to do that. Switch to the wallet linked to your account.";
   if (/insufficient funds/i.test(msg)) return "Your wallet does not have enough ETH to pay for gas.";
@@ -53,7 +55,7 @@ export function useEscrow() {
     [config],
   );
 
-  // kind: create | fund | submit | approve | claim | refund | dispute | resolve | withdraw
+  // kind: create | fund | submit | revise | approve | claim | refund | dispute | resolve | withdraw
   const onchain = useCallback(
     async (kind, { escrowId, index, amount, freelancer, amounts, deliverableUrl, freelancerPercent } = {}) => {
       try {
@@ -76,6 +78,8 @@ export function useEscrow() {
           }
           case "submit":
             return await send(escrow, escrowAbi, "submit", [id, i, keccak256(toHex(deliverableUrl))]);
+          case "revise":
+            return await send(escrow, escrowAbi, "requestChanges", [id, i]);
           case "approve":
           case "claim":
           case "refund":
