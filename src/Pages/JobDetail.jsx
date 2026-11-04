@@ -5,7 +5,6 @@ import { useAuth } from "../context/useAuth";
 import { timeAgo, usdc } from "../lib/format";
 import { Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, SkillChip } from "../Components/ui";
 import { Poster, SaveButton } from "../Components/cinema";
-import { reelDate } from "../lib/cinema";
 import { jobStatus } from "../lib/jobStatus";
 import { useChainConfig } from "../context/useChainConfig";
 import { friendlyError, useEscrow } from "../lib/useEscrow";
@@ -24,7 +23,7 @@ import ReportButton from "../Components/ReportButton";
 function OpenEscrow({ job, eth, onChange }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const missing = !job.clientWallet ? "Link your wallet on the Box office page first." : !job.freelancerWallet ? `${job.freelancer.name} has not linked a wallet yet.` : "";
+  const missing = !job.clientWallet ? "Link your wallet on the Wallet page first." : !job.freelancerWallet ? `${job.freelancer.name} has not linked a wallet yet.` : "";
 
   async function open() {
     setBusy(true);
@@ -40,8 +39,8 @@ function OpenEscrow({ job, eth, onChange }) {
   }
 
   return (
-    <div className="card mb-4 !border-gold/50 p-5">
-      <h3 className="poster-title text-2xl">Open the escrow on-chain</h3>
+    <div className="card mb-4 !border-gold/40 p-5">
+      <h3 className="text-lg font-semibold">Open the escrow on-chain</h3>
       <p className="mt-1 text-sm text-muted">
         One transaction creates the escrow with these {job.milestones.length} milestones. It moves no money yet: you fund each milestone separately.
       </p>
@@ -83,15 +82,15 @@ function NextStep({ job }) {
     else if (first("funded")) text = `“${first("funded").title}” is funded. Deliver it when it is ready.`;
     else if (first("submitted")) text = "Your work is with the client for review.";
     else if (first("pending")) text = "Waiting for the client to fund the next milestone.";
-    else if (job.status === "completed") text = "Every milestone is paid. If you are on-chain, withdraw from the Box office.";
+    else if (job.status === "completed") text = "Every milestone is paid. If you are on-chain, withdraw from the Wallet page.";
   }
   if (!text) return null;
   return (
-    <p className="mt-6 flex items-start gap-3 border border-gold/40 bg-gold/10 px-4 py-3 text-sm">
-      <Icon name="arrow" size={16} className="mt-0.5 text-gold" />
+    <p className="mt-6 flex items-start gap-3 rounded-xl border border-gold/30 bg-gold/[0.07] px-4 py-3.5">
+      <Icon name="arrow" size={18} className="mt-0.5 text-gold" />
       <span>
-        <span className="stat-label !text-gold">Next step</span>
-        <span className="block">{text}</span>
+        <span className="block text-sm font-semibold text-gold">Next step</span>
+        <span className="block text-ink">{text}</span>
       </span>
     </p>
   );
@@ -109,7 +108,7 @@ function BriefFiles({ files }) {
             <button
               type="button"
               onClick={() => downloadProtectedFile(f.url, f.name).catch((e) => setError(e.message))}
-              className="flex items-center gap-2 border border-[#3a3733] px-3 py-2 text-sm hover:border-gold"
+              className="flex items-center gap-2 rounded-lg border border-[#3d3332] px-3 py-2 text-sm hover:border-[#6a5a55]"
             >
               <Icon name="file" size={14} className="text-gold" />
               <span className="max-w-56 truncate">{f.name}</span>
@@ -198,7 +197,7 @@ export default function JobDetail() {
   if (error)
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="alert" title="Job not found" action={<Button to="/jobs">Back to jobs</Button>}>
+        <EmptyState as="h1" icon="alert" title="Job not found" action={<Button to="/jobs">Back to jobs</Button>}>
           {error}
         </EmptyState>
       </div>
@@ -223,46 +222,53 @@ export default function JobDetail() {
 
   return (
     <div className="container-page pb-8 pt-8">
-      <Link to={job.parentId ? `/jobs/${job.parentId}` : "/jobs"} className="inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-gold">
+      <Link to={job.parentId ? `/jobs/${job.parentId}` : "/jobs"} className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-muted hover:text-ink">
         <Icon name="arrow" size={14} className="rotate-180" /> {job.parentId ? `Posting: ${job.parentTitle}` : "All jobs"}
       </Link>
 
-      <header className="mt-4 flex flex-col gap-6 border border-gold/30 bg-surface p-5 sm:flex-row sm:p-6">
-        <Poster title={job.title} tilt={-2} demo={job.demo} className="hidden !max-w-[10rem] sm:flex" />
+      <header className="mt-5 flex flex-col gap-7 sm:flex-row">
+        <Poster genre={job.category} tilt={-2} demo={job.demo} className="hidden sm:flex sm:w-40" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Badge tone={job.status === "draft" ? "amber" : st.tone}>{job.status === "draft" ? "Draft" : st.label}</Badge>
             {job.parentId && <Badge tone="blue">Contract</Badge>}
-            {role !== "visitor" && <Badge tone="violet">You are the {role}</Badge>}
-            {job.demo && <Badge tone="red">Demo data</Badge>}
-            {job.category && <Badge tone="gray">{job.category}</Badge>}
+            {role !== "visitor" && <Badge tone="violet">You're the {role}</Badge>}
+            {job.demo && <Badge tone="red" className="sm:hidden">Demo</Badge>}
+            {job.category && (
+              <Badge tone="gray" className="sm:hidden">
+                {job.category}
+              </Badge>
+            )}
             <span className="ml-auto flex items-center gap-2">
               {job.status !== "draft" && <SaveButton jobId={job.id} />}
             </span>
           </div>
-          <h1 className="poster-title mt-3 text-5xl text-gold sm:text-6xl">{job.title}</h1>
-          <p className="mt-3 font-serif text-lg italic text-ink-soft">
-            Directed by {job.client.name}
+          <h1 className="poster-title mt-3 text-5xl text-ink sm:text-6xl">{job.title}</h1>
+          <p className="mt-3 text-ink-soft">
+            Posted by <span className="font-medium text-ink">{job.client.name}</span>
             {job.clientReviews > 0 && (
-              <span className="ml-2 font-mono text-sm not-italic text-gold" title={`${job.clientReviews} review${job.clientReviews === 1 ? "" : "s"} from freelancers`}>
-                ★ {job.clientRating.toFixed(1)} ({job.clientReviews})
+              <span className="ml-1.5 inline-flex items-center gap-1 text-sm text-gold" title={`${job.clientReviews} review${job.clientReviews === 1 ? "" : "s"} from freelancers`}>
+                <Icon name="star" size={13} className="fill-current" />
+                {job.clientRating.toFixed(1)} ({job.clientReviews})
               </span>
             )}
-            {job.freelancer && `, starring ${job.freelancer.name}`}
+            <span className="text-muted">, {timeAgo(job.createdAt)}</span>
           </p>
-          <p className="mt-1 font-mono text-xs text-muted">
-            Posted {reelDate(job.createdAt)} · {timeAgo(job.createdAt)}
-          </p>
+          {job.freelancer && (
+            <p className="mt-1 text-ink-soft">
+              Hired <span className="font-medium text-ink">{job.freelancer.name}</span>
+            </p>
+          )}
           {!job.parentId && job.status !== "draft" && <JobFacts job={job} className="mt-4" />}
-          <dl className="mt-5 grid max-w-md grid-cols-3 gap-px border border-white/10 bg-white/10">
+          <dl className="mt-6 grid max-w-lg grid-cols-3 gap-6 border-t border-line pt-5">
             {[
               ["Budget", job.total],
               ["In escrow", inEscrow],
               ["Paid out", paid],
             ].map(([k, v]) => (
-              <div key={k} className="bg-[#0f0e0d] px-4 py-3">
+              <div key={k}>
                 <dt className="stat-label">{k}</dt>
-                <dd className="font-mono font-bold">{usdc(v)}</dd>
+                <dd className="mt-0.5 text-xl font-semibold tabular-nums">{usdc(v)}</dd>
               </div>
             ))}
           </dl>
@@ -270,7 +276,7 @@ export default function JobDetail() {
       </header>
 
       {needsWallet && (
-        <p className="mt-6 border border-amber-800/50 bg-butter/60 px-4 py-3 text-sm">
+        <p className="mt-6 rounded-xl border border-amber-800/40 bg-butter/60 px-4 py-3 text-sm">
           This contract is paid on-chain and your account has no linked wallet yet.{" "}
           <Link to="/wallet" className="text-gold underline-offset-2 hover:underline">
             Link your wallet
@@ -280,13 +286,13 @@ export default function JobDetail() {
       )}
       <NextStep job={job} />
 
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
+      <div className="mt-10 grid gap-10 lg:grid-cols-[1fr_22rem]">
         <div className="min-w-0 space-y-10">
           {showApplicants && <ApplicantsPanel job={job} user={user} onChange={setJob} />}
 
           <section>
-            <h2 className="poster-title text-3xl text-gold">The synopsis</h2>
-            <p className="mt-2 whitespace-pre-wrap text-ink-soft">{job.description}</p>
+            <h2 className="text-[1.375rem] font-semibold">Description</h2>
+            <p className="mt-2 max-w-[68ch] whitespace-pre-wrap leading-relaxed text-ink-soft">{job.description}</p>
             {job.skills.length > 0 && (
               <div className="mt-4 flex flex-wrap gap-2">
                 {job.skills.map((s) => (
@@ -299,12 +305,12 @@ export default function JobDetail() {
                 <BriefFiles files={job.attachments} />
               </div>
             )}
-            {!user && !participant && <p className="mt-4 text-xs text-muted">Log in to open the files attached to this job.</p>}
+            {!user && !participant && <p className="mt-4 text-sm text-muted">Log in to open the files attached to this job.</p>}
           </section>
 
           <section>
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2 className="poster-title text-3xl text-gold">Scenes &amp; milestones</h2>
+              <h2 className="text-[1.375rem] font-semibold">Milestones</h2>
               {chain && participant && job.escrowId != null && (
                 <div className="text-right">
                   <Button size="sm" variant="outline" loading={syncBusy} onClick={manualSync}>
@@ -313,9 +319,9 @@ export default function JobDetail() {
                 </div>
               )}
             </div>
-            {syncNote && <p className="mt-2 text-right text-xs text-muted" role="status">{syncNote}</p>}
+            {syncNote && <p className="mt-2 text-right text-sm text-muted" role="status">{syncNote}</p>}
             {chain ? (
-              <p className="mb-4 mt-1 flex items-start gap-2 bg-green-50 px-4 py-3 text-sm text-green-900">
+              <p className="mb-4 mt-3 flex items-start gap-2 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-900">
                 <Icon name="shield" size={18} className="mt-0.5" />
                 <span>
                   Payments are held by the escrow contract{" "}
@@ -330,7 +336,7 @@ export default function JobDetail() {
                 </span>
               </p>
             ) : (
-              <p className="mb-4 mt-1 flex items-start gap-2 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              <p className="mb-4 mt-3 flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
                 <Icon name="alert" size={18} className="mt-0.5" />
                 <span>Preview mode: no escrow contract is connected to this server, so balances are tracked by the platform and no real USDC moves.</span>
               </p>

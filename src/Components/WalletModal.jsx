@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useConnect } from "wagmi";
-import { walletConnectEnabled } from "../lib/wagmi";
 import { closeWalletPicker, useWalletPickerOpen } from "../lib/walletModal";
 import { ErrorNote, Icon } from "./ui";
 
@@ -47,13 +46,13 @@ export default function WalletModal() {
       onClose={() => closeWalletPicker(null)}
       onClick={(e) => e.target === ref.current && closeWalletPicker(null)}
       aria-labelledby="wallet-title"
-      className="m-auto w-[calc(100%-2rem)] max-w-md border border-gold/40 bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+      className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-line bg-surface p-0 text-ink shadow-[0_32px_80px_-20px_rgb(0_0_0/0.85)] backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     >
       <div className="relative p-6 sm:p-8">
         <button type="button" onClick={() => closeWalletPicker(null)} aria-label="Close" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center text-muted hover:text-gold">
           <Icon name="x" size={20} />
         </button>
-        <h2 id="wallet-title" className="poster-title text-4xl">
+        <h2 id="wallet-title" className="text-2xl font-semibold">
           Connect a wallet
         </h2>
         <p className="mt-2 text-sm text-muted">Pick the wallet you use. Connecting never moves money: you approve every transaction yourself.</p>
@@ -65,7 +64,7 @@ export default function WalletModal() {
                 type="button"
                 disabled={isPending}
                 onClick={() => pick(c)}
-                className="flex min-h-14 w-full items-center gap-3 border border-[#3a3733] px-4 text-left transition-colors hover:border-gold disabled:opacity-60"
+                className="flex min-h-14 w-full items-center gap-3 rounded-lg border border-[#3d3332] px-4 text-left transition-colors hover:border-gold disabled:opacity-60"
               >
                 {c.icon ? <img src={c.icon} alt="" width="28" height="28" className="h-7 w-7 rounded-[4px]" /> : <Icon name="wallet" size={24} className="text-gold" />}
                 <span className="min-w-0 flex-1">
@@ -78,9 +77,8 @@ export default function WalletModal() {
           ))}
         </ul>
 
-        {!walletConnectEnabled && <p className="mt-4 text-xs text-muted">Phone wallets via WalletConnect appear here once the site owner adds a WalletConnect project id.</p>}
         {!hasBrowserWallet && (
-          <p className="mt-4 border border-dashed border-white/10 px-3 py-2 text-sm text-ink-soft">
+          <p className="mt-4 rounded-lg border border-dashed border-[#3d3332] px-3 py-2 text-sm text-ink-soft">
             No browser wallet found.{" "}
             <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-gold underline-offset-2 hover:underline">
               Install MetaMask

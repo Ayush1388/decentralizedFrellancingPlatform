@@ -10,7 +10,7 @@ export default function PostJob() {
   if (ready && !user) {
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="lock" title="Log in to post a job" action={<Button onClick={openLogin}>Log in</Button>}>
+        <EmptyState as="h1" icon="lock" title="Log in to post a job" action={<Button onClick={openLogin}>Log in</Button>}>
           You need an account so freelancers know who they are working with.
         </EmptyState>
       </div>
@@ -19,10 +19,8 @@ export default function PostJob() {
   return (
     <div className="container-page max-w-3xl pb-8">
       <PageHeader
-        eyebrow="Casting call"
-        image="/Work time-cuate.svg"
-        title="Pitch a picture"
-        subtitle="Describe the work and break it into milestones. You fund each milestone only after you hire someone. Not ready? Save a draft."
+        title="Post a job"
+        subtitle="Describe the work and split it into milestones. You fund each milestone only after you hire someone, and you can save a draft at any point."
       />
       <JobForm />
     </div>
@@ -46,13 +44,13 @@ export function EditJob() {
   if (ready && !user)
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="lock" title="Log in to edit this job" action={<Button onClick={openLogin}>Log in</Button>} />
+        <EmptyState as="h1" icon="lock" title="Log in to edit this job" action={<Button onClick={openLogin}>Log in</Button>} />
       </div>
     );
   if (error)
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="alert" title="Job not found" action={<Button to="/jobs">Back to jobs</Button>}>
+        <EmptyState as="h1" icon="alert" title="Job not found" action={<Button to="/jobs">Back to jobs</Button>}>
           {error}
         </EmptyState>
       </div>
@@ -66,14 +64,14 @@ export function EditJob() {
   if (job.viewerRole !== "client" || !["draft", "open"].includes(job.status))
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="lock" title="This job cannot be edited" action={<Button to={`/jobs/${job.id}`}>Back to the job</Button>}>
+        <EmptyState as="h1" icon="lock" title="This job cannot be edited" action={<Button to={`/jobs/${job.id}`}>Back to the job</Button>}>
           Only the client can edit, and only while the job is a draft or open.
         </EmptyState>
       </div>
     );
   return (
     <div className="container-page max-w-3xl pb-8">
-      <PageHeader eyebrow={job.status === "draft" ? "Draft" : "Editing"} title={job.title} subtitle="Applicants are told when you change an open posting." />
+      <PageHeader title={job.title} subtitle="Applicants are told when you change an open posting." />
       <JobForm job={job} />
     </div>
   );

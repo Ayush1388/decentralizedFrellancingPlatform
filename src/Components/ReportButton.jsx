@@ -26,11 +26,11 @@ export default function ReportButton({ kind, targetId, label = "Report", classNa
     }
   }
 
-  if (done) return <p className={`text-xs text-muted ${className}`}>Thanks. The platform team will take a look.</p>;
+  if (done) return <p className={`text-sm text-muted ${className}`}>Thanks. The platform team will take a look.</p>;
   if (!open)
     return (
-      <button type="button" onClick={() => (user ? setOpen(true) : openLogin())} className={`inline-flex items-center gap-1.5 text-xs text-muted hover:text-red-700 ${className}`}>
-        <Icon name="flag" size={12} /> {label}
+      <button type="button" onClick={() => (user ? setOpen(true) : openLogin())} className={`inline-flex min-h-10 items-center gap-1.5 text-sm text-muted hover:text-red-700 ${className}`}>
+        <Icon name="flag" size={14} /> {label}
       </button>
     );
   return (

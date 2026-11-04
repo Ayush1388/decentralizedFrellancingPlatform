@@ -26,7 +26,7 @@ function NoteForm({ id, label, hint, cta, variant, busy, onSubmit, onCancel, min
   const [text, setText] = useState("");
   return (
     <form
-      className="mt-4 space-y-3 border border-white/10 bg-black/20 p-4"
+      className="mt-4 space-y-3 rounded-lg border border-line bg-white/[0.03] p-4"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit(text);
@@ -79,20 +79,20 @@ export default function MilestoneCard({ m, job, user, onChange, perform, step, c
     <li className="card p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-mono text-xs text-gold">
-            Scene {m.position}
-            {m.revisions > 0 && ` · ${m.revisions} change request${m.revisions > 1 ? "s" : ""}`}
+          <p className="text-sm tabular-nums text-muted">
+            Milestone {m.position}
+            {m.revisions > 0 && `, ${m.revisions} change request${m.revisions > 1 ? "s" : ""}`}
           </p>
-          <h3 className="poster-title text-2xl">{m.title}</h3>
+          <h3 className="text-lg font-semibold">{m.title}</h3>
         </div>
         <div className="text-right">
-          <p className="font-mono text-lg font-bold">{usdc(m.amount)}</p>
+          <p className="text-lg font-semibold tabular-nums">{usdc(m.amount)}</p>
           <Badge tone={st.tone}>{st.label}</Badge>
         </div>
       </div>
 
       {role === "freelancer" && !["refunded", "resolved"].includes(m.status) && (
-        <p className="mt-2 font-mono text-xs text-muted">
+        <p className="mt-2 text-sm tabular-nums text-muted">
           {m.status === "released" ? "You received" : "You will receive"} {usdc(m.amount - fee)} after the {job.feeBps / 100}% fee.
         </p>
       )}
@@ -150,7 +150,7 @@ export default function MilestoneCard({ m, job, user, onChange, perform, step, c
       )}
 
       {(m.fundTx || m.releaseTx) && chain && (
-        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-xs text-muted">
+        <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 tabular-nums text-xs text-muted">
           {explorerTx(chain.chainId, m.fundTx) && (
             <a href={explorerTx(chain.chainId, m.fundTx)} target="_blank" rel="noopener noreferrer" className="hover:text-gold">
               Funding transaction ↗
@@ -165,8 +165,8 @@ export default function MilestoneCard({ m, job, user, onChange, perform, step, c
       )}
       {(m.status === "released" || m.status === "resolved") && (role === "client" || role === "freelancer") && (
         <p className="mt-2">
-          <Link to={`/jobs/${job.id}/receipt/${m.id}`} className="inline-flex items-center gap-1.5 text-xs text-gold underline-offset-2 hover:underline">
-            <Icon name="file" size={12} /> View receipt
+          <Link to={`/jobs/${job.id}/receipt/${m.id}`} className="inline-flex min-h-9 items-center gap-1.5 text-sm text-gold underline-offset-2 hover:underline">
+            <Icon name="file" size={14} /> View receipt
           </Link>
         </p>
       )}

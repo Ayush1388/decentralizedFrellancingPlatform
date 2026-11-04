@@ -4,7 +4,7 @@ import { api } from "../../lib/api";
 import { useChainConfig } from "../../context/useChainConfig";
 import { openingsLabel, plural, timeAgo, usdc } from "../../lib/format";
 import { appStatus, jobStatus } from "../../lib/jobStatus";
-import { Avatar, Badge, Button, ErrorNote, Icon, SkillChip } from "../ui";
+import { Avatar, Badge, Button, ErrorNote, Icon, SkillChip, Tabs } from "../ui";
 import { ProofOfWork, Quote } from "./ApplyPanel";
 import Thread from "./Thread";
 
@@ -45,14 +45,13 @@ function Applicant({ a, job, user, onChange }) {
       <div className="flex flex-wrap items-start gap-3">
         <Avatar seed={a.user.id} size={44} />
         <div className="min-w-0 flex-1">
-          <p className="poster-title text-2xl">{a.user.name}</p>
+          <p className="text-lg font-semibold">{a.user.name}</p>
           {a.developer ? (
-            <p className="font-mono text-xs text-muted">
-              {a.developer.title} · ${a.developer.hourlyRate}/hr · {a.developer.rating > 0 ? `★ ${a.developer.rating.toFixed(1)}` : "no rating yet"} ·{" "}
-              {plural(a.developer.jobsDone, "job")} done
+            <p className="text-sm tabular-nums text-muted">
+              {a.developer.title}, ${a.developer.hourlyRate}/hr, {a.developer.rating > 0 ? `rated ${a.developer.rating.toFixed(1)}` : "no rating yet"}, {plural(a.developer.jobsDone, "job")} done
             </p>
           ) : (
-            <p className="font-mono text-xs text-muted">No developer profile</p>
+            <p className="tabular-nums text-xs text-muted">No developer profile</p>
           )}
           <p className="mt-0.5 text-xs text-muted">Applied {timeAgo(a.createdAt)}</p>
         </div>
@@ -70,14 +69,14 @@ function Applicant({ a, job, user, onChange }) {
         </div>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-dashed border-white/10 pt-4">
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-4">
         {live && !confirmHire && (
           <Button size="sm" disabled={chain && !a.hasWallet} onClick={() => setConfirmHire(true)}>
             <Icon name="check" size={14} /> Hire {a.user.name.split(" ")[0]}
           </Button>
         )}
         {confirmHire && (
-          <span className="flex w-full flex-col gap-3 bg-black/30 px-3 py-3 text-sm">
+          <span className="flex w-full flex-col gap-3 rounded-lg bg-white/[0.04] px-3 py-3 text-sm">
             <span>{job.openings > 1 ? `Hire for one of ${job.openings} openings?` : "Hire and decline the others?"}</span>
             {a.bid != null && a.bid !== job.total && (
               <fieldset className="space-y-1.5">
@@ -135,7 +134,7 @@ function Applicant({ a, job, user, onChange }) {
       </div>
       {chain && !a.hasWallet && live && <p className="mt-2 text-xs text-amber-800">No wallet linked yet, so they cannot be paid on-chain. Message them to link one on the Box office page.</p>}
       {talk && (
-        <div className="mt-4 border-t border-white/10 pt-4">
+        <div className="mt-4 border-t border-line pt-4">
           <Thread
             compact
             path={`/api/applications/${a.id}/messages`}
@@ -168,13 +167,13 @@ function CompareTable({ apps, job }) {
     ["Status", (a) => appStatus[a.status]?.label || a.status],
   ];
   return (
-    <div className="mt-4 overflow-x-auto border border-white/10">
+    <div className="mt-4 overflow-x-auto rounded-lg border border-line">
       <table className="w-full min-w-[32rem] border-collapse text-sm">
         <thead>
-          <tr className="border-b border-white/10 text-left">
+          <tr className="border-b border-line text-left">
             <th scope="col" className="stat-label p-3"></th>
             {apps.map((a) => (
-              <th key={a.id} scope="col" className="poster-title p-3 text-xl">
+              <th key={a.id} scope="col" className="p-3 text-base font-semibold">
                 {a.user.name}
               </th>
             ))}
@@ -187,7 +186,7 @@ function CompareTable({ apps, job }) {
                 {label}
               </th>
               {apps.map((a) => (
-                <td key={a.id} className="p-3 font-mono">
+                <td key={a.id} className="p-3 tabular-nums">
                   {get(a)}
                 </td>
               ))}
@@ -210,10 +209,10 @@ export default function ApplicantsPanel({ job, user, onChange }) {
     <section aria-labelledby="applicants-title">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 id="applicants-title" className="poster-title text-3xl text-gold">
-            Auditions · {apps.length}
+          <h2 id="applicants-title" className="text-[1.375rem] font-semibold">
+            Applicants <span className="font-normal tabular-nums text-muted">{apps.length}</span>
           </h2>
-          <p className="mt-1 font-mono text-xs text-muted">{openingsLabel(job)}</p>
+          <p className="mt-1 tabular-nums text-xs text-muted">{openingsLabel(job)}</p>
         </div>
       </div>
 
@@ -223,7 +222,7 @@ export default function ApplicantsPanel({ job, user, onChange }) {
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {job.contracts.map((c) => (
               <li key={c.id}>
-                <Link to={`/jobs/${c.id}`} className="flex items-center justify-between gap-3 bg-black/30 px-3 py-2 text-sm hover:bg-black/50">
+                <Link to={`/jobs/${c.id}`} className="flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2 text-sm hover:bg-white/[0.07]">
                   <span className="font-semibold">{c.freelancer.name}</span>
                   <Badge tone={(jobStatus[c.status] || jobStatus.open).tone}>{(jobStatus[c.status] || jobStatus.open).label}</Badge>
                 </Link>
@@ -233,22 +232,7 @@ export default function ApplicantsPanel({ job, user, onChange }) {
         </div>
       )}
 
-      <div role="tablist" aria-label="Filter applications" className="mt-5 flex flex-wrap gap-2">
-        {filters.map((x) => {
-          const n = apps.filter(x.match).length;
-          return (
-            <button
-              key={x.id}
-              role="tab"
-              aria-selected={filter === x.id}
-              onClick={() => setFilter(x.id)}
-              className={`eyebrow min-h-10 px-4 transition-colors ${filter === x.id ? "bg-gold text-poster" : "border border-[#3a3733] hover:border-gold hover:text-gold"}`}
-            >
-              {x.label} ({n})
-            </button>
-          );
-        })}
-      </div>
+      <Tabs label="Filter applications" className="mt-5" value={filter} onChange={setFilter} tabs={filters.map((x) => ({ id: x.id, label: x.label, count: apps.filter(x.match).length }))} />
 
       {shown.length >= 2 && (
         <div className="mt-4">
@@ -260,7 +244,7 @@ export default function ApplicantsPanel({ job, user, onChange }) {
       {compare && shown.length >= 2 ? (
         <CompareTable apps={shown} job={job} />
       ) : shown.length === 0 ? (
-        <p className="mt-4 border border-dashed border-white/10 px-4 py-6 text-center text-sm text-muted">
+        <p className="mt-4 rounded-lg border border-dashed border-[#3d3332] px-4 py-6 text-center text-sm text-muted">
           {apps.length === 0 ? "No applications yet. They will appear here as freelancers apply." : "Nobody in this list."}
         </p>
       ) : (

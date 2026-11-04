@@ -11,10 +11,10 @@ export default function JobFacts({ job, className = "" }) {
     job.level && { icon: "star", text: `${job.level} level` },
   ].filter(Boolean);
   return (
-    <ul className={`flex flex-wrap gap-x-5 gap-y-2 font-mono text-[0.8rem] ${className}`}>
+    <ul className={`flex flex-wrap gap-x-5 gap-y-2 text-sm ${className}`}>
       {facts.map((f) => (
         <li key={f.text} className={`flex items-center gap-1.5 ${f.warn ? "text-red-700" : "text-ink-soft"}`}>
-          <Icon name={f.icon} size={14} className="text-gold" /> {f.text}
+          <Icon name={f.icon} size={15} className="text-muted" /> {f.text}
         </li>
       ))}
     </ul>

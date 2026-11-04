@@ -10,7 +10,7 @@ import { Badge, Button, EmptyState, ErrorNote, Field, PageHeader } from "../Comp
 function Section({ title, children, danger }) {
   return (
     <section className={`card space-y-4 p-6 ${danger ? "!border-red-700/50" : ""}`}>
-      <h2 className="poster-title text-3xl">{title}</h2>
+      <h2 className="text-[1.375rem] font-semibold">{title}</h2>
       {children}
     </section>
   );
@@ -60,7 +60,7 @@ function EmailSection({ user }) {
     <Section title="Email">
       {user.email ? (
         <p className="flex flex-wrap items-center gap-3">
-          <span className="font-mono">{user.email}</span>
+          <span className="tabular-nums">{user.email}</span>
           {site.emailEnabled && <Badge tone={user.emailVerified ? "green" : "amber"}>{user.emailVerified ? "Confirmed" : "Not confirmed"}</Badge>}
           {site.emailEnabled && !user.emailVerified && (
             <Button size="sm" variant="secondary" loading={busy} onClick={resend}>
@@ -144,7 +144,7 @@ export default function Settings() {
   if (ready && !user)
     return (
       <div className="container-page pt-12">
-        <EmptyState icon="lock" title="Log in to open your settings" action={<Button onClick={openLogin}>Log in</Button>} />
+        <EmptyState as="h1" icon="lock" title="Log in to open your settings" action={<Button onClick={openLogin}>Log in</Button>} />
       </div>
     );
   if (!user) return null;
@@ -194,7 +194,7 @@ export default function Settings() {
 
   return (
     <div className="container-page max-w-3xl space-y-6 pb-16">
-      <PageHeader eyebrow="Your account" title="Settings" subtitle={`Signed in as ${user.name}.`} />
+      <PageHeader title="Settings" subtitle={`Signed in as ${user.name}.`} />
 
       <EmailSection user={user} />
       <PasswordSection user={user} />
@@ -211,7 +211,7 @@ export default function Settings() {
           <p className="text-sm text-muted">No wallet linked yet. You need one to be hired or to fund work on-chain.</p>
         )}
         <Button to="/wallet" variant="secondary" size="sm">
-          Open the box office
+          Open the Wallet page
         </Button>
       </Section>
 

@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
-import { closesIn, openingsLabel, plural, usdc } from "../lib/format";
-import { houseRules, reelDate } from "../lib/cinema";
+import { closesIn, plural, timeAgo, usdc } from "../lib/format";
+import { houseRules, posterStock } from "../lib/cinema";
 import { useSaved } from "../lib/useSaved";
-import { Icon } from "./ui";
+import { Badge, Button, Icon, SkillChip } from "./ui";
 
-// Shared pieces of the picture-house look: posters, reels, bulbs, ticket stubs.
+// The printed side of the Picture House: marquee bulbs, one-sheet posters, the rubber stamp.
 
+// Marquee bulbs that come on one after another when the lobby opens, then stay lit.
 export function Bulbs({ count = 42, className = "" }) {
   return (
     <div aria-hidden="true" className={`flex justify-between ${className}`}>
@@ -13,74 +14,79 @@ export function Bulbs({ count = 42, className = "" }) {
         <span
           key={i}
           className="bulb h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2"
-          style={{ background: "#ffe9a8", boxShadow: "0 0 8px 2px rgb(255 200 80 / 0.7)", animationDelay: `${(i % 6) * 0.25}s` }}
+          style={{ background: "#ffe9a8", boxShadow: "0 0 8px 2px rgb(255 200 80 / 0.55)", animationDelay: `${120 + i * 22}ms` }}
         />
       ))}
     </div>
   );
 }
 
-// Red rubber stamp marking seeded sample data.
+// Rubber stamp on printed stock marking seeded sample data.
 export function DemoStamp({ className = "" }) {
   return (
     <span
       title="Sample data for demos"
-      className={`pointer-events-none inline-block -rotate-12 border-[3px] border-marker px-2 font-hand text-lg leading-tight text-marker opacity-90 ${className}`}
+      className={`pointer-events-none inline-block -rotate-12 border-2 border-curtain px-1.5 pt-0.5 font-poster text-sm uppercase leading-tight tracking-wide text-curtain ${className}`}
     >
       Demo
     </span>
   );
 }
 
-// Shield over a skyline of blocks: the house silhouette on every poster.
-function Silhouette() {
+// Shield over a skyline: the house silhouette printed at the foot of every poster.
+function Silhouette({ stock }) {
   return (
     <svg viewBox="0 0 200 120" className="mt-auto w-full" aria-hidden="true">
       <path d="M100 8 70 20v26c0 20 13 34 30 40 17-6 30-20 30-40V20Z" fill="currentColor" />
-      <path d="m88 46 8 8 16-18" stroke="var(--color-gold)" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m88 46 8 8 16-18" stroke={stock} strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M0 120V84h22V70h18v14h16V62h20v58Zm124 0V62h20v22h16V70h18v14h22v36Z" fill="currentColor" />
       <rect x="56" y="88" width="88" height="32" fill="currentColor" />
       {[64, 82, 100, 118].map((x) => (
-        <rect key={x} x={x} y="98" width="8" height="14" rx="4" fill="var(--color-gold)" />
+        <rect key={x} x={x} y="98" width="8" height="14" rx="4" fill={stock} />
       ))}
     </svg>
   );
 }
 
-export function Poster({ title, tilt = 2, demo, className = "" }) {
+// A one-sheet for a job. The poster names the kind of work, on that kind's own stock; the title lives in the card.
+export function Poster({ genre, tilt = 2, demo, small = false, className = "" }) {
+  const stock = posterStock(genre);
   return (
     <div
-      className={`relative flex aspect-[3/4] w-full max-w-[13rem] shrink-0 flex-col self-start overflow-hidden border-[3px] border-poster bg-gold p-3 text-poster shadow-[0_18px_40px_-12px_rgb(0_0_0/0.8)] ${className}`}
-      style={{ transform: `rotate(${tilt}deg)` }}
+      className={`relative flex aspect-[3/4] shrink-0 flex-col self-start overflow-hidden border-poster text-poster shadow-[0_18px_36px_-14px_rgb(0_0_0/0.85)] ${small ? "w-20 border-2 p-2 sm:w-28" : "w-full max-w-[11rem] border-[3px] p-3"} ${className}`}
+      style={{ background: stock, transform: `rotate(${tilt}deg)` }}
     >
-      <p className="text-[0.45rem] font-semibold uppercase tracking-[0.14em]">The Blockchain Picture Company</p>
-      <p className="poster-title mt-1 line-clamp-3 text-[1.55rem]">{title}</p>
-      <Silhouette />
-      {demo && <DemoStamp className="absolute right-2 top-1/2 bg-ticket/80" />}
+      {!small && (
+        <p aria-hidden="true" className="text-[0.5rem] font-semibold uppercase tracking-[0.12em] opacity-80">
+          The Blockchain Picture Company presents
+        </p>
+      )}
+      <p className={`poster-title line-clamp-3 !leading-none ${small ? "text-[0.85rem] sm:text-[1.05rem]" : "mt-1.5 text-[1.6rem]"}`}>
+        {genre ? (
+          <>
+            <span className="sr-only">Category: </span>
+            {genre}
+          </>
+        ) : (
+          <span aria-hidden="true">Now showing</span>
+        )}
+      </p>
+      <Silhouette stock={stock} />
+      {demo && <DemoStamp className="absolute right-2 top-[46%] bg-ticket/85" />}
     </div>
   );
 }
 
 export function Spec({ label, children }) {
   return (
-    <div>
+    <div className="min-w-0">
       <dt className="stat-label">{label}</dt>
-      <dd className="font-mono text-[0.85rem] text-ink">{children}</dd>
+      <dd className="mt-0.5 font-medium tabular-nums text-ink">{children}</dd>
     </div>
   );
 }
 
-export function ReelTag({ n, children, dim, demo, label = "Reel" }) {
-  return (
-    <p className={`flex flex-wrap items-center gap-3 font-mono text-[0.8rem] text-gold ${dim ? "opacity-70" : ""}`}>
-      <span className="border border-gold px-2 py-0.5">{label} Nº{n}</span>
-      {children}
-      {demo && <span className="border border-marker px-2 py-0.5 text-marker">Demo</span>}
-    </p>
-  );
-}
-
-// A bookmark button for a job card. Hidden for visitors who are not signed in.
+// A bookmark for a job card. Hidden for visitors who are not signed in.
 export function SaveButton({ jobId, className = "" }) {
   const { saved, toggle, signedIn } = useSaved();
   if (!signedIn) return null;
@@ -92,127 +98,136 @@ export function SaveButton({ jobId, className = "" }) {
       aria-pressed={on}
       aria-label={on ? "Remove from saved jobs" : "Save this job"}
       title={on ? "Saved" : "Save for later"}
-      className={`flex h-10 w-10 items-center justify-center border transition-colors ${on ? "border-gold bg-gold text-poster" : "border-[#3a3733] text-ink-soft hover:border-gold hover:text-gold"} ${className}`}
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border transition-colors ${on ? "border-gold bg-gold text-poster" : "border-[#3d3332] text-ink-soft hover:border-[#6a5a55] hover:text-ink"} ${className}`}
     >
       <Icon name="bookmark" size={16} className={on ? "fill-current" : ""} />
     </button>
   );
 }
 
-// A programme entry for a job. "stacked" is for narrow slots (two to a row): the poster sits beside the title and the
-// details run full width underneath, instead of being squeezed into a thin column next to a tall poster.
-export function Reel({ job, n, stacked = false }) {
-  const specs = (
-    <dl className={`grid gap-x-8 gap-y-3 sm:grid-cols-2 ${stacked ? "" : "mt-5 max-w-xl"}`}>
-      <Spec label="Budget">{usdc(job.total)} in USDC</Spec>
-      <Spec label="Directed by">{job.client.name}</Spec>
-      <Spec label="Cast">{job.skills.slice(0, 3).join(", ") || "Open casting"}</Spec>
-      <Spec label="Audience">
-        {plural(job.applicants, "applicant")} · {openingsLabel(job)}
-      </Spec>
-      {job.closesAt && <Spec label="Showing until">{closesIn(job.closesAt)}</Spec>}
-      {(job.duration || job.level) && <Spec label="Running time">{[job.duration, job.level && `${job.level} level`].filter(Boolean).join(" · ")}</Spec>}
-    </dl>
+const applicantsLabel = (job) => (job.openings > 1 ? `${job.applicants} for ${job.openings} openings` : plural(job.applicants, "applicant"));
+
+// A job on the board. "stacked" is for narrow slots (two to a row): a smaller poster beside the title,
+// the details full width underneath.
+export function Reel({ job, n = 1, stacked = false }) {
+  const tilt = n % 2 ? -2 : 2;
+  // Demo data is marked once: a stamp on the big poster, or a badge where the poster is too small to carry one.
+  const description = <p className="line-clamp-2 text-ink-soft">{job.description}</p>;
+  const head = (
+    <div className="min-w-0 flex-1">
+      <p className="text-sm text-muted">
+        {job.client.name}, {timeAgo(job.createdAt)}
+      </p>
+      <h3 className={`mt-1 font-semibold leading-snug text-ink ${stacked ? "text-xl" : "text-2xl"}`}>
+        <Link to={`/jobs/${job.id}`} className="hover:text-gold">
+          {job.title}
+        </Link>
+      </h3>
+      {stacked && <div className="mt-2 hidden sm:block">{description}</div>}
+    </div>
   );
-  const cta = (
-    <Link
-      to={`/jobs/${job.id}`}
-      className="inline-flex min-h-11 items-center gap-2 bg-gold px-4 text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-poster hover:brightness-110"
-    >
-      Take your seat <Icon name="arrow" size={14} />
-    </Link>
-  );
-  const tag = (
-    <ReelTag n={n} demo={job.demo}>
-      {reelDate(job.createdAt)}
-      {job.category && <span className="text-ink-soft">· {job.category}</span>}
-    </ReelTag>
+  const body = (
+    <>
+      {stacked ? <div className="sm:hidden">{description}</div> : description}
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+        <Spec label="Budget">{usdc(job.total)}</Spec>
+        <Spec label="Applicants">{applicantsLabel(job)}</Spec>
+        {job.closesAt && <Spec label="Applications">{closesIn(job.closesAt)}</Spec>}
+        {job.duration && <Spec label="Duration">{job.duration}</Spec>}
+        {job.level && <Spec label="Level">{job.level}</Spec>}
+      </dl>
+      {job.skills.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {job.skills.slice(0, 4).map((s) => (
+            <SkillChip key={s}>{s}</SkillChip>
+          ))}
+        </div>
+      )}
+      <div className="mt-auto flex items-center gap-3 pt-1">
+        <Button to={`/jobs/${job.id}`} size="sm" className="!min-h-10 !px-4">
+          View job
+        </Button>
+        {stacked && job.demo && <Badge tone="red">Demo</Badge>}
+        {/* in the narrow two-up card the bookmark sits with the actions, so the title gets the full width */}
+        {stacked && <SaveButton jobId={job.id} className="ml-auto" />}
+      </div>
+    </>
   );
 
   if (stacked)
     return (
-      <article className="relative flex flex-col gap-5 border border-white/10 bg-surface p-4 sm:p-5">
-        <SaveButton jobId={job.id} className="absolute right-3 top-3 z-10" />
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          {/* The Demo tag beside it already says so, and a stamp this size would cover the title. */}
-          <Poster title={job.title} tilt={n % 2 ? -2 : 2} className="!w-36 shrink-0" />
-          <div className="min-w-0 flex-1 sm:pr-10">
-            {tag}
-            <h3 className="poster-title mt-3 text-3xl text-ink sm:text-4xl">{job.title}</h3>
-            <p className="mt-2 font-serif text-lg italic text-gold">A picture in USDC, paid on delivery</p>
-          </div>
+      <article className="relative flex flex-col gap-5 rounded-xl border border-line bg-surface p-5">
+        <div className="flex items-start gap-5">
+          <Poster genre={job.category} tilt={tilt} small />
+          {head}
         </div>
-        <p className="line-clamp-3 text-[0.95rem] leading-relaxed text-ink-soft">{job.description}</p>
-        {specs}
-        <div className="mt-auto pt-1">{cta}</div>
+        {body}
       </article>
     );
 
   return (
-    <article className="relative flex flex-col gap-6 border border-white/10 bg-surface p-4 sm:flex-row sm:p-5">
-      <SaveButton jobId={job.id} className="absolute right-3 top-3 z-10" />
-      <Poster title={job.title} tilt={n % 2 ? -2 : 2} demo={job.demo} />
-      <div className="min-w-0 flex-1">
-        {tag}
-        <h3 className="poster-title mt-3 text-4xl text-ink sm:text-5xl">{job.title}</h3>
-        <p className="mt-3 font-serif text-lg italic text-gold">A picture in USDC, paid on delivery</p>
-        <p className="mt-3 line-clamp-3 max-w-xl text-[0.95rem] leading-relaxed text-ink-soft">{job.description}</p>
-        {specs}
-        <div className="mt-6">{cta}</div>
+    <article className="relative flex flex-col gap-6 rounded-xl border border-line bg-surface p-5 sm:flex-row sm:p-6">
+      <Poster genre={job.category} tilt={tilt} demo={job.demo} className="sm:!w-40" />
+      <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex items-start gap-4">
+          {head}
+          <SaveButton jobId={job.id} />
+        </div>
+        {body}
       </div>
     </article>
   );
 }
 
-export function ComingSoon({ n }) {
+// The last slot on the board: an invitation to post.
+export function ComingSoon() {
   return (
-    <article className="flex flex-col gap-6 border border-dashed border-white/15 bg-[#121212] p-4 sm:flex-row sm:p-5">
+    <article className="flex flex-col items-start justify-center gap-4 rounded-xl border border-dashed border-[#3d3332] p-6">
       <div
-        className="poster-title flex aspect-[3/4] w-full max-w-[6rem] shrink-0 -rotate-2 items-center justify-center self-start border border-white/10 text-4xl text-white/30"
-        style={{ background: "repeating-linear-gradient(135deg, #1c1c1c 0 8px, #161616 8px 16px)" }}
+        aria-hidden="true"
+        className="poster-title flex aspect-[3/4] w-20 -rotate-2 items-center justify-center border border-white/10 text-4xl text-white/30"
+        style={{ background: "repeating-linear-gradient(135deg, #201a19 0 8px, #191414 8px 16px)" }}
       >
         ?
       </div>
-      <div className="min-w-0 flex-1">
-        <ReelTag n={n} dim>
-          In the edit
-        </ReelTag>
-        <h3 className="poster-title mt-3 text-4xl text-white/45 sm:text-5xl">Your project here</h3>
-        <p className="mt-3 max-w-xl text-[0.95rem] text-muted">
-          Title to be announced, possibly by you. Split the budget into milestones and the money waits in escrow until you approve each one.
-        </p>
-        <Link
-          to="/jobs/new"
-          className="mt-5 inline-flex min-h-11 items-center gap-2 border border-gold px-4 text-[0.72rem] font-semibold uppercase tracking-[0.2em] text-gold hover:bg-gold/10"
-        >
-          Post a job <Icon name="arrow" size={14} />
-        </Link>
-      </div>
+      <h3 className="text-xl font-semibold text-ink">Your job could be next</h3>
+      <p className="max-w-sm text-ink-soft">Split the budget into milestones. The money waits in escrow until you approve each one.</p>
+      <Button to="/jobs/new" variant="secondary" size="sm" className="!min-h-10 !px-4">
+        Post a job
+      </Button>
     </article>
   );
 }
 
-// Heading used above every list: gold poster word, typewriter note, gold rule.
-export function BillHeader({ title, note, id }) {
+// Heading above a home-page list: the poster word, an optional note, and an optional way to see everything.
+export function BillHeader({ title, note, id, action }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3 border-b border-gold/35 pb-3">
-      <h2 id={id} className="poster-title text-5xl text-gold sm:text-6xl">
-        {title}
-      </h2>
-      {note && <p className="font-mono text-[0.75rem] text-muted">{note}</p>}
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+      <div>
+        <h2 id={id} className="poster-title text-4xl text-ink sm:text-5xl">
+          {title}
+        </h2>
+        {note && <p className="mt-2 text-ink-soft">{note}</p>}
+      </div>
+      {action}
     </div>
   );
 }
 
 export function HouseRules() {
   return (
-    <section aria-label="House rules" className="grid gap-px border border-white/10 bg-white/10 sm:grid-cols-2 lg:grid-cols-4">
-      {houseRules.map(([k, v]) => (
-        <div key={k} className="bg-[#0f0e0d] p-5">
-          <p className="eyebrow text-gold">{k}</p>
-          <p className="mt-1.5 font-mono text-[0.85rem] text-ink-soft">{v}</p>
-        </div>
-      ))}
+    <section aria-labelledby="rules-title">
+      <h2 id="rules-title" className="text-xl font-semibold text-ink">
+        How the money works
+      </h2>
+      <dl className="mt-5 grid gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4">
+        {houseRules.map(([k, v]) => (
+          <div key={k} className="border-t border-gold/40 pt-4">
+            <dt className="font-semibold text-ink">{k}</dt>
+            <dd className="mt-1 text-sm text-ink-soft">{v}</dd>
+          </div>
+        ))}
+      </dl>
     </section>
   );
 }

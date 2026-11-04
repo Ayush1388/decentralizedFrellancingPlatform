@@ -6,7 +6,7 @@ import { appStatus, jobStatus } from "../lib/jobStatus";
 import { timeAgo, usdc } from "../lib/format";
 import { useEmailSetting } from "../lib/useEmailSetting";
 import { useChainConfig } from "../context/useChainConfig";
-import { Avatar, Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, IconButton } from "../Components/ui";
+import { Avatar, Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, PageHeader, Tabs } from "../Components/ui";
 
 const groups = [
   { key: "pending", label: "Not funded" },
@@ -19,17 +19,32 @@ const filters = [
   { id: "all", label: "All" },
   { id: "client", label: "As client" },
   { id: "freelancer", label: "As freelancer" },
-  { id: "applicant", label: "My applications" },
+  { id: "applicant", label: "Applications" },
 ];
 
 const compact = (units) => usdc(units, { compact: true });
 
-function TileHead({ title, children }) {
+function TileHead({ title, count, children }) {
   return (
-    <div className="mb-4 flex items-start justify-between gap-3">
-      <h2 className="poster-title text-3xl">{title}</h2>
-      <div className="flex gap-1.5">{children}</div>
+    <div className="mb-3 flex items-center justify-between gap-3">
+      <h2 className="text-lg font-semibold">
+        {title}
+        {count != null && <span className="ml-2 font-normal tabular-nums text-muted">{count}</span>}
+      </h2>
+      {children}
     </div>
+  );
+}
+
+// One quiet row inside a panel: what it is on the left, the figure or state on the right.
+const row = "flex items-center justify-between gap-3 rounded-lg px-3 py-3 transition-colors hover:bg-white/[0.04]";
+
+function Unread({ n }) {
+  if (!n) return null;
+  return (
+    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-marker px-1.5 text-xs font-semibold tabular-nums text-poster" title={`${n} unread message${n === 1 ? "" : "s"}`}>
+      {n}
+    </span>
   );
 }
 
@@ -41,16 +56,16 @@ function GetStarted({ user, jobs }) {
     chain && !user.walletAddress && { to: "/wallet", title: "Link your wallet", text: "You need one to be hired, to fund work and to withdraw." },
     user.email && !user.emailVerified && email.available && { to: "/settings", title: "Confirm your email", text: "Required to post jobs and apply." },
     !user.email && { to: "/settings", title: "Add an email", text: "Get notifications and be able to recover your account." },
-    jobs.length === 0 && { to: "/jobs", title: "Find a job or post one", text: "Browse the programme, or describe the work you need done." },
+    jobs.length === 0 && { to: "/jobs", title: "Find a job or post one", text: "Browse open jobs, or describe the work you need done." },
   ].filter(Boolean);
   if (!steps.length) return null;
   return (
-    <section className="tile mb-4 !border-gold/40" aria-label="Get started">
+    <section className="card p-5 !border-gold/30" aria-label="Get started">
       <TileHead title="Get started" />
       <ul className="grid gap-2 md:grid-cols-3">
         {steps.map((s) => (
           <li key={s.title}>
-            <Link to={s.to} className="block h-full bg-black/30 p-4 transition-colors hover:bg-black/50">
+            <Link to={s.to} className="block h-full rounded-lg bg-white/[0.04] p-4 transition-colors hover:bg-white/[0.07]">
               <span className="font-semibold">{s.title}</span>
               <span className="mt-1 block text-sm text-ink-soft">{s.text}</span>
             </Link>
@@ -88,7 +103,7 @@ export default function Dashboard() {
   if (ready && !user) {
     return (
       <div className="container-page pt-10">
-        <EmptyState image="/Work time-rafiki.svg" title="Log in to see your dashboard" action={<Button onClick={openLogin}>Log in</Button>}>
+        <EmptyState as="h1" icon="grid" title="Log in to see your dashboard" action={<Button onClick={openLogin}>Log in</Button>}>
           Your jobs, milestones and payments in one place.
         </EmptyState>
       </div>
@@ -99,52 +114,38 @@ export default function Dashboard() {
   const sums = data?.sums || {};
   const actions = (data?.actions || []).filter((a) => filter === "all" || (data?.jobs || []).find((j) => j.id === a.jobId)?.role === filter);
   const total = groups.reduce((t, g) => t + (sums[g.key]?.amount || 0), 0);
-  const maxGroup = Math.max(1, ...groups.map((g) => sums[g.key]?.amount || 0));
   const contracts = jobs.filter((j) => j.role !== "applicant" && j.total > 0 && ["in_progress", "completed"].includes(j.status));
   const talking = jobs.filter((j) => j.status === "in_progress" && j.counterpart && j.role !== "applicant");
 
   return (
-    <div className="container-page pb-4 pt-4">
-      {/* Overview row */}
-      <div className="grid grid-cols-2 gap-x-6 gap-y-5 px-1 md:grid-cols-4">
-        <div>
-          <p className="stat-label">Overview</p>
-          <p className="stat-value mt-1 truncate">{user?.name}</p>
-        </div>
-        <div>
-          <p className="stat-label">Jobs</p>
-          <p className="stat-value mt-1">{data ? `${jobs.length} total` : "—"}</p>
-        </div>
-        <div>
-          <p className="stat-label">In escrow</p>
-          <p className="stat-value mt-1">{data ? usdc(sums.escrow?.amount || 0) : "—"}</p>
-        </div>
-        <div>
-          <p className="stat-label">Paid out</p>
-          <p className="stat-value mt-1">{data ? usdc(sums.paid?.amount || 0) : "—"}</p>
-        </div>
-      </div>
+    <div className="container-page pb-4">
+      <PageHeader
+        title="Dashboard"
+        subtitle={user ? `Signed in as ${user.name}.` : undefined}
+        action={
+          <div className="flex gap-2">
+            <Button to="/wallet" variant="secondary">
+              <Icon name="wallet" size={18} /> Wallet
+            </Button>
+            <Button to="/jobs/new">
+              <Icon name="plus" size={18} /> Post a job
+            </Button>
+          </div>
+        }
+      />
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Filter by role" className="flex flex-wrap gap-2">
-          {filters.map((f) => (
-            <button
-              key={f.id}
-              role="tab"
-              aria-selected={filter === f.id}
-              onClick={() => setFilter(f.id)}
-              className={`eyebrow inline-flex min-h-11 items-center px-5 transition-colors ${filter === f.id ? "bg-gold text-poster" : "border border-[#3a3733] hover:border-gold hover:text-gold"}`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <IconButton icon="plus" label="Post a job" to="/jobs/new" tone="sage" />
-          <IconButton icon="wallet" label="Wallet" to="/wallet" tone="sage" />
-          <IconButton icon="sliders" label="Settings" to="/settings" tone="sage" />
-        </div>
-      </div>
+      {/* Where the money is, across every contract */}
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-5 border-y border-line py-5 md:grid-cols-4">
+        {groups.map((g) => (
+          <div key={g.key}>
+            <dt className="stat-label">{g.label}</dt>
+            <dd className="stat-value mt-1">{data ? usdc(sums[g.key]?.amount || 0) : "–"}</dd>
+            <dd className="text-sm tabular-nums text-muted">{data ? `${sums[g.key]?.count || 0} milestone${sums[g.key]?.count === 1 ? "" : "s"}` : ""}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <Tabs label="Filter by role" tabs={filters} value={filter} onChange={setFilter} className="mt-8" />
 
       <div className="mt-6">
         <ErrorNote>{error}</ErrorNote>
@@ -152,83 +153,32 @@ export default function Dashboard() {
 
       {!data && !error ? (
         <div className="grid gap-4 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <CardSkeleton key={i} className="h-72" />
-          ))}
+          <CardSkeleton className="h-72 lg:col-span-2" />
+          <CardSkeleton className="h-72" />
         </div>
       ) : (
         data && (
-          <>
-            <GetStarted user={user} jobs={data.jobs} />
-            <div className="grid gap-4 lg:grid-cols-3">
-              {/* Milestones by state, hatched bars */}
-              <section className="tile flex flex-col" aria-label="Milestones">
-                <TileHead title={`Milestones (${groups.reduce((t, g) => t + (sums[g.key]?.count || 0), 0)})`}>
-                  <IconButton icon="arrowUpRight" label="All jobs" to="/jobs?tab=mine" tone="sage" size={38} />
-                </TileHead>
-                <div className="mt-auto flex h-48 items-end gap-3">
-                  {groups.map((g) => {
-                    const amount = sums[g.key]?.amount || 0;
-                    return (
-                      <div key={g.key} className="flex h-full flex-1 flex-col justify-end">
-                        <p className="text-xs text-muted">{g.label}</p>
-                        <p className="mb-1.5 text-sm font-semibold">{compact(amount)}</p>
-                        <div className="hatch bg-sage" style={{ height: `${Math.max(6, (amount / maxGroup) * 100)}%` }} />
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="min-w-0 space-y-4">
+              <GetStarted user={user} jobs={data.jobs} />
 
-              {/* Payments per contract */}
-              <section className="tile !border-gold/40 bg-[#0f0e0d]" aria-label="Payments">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="poster-title text-3xl">Payments</h2>
-                  <div className="text-right">
-                    <p className="text-xl font-semibold">{usdc(total)}</p>
-                    <p className="text-xs text-gold">{total ? Math.round(((sums.paid?.amount || 0) / total) * 100) : 0}% paid out</p>
-                  </div>
-                </div>
-                <div className="my-5 border-t border-dashed border-white/20" />
-                {contracts.length === 0 && <p className="text-sm text-white/60">Payments show up here once someone is hired.</p>}
-                <ul className="space-y-4">
-                  {contracts.slice(0, 3).map((j, i) => (
-                    <li key={j.id}>
-                      <Link to={`/jobs/${j.id}`} className="block">
-                        <div className="mb-1.5 flex justify-between gap-3 text-xs text-white/70">
-                          <span className="truncate">{j.title}</span>
-                          <span className="shrink-0">
-                            {compact(j.paid)} / {compact(j.total)}
-                          </span>
-                        </div>
-                        <div className="relative h-8 overflow-hidden rounded-full bg-white/10">
-                          <div className={`absolute inset-y-0 left-0 rounded-full ${["bg-gold", "bg-[#e9a23b]", "bg-ticket"][i]}`} style={{ width: `${Math.max(j.total ? (j.paid / j.total) * 100 : 0, 4)}%` }} />
-                        </div>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-
-              {/* Things waiting on the viewer */}
-              <section className="tile bg-blush" aria-label="Needs your action">
-                <TileHead title="Needs your action">
-                  <span className="flex h-9 min-w-9 items-center justify-center border border-white/20 px-3 text-sm font-semibold">{actions.length}</span>
-                </TileHead>
+              {/* Things waiting on the viewer come first */}
+              <section className="card p-5" aria-label="Needs your action">
+                <TileHead title="Needs your action" count={actions.length} />
                 {actions.length === 0 ? (
-                  <p className="text-sm text-ink-soft">Nothing waiting on you. Nice.</p>
+                  <p className="px-3 pb-1 text-ink-soft">Nothing is waiting on you.</p>
                 ) : (
-                  <ul className="space-y-2">
-                    {actions.slice(0, 5).map((a, i) => (
+                  <ul className="-mx-1 divide-y divide-line">
+                    {actions.slice(0, 6).map((a) => (
                       <li key={a.key}>
-                        <Link to={a.step === "Publish" ? `/jobs/${a.jobId}/edit` : `/jobs/${a.jobId}`} className={`flex items-center justify-between gap-3 px-4 py-3 ${i === 0 ? "bg-gold text-poster" : "bg-black/30 hover:bg-black/50"}`}>
+                        <Link to={a.step === "Publish" ? `/jobs/${a.jobId}/edit` : `/jobs/${a.jobId}`} className={row}>
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-semibold">{a.title}</span>
-                            <span className="block truncate text-xs opacity-70">{a.jobTitle}</span>
+                            <span className="block truncate font-medium">{a.title}</span>
+                            <span className="block truncate text-sm text-muted">{a.jobTitle}</span>
                           </span>
-                          <span className="shrink-0 text-right">
-                            {a.amount != null && <span className="block text-sm font-semibold">{compact(a.amount)}</span>}
-                            <span className="block text-xs opacity-70">{a.step}</span>
+                          <span className="flex shrink-0 items-center gap-3">
+                            {a.amount != null && <span className="font-semibold tabular-nums">{compact(a.amount)}</span>}
+                            <span className="rounded-full bg-gold px-2.5 py-0.5 text-xs font-semibold text-poster">{a.step}</span>
                           </span>
                         </Link>
                       </li>
@@ -237,50 +187,49 @@ export default function Dashboard() {
                 )}
               </section>
 
-              {/* Jobs */}
-              <section className="tile bg-sky lg:col-span-2" aria-label="Your jobs">
-                <TileHead title="Your jobs">
-                  <IconButton icon="plus" label="Post a job" to="/jobs/new" size={38} />
+              <section className="card p-5" aria-label="Your jobs">
+                <TileHead title="Your jobs" count={jobs.length}>
+                  <Link to="/jobs?tab=mine" className="inline-flex min-h-10 items-center text-sm font-medium text-gold hover:underline">
+                    See all
+                  </Link>
                 </TileHead>
                 {jobs.length === 0 ? (
-                  <div className="flex flex-wrap items-center justify-between gap-4 bg-black/30 p-5">
-                    <p className="text-sm">Post a job or apply to one and it will show up here.</p>
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg bg-white/[0.04] p-4">
+                    <p className="text-ink-soft">Jobs you post or apply to show up here.</p>
                     <Button to="/jobs/new" size="sm">
                       Post a job
                     </Button>
                   </div>
                 ) : (
-                  <ul className="grid gap-2 sm:grid-cols-2">
+                  <ul className="-mx-1 divide-y divide-line">
                     {jobs.slice(0, 12).map((j) => {
                       const st = jobStatus[j.status] || jobStatus.open;
+                      const who =
+                        j.role === "client"
+                          ? j.counterpart
+                            ? `You hired ${j.counterpart.name}`
+                            : j.status === "draft"
+                              ? "Not published yet"
+                              : `${j.applicants} applied`
+                          : j.role === "applicant"
+                            ? `You applied: ${(appStatus[j.applicationStatus] || appStatus.pending).label.toLowerCase()}`
+                            : `Working for ${j.counterpart?.name}`;
                       return (
                         <li key={j.id}>
-                          <Link to={j.status === "draft" ? `/jobs/${j.id}/edit` : `/jobs/${j.id}`} className="relative flex h-full flex-col bg-black/30 p-4 transition-colors hover:bg-black/50">
-                            {j.unread > 0 && (
-                              <span className="absolute right-3 top-3 flex h-5 min-w-5 items-center justify-center bg-marker px-1 font-mono text-[0.65rem] font-bold text-white" title={`${j.unread} unread message${j.unread === 1 ? "" : "s"}`}>
-                                {j.unread}
+                          <Link to={j.status === "draft" ? `/jobs/${j.id}/edit` : `/jobs/${j.id}`} className={row}>
+                            <span className="min-w-0">
+                              <span className="flex items-center gap-2">
+                                <span className="truncate font-medium">{j.title}</span>
+                                <Unread n={j.unread} />
                               </span>
-                            )}
-                            <span className="flex items-start justify-between gap-3 pr-6">
-                              <span className="font-semibold leading-snug">{j.title}</span>
-                              <span className="shrink-0 font-semibold">{compact(j.total)}</span>
-                            </span>
-                            <span className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-                              <Badge tone={j.status === "draft" ? "amber" : st.tone}>{j.status === "draft" ? "Draft" : st.label}</Badge>
-                              {j.demo && <Badge tone="red">Demo</Badge>}
-                              <span>
-                                {j.role === "client"
-                                  ? j.counterpart
-                                    ? `You hired ${j.counterpart.name}`
-                                    : j.status === "draft"
-                                      ? "Not published"
-                                      : `You posted · ${j.applicants} applied`
-                                  : j.role === "applicant"
-                                    ? `You applied · ${(appStatus[j.applicationStatus] || appStatus.pending).label}`
-                                    : `For ${j.counterpart?.name}`}
+                              <span className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
+                                <Badge tone={j.status === "draft" ? "amber" : st.tone}>{j.status === "draft" ? "Draft" : st.label}</Badge>
+                                {j.demo && <Badge tone="red">Demo</Badge>}
+                                <span>{who}</span>
+                                <span>{timeAgo(j.createdAt)}</span>
                               </span>
-                              <span>· {timeAgo(j.createdAt)}</span>
                             </span>
+                            <span className="shrink-0 font-semibold tabular-nums">{compact(j.total)}</span>
                           </Link>
                         </li>
                       );
@@ -291,48 +240,73 @@ export default function Dashboard() {
 
               {/* Arbiter queue */}
               {user?.isAdmin && (
-                <section className="tile !border-red-300 lg:col-span-3" aria-label="Disputes">
-                  <TileHead title={`Disputes (${disputes?.length ?? "…"})`}>
-                    <IconButton icon="shield" label="Admin tools" to="/admin" tone="sage" size={38} />
+                <section className="card p-5 !border-red-300" aria-label="Disputes">
+                  <TileHead title="Disputes" count={disputes?.length ?? "…"}>
+                    <Link to="/admin" className="inline-flex min-h-10 items-center text-sm font-medium text-gold hover:underline">
+                      Admin tools
+                    </Link>
                   </TileHead>
-                  {disputes?.length === 0 && <p className="text-sm text-ink-soft">No disputes waiting for a ruling.</p>}
-                  <ul className="grid gap-2 md:grid-cols-2">
+                  {disputes?.length === 0 && <p className="px-3 pb-1 text-ink-soft">No disputes are waiting for a ruling.</p>}
+                  <ul className="-mx-1 divide-y divide-line">
                     {disputes?.map((d) => (
                       <li key={d.milestoneId}>
-                        <Link to={`/jobs/${d.jobId}`} className="block bg-black/30 p-4 hover:bg-black/50">
-                          <span className="flex justify-between gap-3">
-                            <span className="font-semibold">{d.title}</span>
-                            <span className="font-mono">{compact(d.amount)}</span>
+                        <Link to={`/jobs/${d.jobId}`} className={`${row} !items-start`}>
+                          <span className="min-w-0">
+                            <span className="block font-medium">{d.title}</span>
+                            <span className="block text-sm text-muted">{d.jobTitle}</span>
+                            <span className="mt-1.5 block text-sm italic text-ink-soft">“{d.reason}”</span>
                           </span>
-                          <span className="block text-xs text-muted">{d.jobTitle}</span>
-                          <span className="mt-2 block text-sm italic text-ink-soft">“{d.reason}”</span>
+                          <span className="shrink-0 font-semibold tabular-nums">{compact(d.amount)}</span>
                         </Link>
                       </li>
                     ))}
                   </ul>
                 </section>
               )}
+            </div>
+
+            <div className="min-w-0 space-y-4">
+              {/* Payments per contract */}
+              <section className="card p-5" aria-label="Payments">
+                <TileHead title="Payments">
+                  <span className="text-sm tabular-nums text-muted">{total ? Math.round(((sums.paid?.amount || 0) / total) * 100) : 0}% paid out</span>
+                </TileHead>
+                {contracts.length === 0 && <p className="text-ink-soft">Payments show up here once someone is hired.</p>}
+                <ul className="space-y-4">
+                  {contracts.slice(0, 4).map((j) => (
+                    <li key={j.id}>
+                      <Link to={`/jobs/${j.id}`} className="group block">
+                        <span className="mb-1.5 flex justify-between gap-3 text-sm">
+                          <span className="truncate group-hover:text-gold">{j.title}</span>
+                          <span className="shrink-0 tabular-nums text-muted">
+                            {compact(j.paid)} of {compact(j.total)}
+                          </span>
+                        </span>
+                        <span className="block h-1.5 overflow-hidden rounded-full bg-white/10">
+                          <span className="block h-full rounded-full bg-gold" style={{ width: `${Math.max(j.total ? (j.paid / j.total) * 100 : 0, 2)}%` }} />
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
 
               {/* Conversations on active jobs */}
-              <section className="tile bg-butter" aria-label="Conversations">
-                <TileHead title="Conversations">
-                  <span className="flex h-9 w-9 items-center justify-center border border-white/20" aria-hidden="true">
-                    <Icon name="chat" size={16} />
-                  </span>
-                </TileHead>
+              <section className="card p-5" aria-label="Conversations">
+                <TileHead title="Conversations" />
                 {talking.length === 0 ? (
-                  <p className="text-sm text-ink-soft">Chat opens on a job once someone is hired.</p>
+                  <p className="text-ink-soft">Chat opens on a job once someone is hired.</p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="-mx-1 space-y-1">
                     {talking.slice(0, 5).map((j) => (
                       <li key={j.id}>
-                        <Link to={`/jobs/${j.id}#chat`} className="flex items-center gap-3 bg-black/30 p-1.5 pr-2 hover:bg-black/50">
-                          <Avatar seed={j.counterpart.id} size={40} />
+                        <Link to={`/jobs/${j.id}#chat`} className={`${row} !justify-start !py-2`}>
+                          <Avatar seed={j.counterpart.id} size={36} />
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-sm font-semibold">{j.counterpart.name}</span>
-                            <span className="block truncate text-xs text-muted">{j.title}</span>
+                            <span className="block truncate font-medium">{j.counterpart.name}</span>
+                            <span className="block truncate text-sm text-muted">{j.title}</span>
                           </span>
-                          {j.unread > 0 && <span className="flex h-7 min-w-7 shrink-0 items-center justify-center bg-marker px-1 font-mono text-xs font-bold text-white">{j.unread}</span>}
+                          <Unread n={j.unread} />
                         </Link>
                       </li>
                     ))}
@@ -340,7 +314,7 @@ export default function Dashboard() {
                 )}
               </section>
             </div>
-          </>
+          </div>
         )
       )}
     </div>

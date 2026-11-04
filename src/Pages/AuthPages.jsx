@@ -31,7 +31,7 @@ export function VerifyEmail() {
 
   return (
     <div className="container-page max-w-2xl pb-16">
-      <PageHeader eyebrow="Your account" title="Confirm email" />
+      <PageHeader title="Confirm email" />
       {state === "working" && (
         <p className="flex items-center gap-3">
           <Spinner /> Checking your link…
@@ -83,7 +83,7 @@ export function ResetPassword() {
 
   return (
     <div className="container-page max-w-xl pb-16">
-      <PageHeader eyebrow="Your account" title="New password" subtitle="Choose a new password. Every other device will be signed out." />
+      <PageHeader title="New password" subtitle="Choose a new password. Every other device will be signed out." />
       <form onSubmit={submit} className="card space-y-5 p-6">
         <Field label="New password" htmlFor="np" hint="At least 8 characters.">
           <input id="np" type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className="input" />

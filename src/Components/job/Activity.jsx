@@ -36,20 +36,20 @@ export default function Activity({ events }) {
   if (!events?.length) return null;
   return (
     <section className="card p-5" aria-label="Activity">
-      <h2 className="poster-title text-2xl">Activity</h2>
+      <h2 className="text-lg font-semibold">Activity</h2>
       <ol className="mt-3 space-y-3">
         {events.map((e, i) => {
           const [icon, text] = lines[e.kind] || ["clock", () => e.kind];
           const note = (e.kind === "changes_requested" || e.kind === "disputed") && e.detail.includes(": ") ? e.detail.slice(e.detail.indexOf(": ") + 2) : "";
           return (
             <li key={i} className="flex gap-3 text-sm">
-              <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border border-[#3a3733] text-gold">
+              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/[0.06] text-ink-soft">
                 <Icon name={icon} size={12} />
               </span>
               <span className="min-w-0">
                 <span className="block">{text(e)}</span>
                 {note && <span className="block text-xs italic text-ink-soft">“{note}”</span>}
-                <span className="block font-mono text-[11px] text-muted">{timeAgo(e.createdAt)}</span>
+                <span className="block tabular-nums text-xs text-muted">{timeAgo(e.createdAt)}</span>
               </span>
             </li>
           );

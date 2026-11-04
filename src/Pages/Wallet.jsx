@@ -124,15 +124,14 @@ export default function Wallet() {
   return (
     <div className="container-page max-w-3xl pb-8">
       <PageHeader
-        eyebrow="Box office"
-        title="Your wallet"
-        image="/Business growth-rafiki.svg"
+       
+        title="Wallet"
         subtitle="Connect an Ethereum wallet to fund milestones, receive payouts and withdraw from escrow."
       />
 
       {!isConnected ? (
         <div className="card flex flex-col items-center px-6 py-14 text-center">
-          <span className="flex h-14 w-14 items-center justify-center border border-gold text-gold">
+          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-gold/10 text-gold">
             <Icon name="wallet" size={26} />
           </span>
           <h2 className="mt-4 text-xl font-semibold">Connect your wallet</h2>
@@ -199,7 +198,7 @@ export default function Wallet() {
 
           {current?.id === sepolia.id && (
             <section className="card space-y-2 p-5 text-sm">
-              <h2 className="poster-title text-2xl">Test funds</h2>
+              <h2 className="text-lg font-semibold">Test funds</h2>
               <p className="text-ink-soft">You are on the Sepolia test network, where everything is free and has no real value.</p>
               <ul className="space-y-1">
                 <li>

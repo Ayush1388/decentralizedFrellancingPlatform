@@ -13,11 +13,11 @@ the freelancer delivers, and the client approves it to release payment.
   [`0x80Ae7dBD4F4C8a8d675aaE6e176957D796605B6B`](https://sepolia.etherscan.io/address/0x80Ae7dBD4F4C8a8d675aaE6e176957D796605B6B)
   (Circle's test USDC). See [Sepolia testnet](#sepolia-testnet) to connect an API to it, and the [roadmap](#roadmap) for what is next.
 
-![Home: the ticket hero and film strip](docs/screenshots/home.jpg)
+![Home: the admission ticket hero](docs/screenshots/home.jpg)
 
 | | |
 |---|---|
-| ![Open jobs listed as reels](docs/screenshots/jobs.jpg) | ![Developer profiles](docs/screenshots/developers.jpg) |
+| ![Open jobs, each with a poster for its kind of work](docs/screenshots/jobs.jpg) | ![Developer profiles](docs/screenshots/developers.jpg) |
 | **Jobs:** budget, openings, applicants, closing date, duration and level | **Developers:** rate, completed jobs and rating from client reviews |
 | ![Reviewing applicants](docs/screenshots/applicants.jpg) | ![Client dashboard](docs/screenshots/dashboard.jpg) |
 | **Applicants:** quote vs budget, delivery estimate, GitHub, portfolio, resume, shortlist and pre-hire chat | **Dashboard:** money by milestone state, payments, what needs your action, conversations |

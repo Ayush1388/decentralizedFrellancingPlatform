@@ -26,7 +26,7 @@ export default function VerifyBanner() {
           Confirm your email ({user.email}) to post jobs and apply. {state === "sent" && <strong>A new link is on its way.</strong>}
           {state === "failed" && <strong className="text-red-700">Could not send it right now.</strong>}
         </p>
-        <button onClick={resend} disabled={state === "sending" || state === "sent"} className="eyebrow text-gold hover:underline disabled:opacity-60">
+        <button onClick={resend} disabled={state === "sending" || state === "sent"} className="min-h-8 font-medium text-gold hover:underline disabled:opacity-60">
           {state === "sending" ? "Sending…" : "Resend confirmation"}
         </button>
       </div>

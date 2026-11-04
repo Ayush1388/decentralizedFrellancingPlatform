@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../context/useAuth";
 import { timeAgo } from "../lib/format";
-import { Badge, Button, EmptyState, ErrorNote, PageHeader } from "../Components/ui";
+import { Badge, Button, EmptyState, ErrorNote, PageHeader, Tabs } from "../Components/ui";
 
 function Reports() {
   const [list, setList] = useState(null);
@@ -28,13 +28,13 @@ function Reports() {
   return (
     <section aria-label="Reports" className="space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="poster-title text-3xl text-gold">Reports</h2>
+        <h2 className="text-[1.375rem] font-semibold">Reports</h2>
         <label className="flex cursor-pointer items-center gap-2 text-sm text-muted">
           <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} className="accent-[#f2c230]" /> Include resolved
         </label>
       </div>
       <ErrorNote>{error}</ErrorNote>
-      {list?.length === 0 && <p className="border border-dashed border-white/10 px-4 py-6 text-center text-sm text-muted">No reports to review.</p>}
+      {list?.length === 0 && <p className="rounded-lg border border-dashed border-[#3d3332] px-4 py-6 text-center text-sm text-muted">No reports to review.</p>}
       <ul className="space-y-3">
         {list?.map((r) => (
           <li key={r.id} className={`card space-y-3 p-4 ${r.resolved ? "opacity-60" : ""}`}>
@@ -49,8 +49,8 @@ function Reports() {
                   <span>{r.targetName || `#${r.targetId}`}</span>
                 )}
               </p>
-              <span className="font-mono text-xs text-muted">
-                by {r.reporter} · {timeAgo(r.createdAt)}
+              <span className="tabular-nums text-xs text-muted">
+                by {r.reporter}, {timeAgo(r.createdAt)}
               </span>
             </div>
             <p className="whitespace-pre-wrap text-sm text-ink-soft">“{r.reason}”</p>
@@ -116,7 +116,7 @@ function Users() {
 
   return (
     <section aria-label="Users" className="space-y-4">
-      <h2 className="poster-title text-3xl text-gold">People</h2>
+      <h2 className="text-[1.375rem] font-semibold">People</h2>
       <label htmlFor="admin-user-search" className="sr-only">
         Search people
       </label>
@@ -129,8 +129,8 @@ function Users() {
               <p className="truncate font-semibold">
                 {u.name} {u.demo && <Badge tone="red">Demo</Badge>} {u.banned && <Badge tone="red">Suspended</Badge>}
               </p>
-              <p className="truncate font-mono text-xs text-muted">
-                {u.email || "no email"} · {u.wallet ? `${u.wallet.slice(0, 8)}…` : "no wallet"} · {u.jobs} job{u.jobs === 1 ? "" : "s"} · joined {timeAgo(u.createdAt)}
+              <p className="truncate tabular-nums text-xs text-muted">
+                {u.email || "no email"}, {u.wallet ? `${u.wallet.slice(0, 8)}…` : "no wallet"}, {u.jobs} job{u.jobs === 1 ? "" : "s"}, joined {timeAgo(u.createdAt)}
               </p>
               {u.banned && u.banReason && <p className="text-xs text-red-700">Reason: {u.banReason}</p>}
             </div>
@@ -159,30 +159,29 @@ export default function Admin() {
   if (!user)
     return (
       <div className="container-page pt-12">
-        <EmptyState icon="lock" title="Log in" action={<Button onClick={openLogin}>Log in</Button>} />
+        <EmptyState as="h1" icon="lock" title="Log in" action={<Button onClick={openLogin}>Log in</Button>} />
       </div>
     );
   if (!user.isAdmin)
     return (
       <div className="container-page pt-12">
-        <EmptyState icon="lock" title="Platform team only" action={<Button to="/">Go home</Button>}>
+        <EmptyState as="h1" icon="lock" title="Platform team only" action={<Button to="/">Go home</Button>}>
           This page is for the people who run the platform.
         </EmptyState>
       </div>
     );
   return (
     <div className="container-page max-w-4xl space-y-6 pb-16">
-      <PageHeader eyebrow="Backstage" title="Admin" subtitle="Reports, people and disputes." action={<Button to="/dashboard" variant="secondary" size="sm">Open the dispute queue</Button>} />
-      <div role="tablist" aria-label="Admin sections" className="flex gap-2">
-        {[
-          ["reports", "Reports"],
-          ["users", "People"],
-        ].map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`eyebrow min-h-11 px-5 ${tab === id ? "bg-gold text-poster" : "border border-[#3a3733] hover:border-gold hover:text-gold"}`}>
-            {label}
-          </button>
-        ))}
-      </div>
+      <PageHeader title="Admin" subtitle="Reports, people and disputes." action={<Button to="/dashboard" variant="secondary" size="sm">Open the dispute queue</Button>} />
+      <Tabs
+        label="Admin sections"
+        value={tab}
+        onChange={setTab}
+        tabs={[
+          { id: "reports", label: "Reports" },
+          { id: "users", label: "People" },
+        ]}
+      />
       {tab === "reports" ? <Reports /> : <Users />}
     </div>
   );

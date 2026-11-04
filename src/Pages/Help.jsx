@@ -23,10 +23,10 @@ const groups = [
   {
     title: "Freelancers",
     items: [
-      ["How do I get paid?", "When the client approves a milestone, your payment (minus the 2% fee) is credited to your wallet balance in the escrow. Open the Box office and press Withdraw to move it to your wallet."],
+      ["How do I get paid?", "When the client approves a milestone, your payment (minus the 2% fee) is credited to your wallet balance in the escrow. Open the Wallet page and press Withdraw to move it to your wallet."],
       ["What if the client never responds?", "After you deliver, the client has 7 days to review. If they stay silent you can claim the payment yourself."],
       ["What makes a good application?", "A clear cover note, a realistic quote and delivery time, and proof of your work: a resume, your GitHub or a portfolio link. Reply quickly if the client messages you."],
-      ["Why can’t I be hired?", "On-chain contracts need your wallet. Link it in the Box office, then tell the client."],
+      ["Why can’t I be hired?", "On-chain contracts need your wallet. Link it on the Wallet page, then tell the client."],
     ],
   },
   {
@@ -50,14 +50,14 @@ const groups = [
 export default function Help() {
   return (
     <div className="container-page max-w-3xl pb-20">
-      <PageHeader eyebrow="The programme notes" title="Help" subtitle="Plain answers to the questions people ask first." />
+      <PageHeader title="Help" subtitle="Plain answers to the questions people ask first." />
       <div className="space-y-10">
         {groups.map((g) => (
           <section key={g.title} aria-labelledby={`h-${g.title}`}>
-            <h2 id={`h-${g.title}`} className="poster-title text-3xl text-gold">
+            <h2 id={`h-${g.title}`} className="text-[1.375rem] font-semibold">
               {g.title}
             </h2>
-            <div className="mt-3 divide-y divide-white/10 border border-white/10">
+            <div className="mt-3 divide-y divide-line rounded-xl border border-line">
               {g.items.map(([q, a]) => (
                 <details key={q} className="group px-4 py-3">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-semibold">

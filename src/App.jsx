@@ -56,7 +56,7 @@ export default function App() {
           <ChainConfigProvider>
           <BrowserRouter>
             <ScrollToTop />
-            <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-full focus:bg-white focus:px-4 focus:py-2">
+            <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-gold focus:px-4 focus:py-2 focus:font-semibold focus:text-poster">
               Skip to content
             </a>
             <ApiStatus />
@@ -89,7 +89,7 @@ export default function App() {
                   path="*"
                   element={
                     <div className="container-page pt-20">
-                      <EmptyState icon="search" title="Page not found" action={<Button to="/">Go home</Button>}>
+                      <EmptyState as="h1" icon="search" title="Page not found" action={<Button to="/">Go home</Button>}>
                         The page you are looking for does not exist.
                       </EmptyState>
                     </div>

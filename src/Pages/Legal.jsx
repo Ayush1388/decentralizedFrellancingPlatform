@@ -7,7 +7,7 @@ const ISSUES = "https://github.com/Ayush1388/decentralizedFrellancingPlatform/is
 function Doc({ title, children }) {
   return (
     <div className="container-page max-w-3xl pb-20">
-      <PageHeader eyebrow="The small print" title={title} subtitle={`Last updated ${UPDATED}`} />
+      <PageHeader title={title} subtitle={`Last updated ${UPDATED}`} />
       <div className="doc space-y-8 text-ink-soft">
         {children}
       </div>

@@ -34,7 +34,7 @@ function ProfileForm({ initial, editing, onSaved, onCancel }) {
 
   return (
     <form onSubmit={submit} className="card mb-10 grid gap-5 p-6 sm:grid-cols-2 sm:p-8">
-      <h2 className="text-xl font-bold sm:col-span-2">{editing ? "Edit your profile" : "Create your developer profile"}</h2>
+      <h2 className="text-xl font-semibold sm:col-span-2">{editing ? "Edit your profile" : "Create your developer profile"}</h2>
       <Field label="Full name" htmlFor="dev-name">
         <input id="dev-name" name="name" required minLength={2} maxLength={80} value={form.name} onChange={set} className="input" />
       </Field>
@@ -59,7 +59,7 @@ function ProfileForm({ initial, editing, onSaved, onCancel }) {
             type="file"
             accept="image/jpeg,image/png,image/webp"
             onChange={(e) => setImage(e.target.files[0] || null)}
-            className="input file:mr-3 file:mr-3 file:border-0 file:bg-gold file:px-3 file:py-1 file:font-semibold file:text-poster"
+            className="input file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1 file:font-medium file:text-ink"
           />
         </Field>
       </div>
@@ -113,6 +113,13 @@ export default function Developers() {
   }, [load]);
 
   const mine = user && devs?.find((d) => d.userId === user.id);
+  const summary = devs && (
+    <p className="text-sm text-muted" aria-live="polite">
+      {devs.length} developer{devs.length === 1 ? "" : "s"}
+      {debounced && " match your search"}
+    </p>
+  );
+  const toggle = <ViewToggle mode={view} onChange={setView} label="How to browse developers" />;
 
   function saved() {
     setShowForm(false);
@@ -129,14 +136,12 @@ export default function Developers() {
   return (
     <div className="container-page pb-8">
       <PageHeader
-        eyebrow="Casting office"
-        title="The cast"
-        image="/Working-bro.png"
-        subtitle="Browse developers by skill and rate. Every hire is protected by milestone escrow."
+        title="Developers"
+        subtitle="Browse developers by skill and rate. Every hire is paid through milestone escrow."
         action={
           !mine && (
             <Button onClick={() => (user ? setShowForm(true) : openLogin())}>
-              <Icon name="plus" size={18} /> List yourself
+              <Icon name="plus" size={18} /> Create your profile
             </Button>
           )
         }
@@ -154,8 +159,8 @@ export default function Developers() {
         />
       )}
 
-      <div className="relative mb-8 max-w-md">
-        <Icon name="search" className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted" />
+      <div className="relative mb-6 max-w-xl">
+        <Icon name="search" size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
         <label htmlFor="dev-search" className="sr-only">
           Search developers
         </label>
@@ -164,14 +169,15 @@ export default function Developers() {
 
       <ErrorNote>{error}</ErrorNote>
 
-      {devs?.length > 0 && (
-        <div className="mb-4 flex justify-end">
-          <ViewToggle mode={view} onChange={setView} label="How to browse developers" />
+      {devs?.length > 0 && view !== "swipe" && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          {summary}
+          {toggle}
         </div>
       )}
 
       {view === "swipe" && devs?.length > 0 ? (
-        <Carousel label="Developers">
+        <Carousel label="Developers" lead={summary} tools={toggle}>
           {devs.map((d, i) => (
             <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />
           ))}
@@ -184,7 +190,7 @@ export default function Developers() {
       )}
 
       {devs?.length === 0 && (
-        <EmptyState image="/Working remotely-rafiki.svg" title={debounced ? "No developers match your search" : "No developers yet"}>
+        <EmptyState icon="user" title={debounced ? "No developers match your search" : "No developers yet"}>
           {debounced ? "Try a different skill or clear the search." : "Be the first to publish a profile."}
         </EmptyState>
       )}

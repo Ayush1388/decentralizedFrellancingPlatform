@@ -15,7 +15,7 @@ const MAX_RESUME = 5 * 1024 * 1024;
 export function ProofOfWork({ app }) {
   const [error, setError] = useState("");
   if (!app.githubUrl && !app.portfolioUrl && !app.resume) return null;
-  const link = "inline-flex min-h-9 items-center gap-1.5 border border-[#3a3733] px-3 text-xs hover:border-gold hover:text-gold";
+  const link = "inline-flex min-h-9 items-center gap-1.5 rounded-lg border border-[#3d3332] px-3 text-xs hover:border-[#6a5a55] hover:text-ink";
   return (
     <div className="mt-3">
       <div className="flex flex-wrap gap-2">
@@ -44,7 +44,7 @@ export function Quote({ app, budget }) {
   if (app.bid == null && app.etaDays == null) return null;
   const diff = app.bid != null ? app.bid - budget : 0;
   return (
-    <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 font-mono text-[0.8rem]">
+    <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 tabular-nums text-sm">
       {app.bid != null && (
         <div className="flex gap-1.5">
           <dt className="text-muted">Quote</dt>
@@ -102,7 +102,7 @@ function MyApplication({ job, user, onChange }) {
     <div className="space-y-5">
       <section className="card p-5">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="poster-title text-2xl">Your application</h2>
+          <h2 className="text-lg font-semibold">Your application</h2>
           <Badge tone={st.tone}>{st.label}</Badge>
         </div>
         {app.status === "accepted" && app.contractId && (
@@ -120,7 +120,7 @@ function MyApplication({ job, user, onChange }) {
         <p className="mt-3 whitespace-pre-wrap text-sm text-ink-soft">{app.cover}</p>
         <ProofOfWork app={app} />
         {canWithdraw && (
-          <div className="mt-4 border-t border-dashed border-white/10 pt-4">
+          <div className="mt-4 border-t border-line pt-4">
             {confirm ? (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm">Withdraw this application?</span>
@@ -161,7 +161,7 @@ export default function ApplyPanel({ job, user, openLogin, onChange }) {
   const closed = isClosed(job);
   const header = (
     <>
-      <h2 className="poster-title text-2xl">{closed ? "Applications closed" : "Apply to this job"}</h2>
+      <h2 className="text-lg font-semibold">{closed ? "Applications closed" : "Apply to this job"}</h2>
       <JobFacts job={job} className="mt-3" />
     </>
   );
@@ -243,14 +243,14 @@ export default function ApplyPanel({ job, user, openLogin, onChange }) {
       <Field label="Portfolio or past work" htmlFor="portfolioUrl">
         <input id="portfolioUrl" name="portfolioUrl" type="url" placeholder="https://your-site.dev" value={form.portfolioUrl} onChange={set} className="input" />
       </Field>
-      <Field label="Resume (PDF, up to 5 MB)" htmlFor="resume" error={fieldErr.resume} hint={resume ? `${resume.name} · ${(resume.size / 1024).toFixed(0)} KB` : "Only the client can open it."}>
-        <input id="resume" type="file" accept="application/pdf" onChange={pickResume} className="input file:mr-3 file:border-0 file:bg-gold file:px-3 file:py-1 file:font-semibold file:text-poster" />
+      <Field label="Resume (PDF, up to 5 MB)" htmlFor="resume" error={fieldErr.resume} hint={resume ? `${resume.name}, ${(resume.size / 1024).toFixed(0)} KB` : "Only the client can open it."}>
+        <input id="resume" type="file" accept="application/pdf" onChange={pickResume} className="input file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1 file:font-medium file:text-ink" />
       </Field>
       <ErrorNote>{error}</ErrorNote>
       <Button type="submit" loading={busy} className="w-full">
         Send application
       </Button>
-      <Link to="/developers" className="block text-center text-xs text-muted hover:text-gold">
+      <Link to="/developers" className="flex min-h-10 items-center justify-center text-sm text-muted hover:text-ink">
         No developer profile yet? Clients see your rate and rating when you have one.
       </Link>
     </form>

@@ -26,7 +26,7 @@ export default function Notifications() {
   if (ready && !user)
     return (
       <div className="container-page pt-12">
-        <EmptyState icon="bell" title="Log in to see your notifications" action={<Button onClick={openLogin}>Log in</Button>} />
+        <EmptyState as="h1" icon="bell" title="Log in to see your notifications" action={<Button onClick={openLogin}>Log in</Button>} />
       </div>
     );
 
@@ -34,7 +34,7 @@ export default function Notifications() {
   return (
     <div className="container-page max-w-3xl pb-16">
       <PageHeader
-        eyebrow="Stage door"
+       
         title="Notifications"
         subtitle="Everything that needs your attention on your jobs."
         action={
@@ -61,7 +61,7 @@ export default function Notifications() {
                   <span className="block font-semibold">{n.title}</span>
                   {n.body && <span className="block text-sm text-ink-soft">{n.body}</span>}
                 </span>
-                <span className="shrink-0 font-mono text-xs text-muted">{timeAgo(n.createdAt)}</span>
+                <span className="shrink-0 tabular-nums text-xs text-muted">{timeAgo(n.createdAt)}</span>
               </span>
             </Link>
           </li>

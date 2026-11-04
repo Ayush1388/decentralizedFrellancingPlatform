@@ -64,21 +64,22 @@ export function Icon({ name, size = 20, className = "" }) {
 }
 
 // ---------- Buttons ----------
+// Interface controls are soft and sentence case; only printed things (posters, the ticket) are sharp.
 const base =
-  "inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-[2px] text-[0.72rem] font-semibold uppercase tracking-[0.2em] transition-[filter,background-color,color,border-color] duration-200 disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-lg text-[0.9375rem] font-medium whitespace-nowrap transition-[filter,background-color,color,border-color] duration-150 disabled:opacity-50 disabled:pointer-events-none";
 const variants = {
-  primary: "bg-gold text-poster hover:brightness-110",
-  secondary: "border border-gold text-gold hover:bg-gold/10",
-  outline: "border border-[#3a3733] text-ink hover:border-gold hover:text-gold",
-  ghost: "text-gold hover:bg-white/5",
+  primary: "bg-gold text-poster font-semibold hover:brightness-110",
+  secondary: "border border-[#463a38] text-ink hover:border-[#6a5a55] hover:bg-white/[0.04]",
+  outline: "border border-[#463a38] text-ink hover:border-[#6a5a55] hover:bg-white/[0.04]",
+  ghost: "text-ink-soft hover:bg-white/[0.05] hover:text-ink",
   danger: "border border-red-300 text-red-700 hover:bg-red-50",
-  dark: "bg-poster text-ticket hover:bg-black",
-  light: "border border-ink/40 text-ink hover:border-gold hover:text-gold",
-  solidLight: "bg-gold text-poster hover:brightness-110",
+  dark: "bg-poster text-ticket font-semibold hover:bg-black",
+  light: "border border-poster/35 text-poster hover:bg-poster/5",
+  solidLight: "bg-gold text-poster font-semibold hover:brightness-110",
 };
 
 export function Button({ variant = "primary", size, className = "", loading, children, to, ...props }) {
-  const cls = `${base} ${variants[variant]} ${size === "sm" ? "!min-h-9 !px-3.5 !text-[0.66rem]" : ""} ${className}`;
+  const cls = `${base} ${variants[variant]} ${size === "sm" ? "!min-h-9 !px-3.5 !text-sm" : ""} ${className}`;
   if (to) {
     return (
       <Link to={to} className={cls} {...props}>
@@ -104,15 +105,14 @@ export function Spinner({ className = "" }) {
   );
 }
 
-// Round icon button, as in the reference's toolbar circles.
 export function IconButton({ icon, label, tone = "white", size = 44, className = "", to, ...props }) {
   const toneCls = {
-    white: "border border-[#3a3733] text-ink hover:border-gold hover:text-gold",
-    sage: "border border-[#3a3733] bg-surface text-ink hover:border-gold hover:text-gold",
+    white: "border border-[#3d3332] text-ink-soft hover:border-[#6a5a55] hover:text-ink",
+    sage: "border border-[#3d3332] bg-surface text-ink-soft hover:border-[#6a5a55] hover:text-ink",
     ink: "bg-gold text-poster hover:brightness-110",
-    outline: "border border-current/40 hover:border-gold hover:text-gold",
+    outline: "border border-current/40 hover:border-[#6a5a55] hover:text-ink",
   }[tone];
-  const cls = `inline-flex shrink-0 items-center justify-center rounded-[2px] transition-colors ${toneCls} ${className}`;
+  const cls = `inline-flex shrink-0 items-center justify-center rounded-lg transition-colors ${toneCls} ${className}`;
   const style = { width: size, height: size };
   if (to)
     return (
@@ -128,27 +128,26 @@ export function IconButton({ icon, label, tone = "white", size = 44, className =
 }
 
 // ---------- Small pieces ----------
+// Status pills: tinted, never wrapping, distinct in shape from buttons.
 const tones = {
-  green: "border-gold text-gold",
-  amber: "border-amber-800 text-amber-800",
-  red: "border-red-700 text-red-700",
-  blue: "border-[#8fb8f0] text-[#a9c9f5]",
-  gray: "border-[#4a4640] text-muted",
-  violet: "border-violet-900 text-violet-900",
+  green: "bg-gold/12 text-gold",
+  amber: "bg-amber-200/40 text-amber-800",
+  red: "bg-red-300/30 text-red-700",
+  blue: "bg-[#8fb8f0]/15 text-[#b4d0f6]",
+  gray: "bg-white/[0.07] text-ink-soft",
+  violet: "bg-violet-900/15 text-violet-900",
 };
 
 export function Badge({ tone = "gray", children, className = "" }) {
   return (
-    <span className={`inline-flex items-center gap-1 border px-2 py-0.5 font-mono text-[0.75rem] ${tones[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${tones[tone]} ${className}`}>
       {children}
     </span>
   );
 }
 
 export function SkillChip({ children }) {
-  return (
-    <span className="border border-line px-2 py-0.5 font-mono text-[0.75rem] text-ink-soft">{children}</span>
-  );
+  return <span className="whitespace-nowrap rounded-md bg-white/[0.06] px-2 py-0.5 text-[0.8125rem] text-ink-soft">{children}</span>;
 }
 
 // Falls back to one of the two bundled profile illustrations, picked by seed so a person keeps the same face.
@@ -161,7 +160,7 @@ export function Avatar({ src, seed = 0, size = 48 }) {
       width={size}
       height={size}
       loading="lazy"
-      className="shrink-0 rounded-full bg-surface object-cover ring-1 ring-gold/50"
+      className="shrink-0 rounded-full bg-raised object-cover ring-1 ring-white/10"
       style={{ width: size, height: size, objectPosition: "50% 18%" }}
     />
   );
@@ -187,84 +186,83 @@ export function Field({ label, hint, error, children, htmlFor }) {
 export function ErrorNote({ children }) {
   if (!children) return null;
   return (
-    <p role="alert" className="flex items-start gap-2 border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
+    <p role="alert" className="flex items-start gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-900">
       <Icon name="alert" size={18} className="mt-0.5" />
       <span>{children}</span>
     </p>
   );
 }
 
-export function EmptyState({ icon = "briefcase", image, title, children, action }) {
+// An empty list is an invitation to act: say what belongs here and offer the way to add it.
+export function EmptyState({ icon = "briefcase", title, children, action, as = "h3" }) {
+  const Heading = as;
   return (
-    <div className="flex flex-col items-center border border-dashed border-[#3a3733] bg-surface px-6 py-12 text-center">
-      {image ? (
-        <img src={image} alt="" width="180" height="180" className="mb-4 h-36 w-auto bg-ticket p-2 sepia-[.35]" />
-      ) : (
-        <span className="mb-4 flex h-12 w-12 items-center justify-center border border-gold text-gold">
-          <Icon name={icon} size={22} />
-        </span>
-      )}
-      <h3 className="poster-title text-3xl text-ink">{title}</h3>
-      {children && <p className="mt-1 max-w-sm text-sm text-muted">{children}</p>}
+    <div className="flex flex-col items-center rounded-xl border border-dashed border-[#3d3332] px-6 py-12 text-center">
+      <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/10 text-gold">
+        <Icon name={icon} size={22} />
+      </span>
+      <Heading className="text-xl font-semibold text-ink">{title}</Heading>
+      {children && <p className="mt-1.5 max-w-sm text-sm text-muted">{children}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
-// Every inner page opens like a programme card: label, poster title, a framed still.
-export function PageHeader({ title, subtitle, action, image, eyebrow = "Now showing" }) {
+// The title of an inner page: one poster line, a plain sentence, and the page's main action on the right.
+export function PageHeader({ title, subtitle, action }) {
   return (
-    <div className="mb-10 mt-10 grid items-end gap-8 border-b border-gold/35 pb-8 md:grid-cols-[1fr_auto]">
+    <div className="mb-8 mt-8 flex flex-col gap-5 sm:mt-10 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        <p className="eyebrow text-gold">{eyebrow}</p>
-        <h1 className="poster-title mt-3 text-6xl text-gold sm:text-7xl">{title}</h1>
-        {subtitle && <p className="mt-4 max-w-xl text-lg text-ink-soft">{subtitle}</p>}
-        {action && <div className="mt-6">{action}</div>}
+        <h1 className="poster-title text-5xl text-ink sm:text-6xl">{title}</h1>
+        {subtitle && <p className="mt-3 max-w-2xl text-ink-soft">{subtitle}</p>}
       </div>
-      {image && (
-        <div className="hidden -rotate-2 border-[3px] border-poster bg-gold p-2 shadow-[0_18px_40px_-12px_rgb(0_0_0/0.8)] md:block">
-          <div className="bg-ticket">
-            <img src={image} alt="" width="220" height="220" className="h-40 w-52 object-contain p-2 sepia-[.35]" />
-          </div>
-        </div>
-      )}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }
 
 export function CardSkeleton({ className = "h-64" }) {
-  return <div className={`animate-pulse bg-surface ${className}`} aria-hidden="true" />;
+  return <div className={`animate-pulse rounded-xl bg-surface ${className}`} aria-hidden="true" />;
 }
 
 // ---------- Layout primitives shared by every page ----------
 
-// Every illustration sits in the same tinted rounded panel so artwork from different packs reads as one set.
-export function IllustrationPanel({ src, alt = "", className = "", imgClass = "", children }) {
-  return (
-    <div className={`relative flex items-center justify-center overflow-hidden bg-ticket ${className}`}>
-      {src && <img src={src} alt={alt} loading="lazy" className={`h-full w-full object-contain p-4 sm:p-6 ${imgClass}`} />}
-      {children}
-    </div>
-  );
-}
-
-// Eyebrow + heading + subtext. Same on every section so the page has one rhythm.
-export function SectionHeader({ eyebrow, title, subtitle, align = "center", id }) {
+export function SectionHeader({ title, subtitle, align = "center", id }) {
   return (
     <header className={`max-w-2xl ${align === "center" ? "mx-auto text-center" : "text-left"}`}>
-      {eyebrow && <p className="eyebrow text-gold">{eyebrow}</p>}
-      <h2 id={id} className="poster-title mt-3 text-5xl text-ink sm:text-6xl">
+      <h2 id={id} className="poster-title text-4xl text-ink sm:text-5xl">
         {title}
       </h2>
-      {subtitle && <p className="mt-4 text-lg text-ink-soft">{subtitle}</p>}
+      {subtitle && <p className="mt-3 text-lg text-ink-soft">{subtitle}</p>}
     </header>
   );
 }
 
 export function Section({ children, className = "", ...props }) {
   return (
-    <section className={`container-page pt-20 sm:pt-28 ${className}`} {...props}>
+    <section className={`container-page pt-16 sm:pt-24 ${className}`} {...props}>
       {children}
     </section>
+  );
+}
+
+// Underlined tabs: the current one carries a gold rule, the others recede. Scrolls sideways on narrow screens.
+export function Tabs({ tabs, value, onChange, label, className = "" }) {
+  return (
+    <div role="tablist" aria-label={label} className={`no-scrollbar flex gap-6 overflow-x-auto shadow-[inset_0_-1px_0_var(--color-line)] ${className}`}>
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={`min-h-11 shrink-0 whitespace-nowrap border-b-2 pb-2 font-medium transition-colors ${value === t.id ? "border-gold text-ink" : "border-transparent text-muted hover:text-ink"}`}
+        >
+          {t.label}
+          {t.count != null && <span className="ml-1.5 tabular-nums text-muted">{t.count}</span>}
+        </button>
+      ))}
+    </div>
   );
 }

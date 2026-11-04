@@ -7,14 +7,14 @@ export function ViewToggle({ mode, onChange, label = "Layout" }) {
     ["list", "List", "menu"],
   ];
   return (
-    <div role="group" aria-label={label} className="inline-flex">
+    <div role="group" aria-label={label} className="inline-flex gap-1 rounded-lg border border-line bg-surface p-1">
       {options.map(([id, text]) => (
         <button
           key={id}
           type="button"
           aria-pressed={mode === id}
           onClick={() => onChange(id)}
-          className={`eyebrow min-h-11 px-4 ${mode === id ? "bg-gold text-poster" : "border border-[#3a3733] hover:border-gold hover:text-gold"}`}
+          className={`min-h-9 rounded-md px-3.5 text-sm font-medium transition-colors ${mode === id ? "bg-white/10 text-ink" : "text-muted hover:text-ink"}`}
         >
           {text}
         </button>
@@ -25,7 +25,8 @@ export function ViewToggle({ mode, onChange, label = "Layout" }) {
 
 // Cards in a row you move through sideways: swipe on a phone, drag with a mouse, or use the arrows or the arrow keys.
 // With twoUp, two cards sit side by side on wide screens (one per view on narrower ones).
-export default function Carousel({ children, label = "Cards", twoUp = false }) {
+// "lead" and "tools" put the page's own summary and controls on the same row as the arrows.
+export default function Carousel({ children, label = "Cards", twoUp = false, lead, tools }) {
   const items = Children.toArray(children);
   const track = useRef(null);
   const drag = useRef(null);
@@ -132,17 +133,25 @@ export default function Carousel({ children, label = "Cards", twoUp = false }) {
   if (items.length === 0) return null;
   return (
     <section aria-roledescription="carousel" aria-label={label} className="relative">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="font-mono text-sm text-muted" aria-live="polite">
-          {index + 1} of {items.length}
-        </p>
-        <div className="flex gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        {lead ?? (
+          <p className="text-sm tabular-nums text-muted" aria-live="polite">
+            {index + 1} of {items.length}
+          </p>
+        )}
+        <div className="flex items-center gap-2">
+          {tools}
+          {lead && (
+            <p className="px-1 text-sm tabular-nums text-muted" aria-live="polite">
+              {index + 1} of {items.length}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => step(-1)}
             disabled={edge.start}
             aria-label="Previous card"
-            className="flex h-11 w-11 items-center justify-center border border-[#3a3733] hover:border-gold hover:text-gold disabled:opacity-30 disabled:hover:border-[#3a3733] disabled:hover:text-inherit"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#3d3332] text-ink-soft transition-colors hover:border-[#6a5a55] hover:text-ink disabled:opacity-30 disabled:hover:border-[#3d3332] disabled:hover:text-ink-soft"
           >
             <Icon name="arrow" size={16} className="rotate-180" />
           </button>
@@ -151,7 +160,7 @@ export default function Carousel({ children, label = "Cards", twoUp = false }) {
             onClick={() => step(1)}
             disabled={edge.end}
             aria-label="Next card"
-            className="flex h-11 w-11 items-center justify-center border border-[#3a3733] hover:border-gold hover:text-gold disabled:opacity-30 disabled:hover:border-[#3a3733] disabled:hover:text-inherit"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#3d3332] text-ink-soft transition-colors hover:border-[#6a5a55] hover:text-ink disabled:opacity-30 disabled:hover:border-[#3d3332] disabled:hover:text-ink-soft"
           >
             <Icon name="arrow" size={16} />
           </button>
@@ -169,7 +178,7 @@ export default function Carousel({ children, label = "Cards", twoUp = false }) {
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onPointerLeave={endDrag}
-        className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+        className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth py-2 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
       >
         {items.map((child, i) => (
           <div
@@ -186,7 +195,7 @@ export default function Carousel({ children, label = "Cards", twoUp = false }) {
 
       <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
         {items.slice(0, 12).map((_, i) => (
-          <span key={i} className={`h-1.5 transition-all ${i === index ? "w-6 bg-gold" : "w-1.5 bg-white/20"}`} />
+          <span key={i} className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-gold" : "w-1.5 bg-white/20"}`} />
         ))}
       </div>
     </section>

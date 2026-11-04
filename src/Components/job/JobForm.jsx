@@ -174,7 +174,7 @@ export default function JobForm({ job }) {
 
       <section className="card p-6 sm:p-8">
         <div className="flex items-baseline justify-between">
-          <h2 className="poster-title text-2xl">Milestones</h2>
+          <h2 className="text-lg font-semibold">Milestones</h2>
           <p className="text-sm text-muted">
             Budget: <strong className="text-ink">{usdc(total * 1_000_000)}</strong> USDC
           </p>
@@ -206,18 +206,18 @@ export default function JobForm({ job }) {
             <Icon name="plus" size={16} /> Add milestone
           </Button>
         )}
-        <p className="mt-5 border border-dashed border-white/10 px-4 py-3 font-mono text-sm text-muted">
+        <p className="mt-5 rounded-lg border border-dashed border-[#3d3332] px-4 py-3 tabular-nums text-sm text-muted">
           A 2% platform fee is deducted from the freelancer&apos;s payout when a milestone is released. You pay the milestone price, nothing extra.
           {Number(form.openings) > 1 && ` With ${form.openings} openings, your total if everyone completes is ${usdc(total * Number(form.openings) * 1_000_000)}.`}
         </p>
       </section>
 
       <section className="card p-6 sm:p-8">
-        <h2 className="poster-title text-2xl">Files for applicants</h2>
+        <h2 className="text-lg font-semibold">Files for applicants</h2>
         <p className="mt-1 text-sm text-muted">Specs, designs or a brief. Signed-in people can open them. Up to 5 files, 10 MB each (images, PDF, ZIP, text).</p>
         <ul className="mt-3 space-y-2">
           {existing.map((f) => (
-            <li key={f.id} className="flex items-center gap-3 border border-white/10 px-3 py-2 text-sm">
+            <li key={f.id} className="flex items-center gap-3 rounded-lg border border-line px-3 py-2 text-sm">
               <Icon name="file" size={14} className="text-gold" />
               <button type="button" className="min-w-0 flex-1 truncate text-left hover:text-gold" onClick={() => downloadProtectedFile(f.url, f.name).catch((e) => setError(e.message))}>
                 {f.name}
@@ -238,7 +238,7 @@ export default function JobForm({ job }) {
             </li>
           ))}
         </ul>
-        <label className="mt-3 inline-flex min-h-10 cursor-pointer items-center gap-2 border border-[#3a3733] px-4 text-sm hover:border-gold hover:text-gold">
+        <label className="mt-3 inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border border-[#3d3332] px-4 text-sm hover:border-[#6a5a55] hover:text-ink">
           <Icon name="paperclip" size={14} /> Add files
           <input type="file" multiple accept="image/png,image/jpeg,image/webp,image/gif,application/pdf,application/zip,text/plain,.txt,.md,.csv,.json" onChange={pickFiles} className="sr-only" />
         </label>

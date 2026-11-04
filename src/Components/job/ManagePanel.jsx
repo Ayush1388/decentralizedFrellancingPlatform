@@ -31,7 +31,7 @@ function MilestoneRows({ rows, setRows, disabled }) {
             <Icon name="plus" size={14} /> Add milestone
           </Button>
         )}
-        <p className="ml-auto font-mono text-sm text-muted">
+        <p className="ml-auto tabular-nums text-sm text-muted">
           Total <strong className="text-ink">{usdc(total * 1_000_000)}</strong>
         </p>
       </div>
@@ -57,7 +57,7 @@ function RenegotiateForm({ job, onChange, onClose }) {
   }
   return (
     <form onSubmit={save} className="card space-y-4 p-5">
-      <h3 className="poster-title text-2xl">Change the milestones</h3>
+      <h3 className="text-lg font-semibold">Change the milestones</h3>
       <p className="text-sm text-muted">Agree the new plan in the chat first. This is possible until the first milestone is funded; the freelancer is told when you save.</p>
       <MilestoneRows rows={rows} setRows={setRows} />
       <ErrorNote>{error}</ErrorNote>
@@ -96,7 +96,7 @@ function FollowUpForm({ job, onClose }) {
   }
   return (
     <form onSubmit={save} className="card space-y-4 p-5">
-      <h3 className="poster-title text-2xl">Add follow-up work</h3>
+      <h3 className="text-lg font-semibold">Add follow-up work</h3>
       <p className="text-sm text-muted">More scope, an extra milestone or a bonus for great work becomes its own contract with {job.freelancer?.name.split(" ")[0] || "the freelancer"}, with its own escrow, so the original is untouched.</p>
       <Field label="What is it for?" htmlFor="fu-title">
         <input id="fu-title" required minLength={5} maxLength={120} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Add dark mode, or Bonus for early delivery" className="input" />

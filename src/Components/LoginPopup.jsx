@@ -85,14 +85,14 @@ export default function LoginPopup() {
       onClose={closeLogin}
       onClick={(e) => e.target === dialogRef.current && closeLogin()}
       aria-labelledby="login-title"
-      className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto border border-gold/40 bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/70 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[92vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl border border-line bg-surface p-0 text-ink shadow-[0_32px_80px_-20px_rgb(0_0_0/0.85)] backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     >
       <div className="relative p-6 sm:p-8">
         <button type="button" onClick={closeLogin} aria-label="Close" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center text-muted hover:text-gold">
           <Icon name="x" />
         </button>
 
-        <h2 id="login-title" className="poster-title text-4xl">
+        <h2 id="login-title" className="text-2xl font-semibold">
           {title}
         </h2>
         <p className="mt-1 text-sm text-muted">{sub}</p>
@@ -160,15 +160,15 @@ export default function LoginPopup() {
 
         {mode !== "forgot" && (
           <>
-            <div className="my-5 flex items-center gap-3 text-xs uppercase tracking-wide text-muted">
+            <div className="my-5 flex items-center gap-3 text-sm text-muted">
               <span className="h-px flex-1 bg-line" /> or <span className="h-px flex-1 bg-line" />
             </div>
 
             <div className="space-y-3">
               {demo.available && (
                 <>
-                  <Button type="button" variant="outline" className="w-full !border-marker/60 !text-marker" onClick={demo.run} loading={demo.busy}>
-                    <Icon name="user" size={18} /> Use the demo account
+                  <Button type="button" variant="secondary" className="w-full" onClick={demo.run} loading={demo.busy}>
+                    <Icon name="user" size={18} /> Try the demo account
                   </Button>
                   <ErrorNote>{demo.error}</ErrorNote>
                 </>

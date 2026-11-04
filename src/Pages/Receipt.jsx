@@ -27,13 +27,13 @@ export default function Receipt() {
   if (ready && !user)
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="lock" title="Log in to see this receipt" action={<Button onClick={openLogin}>Log in</Button>} />
+        <EmptyState as="h1" icon="lock" title="Log in to see this receipt" action={<Button onClick={openLogin}>Log in</Button>} />
       </div>
     );
   if (error)
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="alert" title="Receipt not found" action={<Button to="/jobs">Back to jobs</Button>}>
+        <EmptyState as="h1" icon="alert" title="Receipt not found" action={<Button to="/jobs">Back to jobs</Button>}>
           {error}
         </EmptyState>
       </div>
@@ -50,7 +50,7 @@ export default function Receipt() {
   if (!m || !settled || (job.viewerRole !== "client" && job.viewerRole !== "freelancer"))
     return (
       <div className="container-page pt-16">
-        <EmptyState icon="file" title="No receipt for this milestone" action={<Button to={`/jobs/${id}`}>Back to the job</Button>}>
+        <EmptyState as="h1" icon="file" title="No receipt for this milestone" action={<Button to={`/jobs/${id}`}>Back to the job</Button>}>
           Receipts exist for milestones that were paid out, and only the two people on the job can see them.
         </EmptyState>
       </div>
@@ -61,7 +61,7 @@ export default function Receipt() {
   const net = share - fee;
   const refund = m.amount - share;
   const rows = [
-    ["Receipt for", `${job.title} · ${m.title}`],
+    ["Receipt for", `${job.title}: ${m.title}`],
     ["Client", job.client.name],
     ["Freelancer", job.freelancer?.name || "—"],
     ["Milestone amount", usdc(m.amount)],
@@ -76,7 +76,7 @@ export default function Receipt() {
   return (
     <div className="container-page max-w-2xl pb-16 pt-8">
       <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-3">
-        <Link to={`/jobs/${id}`} className="inline-flex items-center gap-1 text-sm font-medium text-muted hover:text-gold">
+        <Link to={`/jobs/${id}`} className="inline-flex min-h-10 items-center gap-1 text-sm font-medium text-muted hover:text-ink">
           <Icon name="arrow" size={14} className="rotate-180" /> Back to the job
         </Link>
         <Button size="sm" onClick={() => window.print()}>
@@ -88,7 +88,7 @@ export default function Receipt() {
       <article className="receipt bg-ticket p-8 text-poster shadow-[0_30px_70px_-30px_rgb(0_0_0/0.9)] sm:p-10">
         <header className="flex items-start justify-between gap-4 border-b-2 border-dashed border-poster/30 pb-5">
           <div>
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em]">The Blockchain Picture House</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em]">The Blockchain Picture House</p>
             <h1 className="poster-title mt-1 text-5xl">Receipt</h1>
           </div>
           <div className="text-right font-mono text-xs">
@@ -99,13 +99,13 @@ export default function Receipt() {
         <dl className="mt-5 divide-y divide-poster/15">
           {rows.map(([k, v]) => (
             <div key={k} className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
-              <dt className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] opacity-70">{k}</dt>
+              <dt className="text-xs font-semibold uppercase tracking-[0.12em] opacity-70">{k}</dt>
               <dd className="font-mono text-sm font-bold">{v}</dd>
             </div>
           ))}
         </dl>
         {(m.fundTx || m.releaseTx) && (
-          <div className="mt-5 border-t-2 border-dashed border-poster/30 pt-4 font-mono text-[0.7rem] leading-relaxed">
+          <div className="mt-5 border-t-2 border-dashed border-poster/30 pt-4 font-mono text-xs leading-relaxed">
             {m.fundTx && (
               <p className="break-all">
                 Funding transaction: {m.fundTx}
