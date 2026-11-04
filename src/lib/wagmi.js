@@ -3,13 +3,14 @@ import { base, baseSepolia, hardhat, mainnet, sepolia } from "wagmi/chains";
 import { coinbaseWallet, injected, walletConnect } from "wagmi/connectors";
 
 // Wallets people can use:
-//  - any browser wallet (MetaMask, Rabby, Brave, ...): wagmi detects each installed one (EIP-6963) and lists it by name
+//  - any browser wallet (MetaMask, Phantom, Rabby, Brave, ...): wagmi detects each installed one (EIP-6963) and lists it by name
+//  - Phantom also through its own window.phantom.ethereum, for versions that do not announce themselves
 //  - Coinbase Wallet: its app or extension, no setup needed
 //  - WalletConnect: lets phone wallets connect by QR code; turned on by setting VITE_WALLETCONNECT_PROJECT_ID
 //    (a free project id from cloud.reown.com)
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 
-const connectors = [injected(), coinbaseWallet({ appName: "Blockchain Picture House" })];
+const connectors = [injected({ target: "phantom" }), injected(), coinbaseWallet({ appName: "Blockchain Picture House" })];
 if (projectId) connectors.push(walletConnect({ projectId, showQrModal: true }));
 export const walletConnectEnabled = !!projectId;
 

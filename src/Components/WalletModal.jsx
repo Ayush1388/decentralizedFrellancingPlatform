@@ -3,7 +3,15 @@ import { useConnect } from "wagmi";
 import { closeWalletPicker, useWalletPickerOpen } from "../lib/walletModal";
 import { ErrorNote, Icon } from "./ui";
 
-// Lists every wallet the visitor can use: the ones installed in this browser, Coinbase Wallet, and WalletConnect for phones.
+// Popular browser wallets, offered with an install link when they are not in this browser.
+const popular = [
+  { name: "MetaMask", match: "metamask", url: "https://metamask.io/download/" },
+  { name: "Phantom", match: "phantom", url: "https://phantom.com/download" },
+  { name: "Rabby", match: "rabby", url: "https://rabby.io/" },
+];
+
+// Lists every wallet the visitor can use: the ones installed in this browser (each once, by name), Coinbase Wallet,
+// and WalletConnect for phones.
 export default function WalletModal() {
   const open = useWalletPickerOpen();
   const ref = useRef(null);
@@ -20,11 +28,21 @@ export default function WalletModal() {
     if (!open && d.open) d.close();
   }, [open]);
 
-  // The generic "Injected" entry is dropped when a named browser wallet was detected.
-  const named = connectors.filter((c) => c.type === "injected" && c.id !== "injected");
-  const hasBrowserWallet = named.length > 0 || (typeof window !== "undefined" && !!window.ethereum);
-  // The generic entry only makes sense when a browser wallet exists but did not announce itself by name.
-  const list = connectors.filter((c) => (c.id === "injected" ? named.length === 0 && hasBrowserWallet : true));
+  const w = typeof window !== "undefined" ? window : {};
+  // Wallets that announced themselves (EIP-6963) carry their own name and icon.
+  const announced = connectors.filter((c) => c.type === "injected" && c.id !== "injected" && c.id !== "phantom");
+  const names = announced.map((c) => c.name.toLowerCase());
+  const has = (word) => names.some((n) => n.includes(word));
+  // Phantom versions that do not announce themselves are still found through window.phantom.ethereum.
+  const phantomOnly = !!w.phantom?.ethereum && !has("phantom");
+  // The generic entry is only for a browser wallet that neither announced itself nor is Phantom.
+  const plainInjected = !!w.ethereum && announced.length === 0 && !(phantomOnly && w.ethereum?.isPhantom);
+  const installed = (c) => c.type === "injected";
+  const list = connectors
+    .filter((c) => (c.id === "phantom" ? phantomOnly : c.id === "injected" ? plainInjected : true))
+    .sort((a, b) => Number(installed(b)) - Number(installed(a)));
+  const hasBrowserWallet = announced.length > 0 || phantomOnly || plainInjected;
+  const missing = popular.filter((p) => !has(p.match) && !(p.match === "phantom" && phantomOnly) && !(p.match === "metamask" && w.ethereum?.isMetaMask));
 
   async function pick(connector) {
     setError("");
@@ -38,7 +56,15 @@ export default function WalletModal() {
   }
 
   const hint = (c) =>
-    c.id === "coinbaseWalletSDK" ? "App or browser extension" : c.id === "walletConnect" ? "Scan a QR code with a phone wallet" : c.type === "injected" ? "Detected in this browser" : "";
+    c.id === "coinbaseWalletSDK"
+      ? "App or browser extension"
+      : c.id === "walletConnect"
+        ? "Scan a QR code with a phone wallet"
+        : /phantom/i.test(c.name)
+          ? "Installed. Uses your Phantom Ethereum account"
+          : c.type === "injected"
+            ? "Installed in this browser"
+            : "";
 
   return (
     <dialog
@@ -77,14 +103,27 @@ export default function WalletModal() {
           ))}
         </ul>
 
-        {!hasBrowserWallet && (
-          <p className="mt-4 rounded-lg border border-dashed border-[#3d3332] px-3 py-2 text-sm text-ink-soft">
-            No browser wallet found.{" "}
-            <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-gold underline-offset-2 hover:underline">
-              Install MetaMask
-            </a>{" "}
-            or use Coinbase Wallet.
-          </p>
+        {!hasBrowserWallet && <p className="mt-4 text-sm text-ink-soft">No wallet found in this browser. Install one below, or use Coinbase Wallet.</p>}
+        {missing.length > 0 && (
+          <div className="mt-4 border-t border-line pt-4">
+            <p className="text-sm text-muted">{hasBrowserWallet ? "Use another wallet?" : "Get a wallet"}</p>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {missing.map((p) => (
+                <li key={p.name}>
+                  <a
+                    href={p.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-[#3d3332] px-3 text-sm font-medium text-ink-soft hover:border-[#6a5a55] hover:text-ink"
+                  >
+                    Install {p.name}
+                    <Icon name="arrowUpRight" size={14} />
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted">After installing, reload this page and it will show up above.</p>
+          </div>
         )}
         <div className="mt-4">
           <ErrorNote>{error}</ErrorNote>

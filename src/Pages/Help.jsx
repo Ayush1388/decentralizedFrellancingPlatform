@@ -9,6 +9,7 @@ const groups = [
       ["What is USDC?", "A digital dollar: one USDC is meant to stay worth one US dollar, so a $500 milestone is $500 whatever the crypto market does."],
       ["What are network fees (gas)?", "Every transaction on the blockchain costs a small fee paid in ETH. On the test network it is free test ETH, and the site checks your balance before sending anything. Real networks charge real (usually small) fees."],
       ["What is the test network?", "Right now money on this site is test money: Sepolia ETH and test USDC. Get free test ETH from a Sepolia faucet and free test USDC from faucet.circle.com. Nothing you do here has real financial value."],
+      ["Can I use Phantom?", "Yes. Phantom, MetaMask, Rabby, Brave and other browser wallets show up by name when you connect. This site runs on Ethereum, so Phantom uses its Ethereum account, not Solana. To use the Sepolia test network in Phantom, turn on Testnet Mode in its settings first."],
     ],
   },
   {
