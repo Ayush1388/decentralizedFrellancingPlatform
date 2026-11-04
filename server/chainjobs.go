@@ -31,6 +31,8 @@ var chainActions = map[string]chainAction{
 	"refund":  {"MilestoneRefunded", "refunded", []string{"funded"}},
 	"dispute": {"MilestoneDisputed", "disputed", []string{"funded", "submitted"}},
 	"resolve": {"MilestoneResolved", "resolved", []string{"disputed"}},
+	// anyone in the job may settle 50/50 once the arbiter has been silent for DISPUTE_TIMEOUT; same event as a ruling
+	"resolve-stale": {"MilestoneResolved", "resolved", []string{"disputed"}},
 }
 
 func contains(list []string, s string) bool {
@@ -257,7 +259,7 @@ func (s *Server) handleChainMilestone(w http.ResponseWriter, r *http.Request, ui
 	case spec.to == "submitted":
 		_, err = tx.Exec(`UPDATE milestones SET status='submitted', submitted_at=?, deliverable_url=?, submission_note=? WHERE id=?`, at, deliverableURL, b.Note, id)
 	case spec.to == "disputed":
-		_, err = tx.Exec(`UPDATE milestones SET status='disputed', dispute_reason=? WHERE id=?`, b.Reason, id)
+		_, err = tx.Exec(`UPDATE milestones SET status='disputed', dispute_reason=?, disputed_at=? WHERE id=?`, b.Reason, at, id)
 	case spec.to == "released":
 		_, err = tx.Exec(`UPDATE milestones SET status='released', resolved_at=?, freelancer_bps=10000, release_tx=? WHERE id=?`, at, txHash, id)
 	case spec.to == "refunded":
@@ -303,7 +305,9 @@ func (s *Server) chainActor(action string, ev *ChainEvent, client int64, freelan
 	return 0
 }
 
-// closeJobIfDone completes the job once every milestone has been paid out or refunded.
+// closeJobIfDone completes the job once every milestone has been paid out or refunded. The freelancer only
+// gets a completed job on their record when they were actually paid something: a contract that ended in
+// refunds does not count.
 func closeJobIfDone(tx *Tx, jobID int64, freelancer sql.NullInt64) {
 	var open int
 	tx.QueryRow(`SELECT COUNT(*) FROM milestones WHERE job_id = ? AND status NOT IN ('released','resolved','refunded')`, jobID).Scan(&open)
@@ -311,8 +315,12 @@ func closeJobIfDone(tx *Tx, jobID int64, freelancer sql.NullInt64) {
 		return
 	}
 	res, _ := tx.Exec(`UPDATE jobs SET status='completed' WHERE id = ? AND status <> 'completed'`, jobID)
-	if n, _ := res.RowsAffected(); n > 0 && freelancer.Valid {
-		tx.Exec(`UPDATE developers SET jobs_done = jobs_done + 1 WHERE user_id = ?`, freelancer.Int64)
+	if n, _ := res.RowsAffected(); n > 0 {
+		var paid int64
+		tx.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM milestones WHERE job_id = ? AND (status = 'released' OR (status = 'resolved' AND freelancer_bps > 0))`, jobID).Scan(&paid)
+		if paid > 0 && freelancer.Valid {
+			tx.Exec(`UPDATE developers SET jobs_done = jobs_done + 1 WHERE user_id = ?`, freelancer.Int64)
+		}
 		logEvent(tx, jobID, 0, "completed", "")
 	}
 }

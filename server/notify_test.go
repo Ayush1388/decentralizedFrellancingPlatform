@@ -46,13 +46,13 @@ func onlyTo(t *testing.T, mails []sentMail, to string) sentMail {
 func TestEmailsGoToTheRightPeopleOnly(t *testing.T) {
 	e := newEnv(t)
 	fm := &fakeMailer{}
-	e.srv.mailer = fm
 	e.srv.cfg.AdminEmails = map[string]bool{"arbiter@x.io": true}
 	e.srv.cfg.FrontendURL = "https://site.example"
 
 	client, _ := e.signup("Client", "c@x.io")
 	dev, _ := e.signup("Dev", "d@x.io")
 	jobID, ms := e.postJob(client, nil)
+	e.srv.mailer = fm // turned on after setup, like adding SMTP settings to a running site
 
 	// posting a job emails nobody
 	e.srv.sendPending()

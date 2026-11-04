@@ -21,7 +21,7 @@ import (
 const (
 	DemoEmail    = "demo@blockchainfreelance.dev"
 	DemoPassword = "demo1234"
-	demoVersion  = "2"
+	demoVersion  = "3"
 )
 
 type demoDev struct {
@@ -73,13 +73,16 @@ type demoJob struct {
 	milestones  []demoMilestone
 	applicants  []demoApp
 	messages    [][2]string
-	review      *Review
+	review      *Review // client on freelancer
+	reviewBack  *Review // freelancer on client
+	category    string
 }
 
 var demoJobs = []demoJob{
 	{
 		freelancer: "Lena Kovač",
 		title:      "NFT marketplace frontend",
+		category:   "Frontend",
 		desc:       "Build the React frontend for our NFT marketplace: browse, list and buy with a connected wallet. Designs are ready in Figma.",
 		skills:     []string{"React", "TypeScript", "wagmi"},
 		status:     "in_progress", daysAgo: 12, openDays: 10, openings: 1, duration: "1 to 3 months", level: "Intermediate",
@@ -99,10 +102,11 @@ var demoJobs = []demoJob{
 		},
 	},
 	{
-		title:  "Audit our staking contract",
-		desc:   "We need an independent review of a 400-line staking contract before mainnet. Report with severity levels, then a fix review.",
-		skills: []string{"Solidity", "Audits", "Security"},
-		status: "open", daysAgo: 2, openDays: 12, openings: 1, duration: "1 to 4 weeks", level: "Expert",
+		title:    "Audit our staking contract",
+		category: "Security and audits",
+		desc:     "We need an independent review of a 400-line staking contract before mainnet. Report with severity levels, then a fix review.",
+		skills:   []string{"Solidity", "Audits", "Security"},
+		status:   "open", daysAgo: 2, openDays: 12, openings: 1, duration: "1 to 4 weeks", level: "Expert",
 		milestones: []demoMilestone{{title: "Initial review and report", amount: 1800, status: "pending"}, {title: "Fix verification", amount: 1200, status: "pending"}},
 		applicants: []demoApp{
 			{dev: "Mei Tanaka", cover: "I audit staking and reward logic for a living. I will send a draft report within a week and verify every fix.", bid: 3000, eta: 10, portfolio: "https://meitanaka.xyz/audits", resume: true,
@@ -113,37 +117,42 @@ var demoJobs = []demoJob{
 	{
 		freelancer: "Diego Álvarez",
 		title:      "Escrow payouts dashboard",
+		category:   "Full stack",
 		desc:       "Internal dashboard showing every payout, refund and dispute from our escrow contract, with CSV export.",
 		skills:     []string{"Go", "React", "PostgreSQL"},
 		status:     "completed", daysAgo: 30, openDays: 7, openings: 1, duration: "1 to 4 weeks", level: "Intermediate",
 		milestones: []demoMilestone{{"API and indexer", 900, "released", "Indexer backfills from block 0 and follows new events.", ""}, {"Dashboard UI", 700, "released", "Filters, totals and CSV export.", ""}},
 		applicants: []demoApp{{dev: "Diego Álvarez", cover: "I have built two event indexers in Go for escrow contracts. The dashboard is a week of work on top.", bid: 1600, eta: 21}},
 		review:     &Review{Rating: 5, Comment: "Clear updates every few days and the indexer has not missed an event since."},
+		reviewBack: &Review{Rating: 5, Comment: "Precise brief, fast answers and paid the moment the work was approved.", Reply: "Thank you Diego, the indexer made the whole dashboard possible."},
 	},
 	{
-		client: "Olivia Park",
-		title:  "Token vesting dashboard",
-		desc:   "A React dashboard that reads vesting schedules from our contract and lets holders claim unlocked tokens.",
-		skills: []string{"React", "Solidity"},
-		status: "open", daysAgo: 1, openDays: 14, openings: 1, duration: "1 to 4 weeks", level: "Intermediate",
+		client:   "Olivia Park",
+		title:    "Token vesting dashboard",
+		category: "Frontend",
+		desc:     "A React dashboard that reads vesting schedules from our contract and lets holders claim unlocked tokens.",
+		skills:   []string{"React", "Solidity"},
+		status:   "open", daysAgo: 1, openDays: 14, openings: 1, duration: "1 to 4 weeks", level: "Intermediate",
 		milestones: []demoMilestone{{title: "Read schedules", amount: 700, status: "pending"}, {title: "Claim flow", amount: 1100, status: "pending"}},
 		applicants: []demoApp{{dev: "Lena Kovač", cover: "Vesting UIs are mostly about explaining the cliff clearly. I have a component for exactly that.", bid: 1800, eta: 18}},
 	},
 	{
-		client: "Marcus Lee",
-		title:  "Subgraph for DAO voting history",
-		desc:   "Index every proposal and vote from our governor contract and expose it through a GraphQL API.",
-		skills: []string{"The Graph", "Go"},
-		status: "open", daysAgo: 4, openDays: 10, openings: 1, duration: "Less than a week", level: "Intermediate",
+		client:   "Marcus Lee",
+		title:    "Subgraph for DAO voting history",
+		category: "Data and indexing",
+		desc:     "Index every proposal and vote from our governor contract and expose it through a GraphQL API.",
+		skills:   []string{"The Graph", "Go"},
+		status:   "open", daysAgo: 4, openDays: 10, openings: 1, duration: "Less than a week", level: "Intermediate",
 		milestones: []demoMilestone{{title: "Subgraph schema and mappings", amount: 800, status: "pending"}, {title: "Deploy and docs", amount: 600, status: "pending"}},
 		applicants: []demoApp{{dev: "Hannah Weber", cover: "I maintain subgraphs for two governor deployments. Mappings and docs in five days.", bid: 1400, eta: 5}},
 	},
 	{
-		client: "Olivia Park",
-		title:  "Mobile wallet onboarding flow",
-		desc:   "Design a five-screen onboarding for first-time crypto users: seed phrase, backup and first deposit. We are hiring two designers to explore different directions.",
-		skills: []string{"Figma", "UI design"},
-		status: "open", daysAgo: 6, openDays: 21, openings: 2, duration: "Less than a week", level: "Entry",
+		client:   "Olivia Park",
+		title:    "Mobile wallet onboarding flow",
+		category: "Design",
+		desc:     "Design a five-screen onboarding for first-time crypto users: seed phrase, backup and first deposit. We are hiring two designers to explore different directions.",
+		skills:   []string{"Figma", "UI design"},
+		status:   "open", daysAgo: 6, openDays: 21, openings: 2, duration: "Less than a week", level: "Entry",
 		milestones: []demoMilestone{{title: "Wireframes", amount: 400, status: "pending"}, {title: "Final designs", amount: 500, status: "pending"}},
 		applicants: []demoApp{{dev: "Samuel Okoro", cover: "Onboarding is where most wallets lose people. I would test the seed phrase screen with five new users first.", bid: 900, eta: 7, portfolio: "https://dribbble.com/samokoro"}},
 	},
@@ -220,9 +229,9 @@ func seedDemo(db *DB) error {
 			return created.AddDate(0, 0, days).Add(time.Duration(hours) * time.Hour)
 		}
 		skills, _ := json.Marshal(j.skills)
-		jobID, err := insertID(tx, `INSERT INTO jobs (client_id, freelancer_id, title, description, skills, status, created_at, openings, closes_at, duration, level)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			client, freelancer, j.title, j.desc, string(skills), j.status, created, j.openings, created.AddDate(0, 0, j.openDays), j.duration, j.level)
+		jobID, err := insertID(tx, `INSERT INTO jobs (client_id, freelancer_id, title, description, skills, status, created_at, openings, closes_at, duration, level, category, open_days)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			client, freelancer, j.title, j.desc, string(skills), j.status, created, j.openings, created.AddDate(0, 0, j.openDays), j.duration, j.level, j.category, j.openDays)
 		if err != nil {
 			return fmt.Errorf("job %s: %w", j.title, err)
 		}
@@ -320,11 +329,19 @@ func seedDemo(db *DB) error {
 			event(at(len(j.milestones)*3+1, 0), 0, "completed", "")
 		}
 		if j.review != nil {
-			if _, err := tx.Exec(`INSERT INTO reviews (job_id, reviewer_id, freelancer_id, rating, comment, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
-				jobID, client, users[j.freelancer], j.review.Rating, j.review.Comment, at(len(j.milestones)*3+1, 2)); err != nil {
+			reviewAt := at(len(j.milestones)*3+1, 2)
+			if _, err := tx.Exec(`INSERT INTO reviews (job_id, reviewer_id, freelancer_id, subject_id, kind, rating, comment, created_at) VALUES (?, ?, ?, ?, 'client_to_freelancer', ?, ?, ?)`,
+				jobID, client, users[j.freelancer], users[j.freelancer], j.review.Rating, j.review.Comment, reviewAt); err != nil {
 				return fmt.Errorf("review: %w", err)
 			}
-			event(at(len(j.milestones)*3+1, 2), client, "reviewed", fmt.Sprintf("%d stars", j.review.Rating))
+			event(reviewAt, client, "reviewed", fmt.Sprintf("%d stars", j.review.Rating))
+		}
+		if j.reviewBack != nil {
+			backAt := at(len(j.milestones)*3+2, 0)
+			if _, err := tx.Exec(`INSERT INTO reviews (job_id, reviewer_id, freelancer_id, subject_id, kind, rating, comment, reply, reply_at, created_at) VALUES (?, ?, ?, ?, 'freelancer_to_client', ?, ?, ?, ?, ?)`,
+				jobID, users[j.freelancer], users[j.freelancer], client, j.reviewBack.Rating, j.reviewBack.Comment, j.reviewBack.Reply, backAt.Add(time.Hour), backAt); err != nil {
+				return fmt.Errorf("review back: %w", err)
+			}
 		}
 	}
 

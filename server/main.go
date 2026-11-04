@@ -14,6 +14,8 @@ type Server struct {
 	chain     Verifier   // nil in off-chain preview mode
 	chainInfo *ChainInfo // nil in off-chain preview mode
 	mailer    Mailer     // nil when SMTP is not configured
+	limiter   *limiter
+	syncMail  bool // tests: send mail inline instead of in the background
 }
 
 func (s *Server) routes() http.Handler {
@@ -26,9 +28,11 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		cfg := map[string]any{
 			"feeBps": s.cfg.FeeBps, "claimAfterDays": s.cfg.ClaimAfterDays, "refundAfterDays": s.cfg.RefundAfterDays,
-			"googleEnabled": s.cfg.GoogleClientID != "",
-			"emailEnabled":  s.mailer != nil,
-			"chain":         s.chainInfo,
+			"googleEnabled":    s.cfg.GoogleClientID != "",
+			"emailEnabled":     s.mailer != nil,
+			"turnstileSiteKey": s.cfg.TurnstileSiteKey,
+			"categories":       jobCategories,
+			"chain":            s.chainInfo,
 		}
 		// The demo account is public on purpose: it only owns seeded demo data.
 		if os.Getenv("SEED_DEMO") == "true" {
@@ -38,13 +42,22 @@ func (s *Server) routes() http.Handler {
 	})
 
 	// auth
-	mux.HandleFunc("POST /api/auth/signup", s.handleSignup)
-	mux.HandleFunc("POST /api/auth/login", s.handleLogin)
+	mux.HandleFunc("POST /api/auth/signup", s.limited("signup", 20, time.Hour, s.handleSignup))
+	mux.HandleFunc("POST /api/auth/login", s.limited("login", 30, 10*time.Minute, s.handleLogin))
+	mux.HandleFunc("POST /api/auth/verify", s.limited("verify", 30, time.Hour, s.handleVerifyEmail))
+	mux.HandleFunc("POST /api/auth/resend-verification", auth(s.limitedAuth("resend", 5, time.Hour, s.handleResendVerification)))
+	mux.HandleFunc("POST /api/auth/forgot", s.limited("forgot", 10, time.Hour, s.handleForgotPassword))
+	mux.HandleFunc("POST /api/auth/reset", s.limited("reset", 20, time.Hour, s.handleResetPassword))
+	mux.HandleFunc("POST /api/auth/password", auth(s.limitedAuth("password", 10, time.Hour, s.handleChangePassword)))
+	mux.HandleFunc("POST /api/auth/logout-all", auth(s.handleLogoutAll))
+	mux.HandleFunc("POST /api/auth/email", auth(s.limitedAuth("set-email", 5, time.Hour, s.handleSetEmail)))
+	mux.HandleFunc("GET /api/auth/export", auth(s.handleExport))
+	mux.HandleFunc("POST /api/auth/delete", auth(s.handleDeleteAccount))
 	mux.HandleFunc("GET /api/auth/me", auth(s.handleMe))
 	mux.HandleFunc("POST /api/auth/notifications", auth(s.handleNotifications))
 	mux.HandleFunc("GET /api/auth/google", s.handleGoogleStart)
 	mux.HandleFunc("GET /api/auth/google/callback", s.handleGoogleCallback)
-	mux.HandleFunc("GET /api/auth/wallet/nonce", s.handleWalletNonce)
+	mux.HandleFunc("GET /api/auth/wallet/nonce", s.limited("nonce", 60, 10*time.Minute, s.handleWalletNonce))
 	mux.HandleFunc("POST /api/auth/wallet/verify", s.handleWalletVerify)
 
 	// developers
@@ -64,15 +77,30 @@ func (s *Server) routes() http.Handler {
 	mux.HandleFunc("POST /api/jobs/{id}/cancel", auth(s.handleCancelJob))
 	mux.HandleFunc("POST /api/jobs/{id}/escrow", auth(s.handleCreateEscrow))
 	mux.HandleFunc("GET /api/jobs/{id}/messages", auth(s.handleListMessages))
-	mux.HandleFunc("POST /api/jobs/{id}/messages", auth(s.handlePostMessage))
+	mux.HandleFunc("POST /api/jobs/{id}/messages", auth(s.limitedAuth("message", 200, time.Hour, s.handlePostMessage)))
+	mux.HandleFunc("POST /api/jobs/{id}/attachments", auth(s.limitedAuth("upload", 40, time.Hour, s.handleJobAttachment)))
+	mux.HandleFunc("DELETE /api/files/{id}", auth(s.handleDeleteFile))
+	mux.HandleFunc("GET /api/notifications", auth(s.handleListNotifications))
+	mux.HandleFunc("POST /api/notifications/read", auth(s.handleReadNotifications))
+	mux.HandleFunc("GET /api/unread", auth(s.handleUnread))
 	mux.HandleFunc("POST /api/milestones/{id}/{action}", auth(s.handleMilestoneAction))
 
 	// applications
 	mux.HandleFunc("POST /api/applications/{id}/status", auth(s.handleApplicationStatus))
 	mux.HandleFunc("DELETE /api/applications/{id}", auth(s.handleWithdrawApplication))
 	mux.HandleFunc("GET /api/applications/{id}/messages", auth(s.handleListAppMessages))
-	mux.HandleFunc("POST /api/applications/{id}/messages", auth(s.handlePostAppMessage))
+	mux.HandleFunc("POST /api/applications/{id}/messages", auth(s.limitedAuth("message", 200, time.Hour, s.handlePostAppMessage)))
 	mux.HandleFunc("POST /api/jobs/{id}/review", auth(s.handleReview))
+	mux.HandleFunc("POST /api/jobs/{id}/review/reply", auth(s.handleReviewReply))
+	mux.HandleFunc("PUT /api/jobs/{id}", auth(s.handleUpdateJob))
+	mux.HandleFunc("POST /api/jobs/{id}/publish", auth(s.handlePublishJob))
+	mux.HandleFunc("POST /api/jobs/{id}/repost", auth(s.handleRepostJob))
+	mux.HandleFunc("PUT /api/jobs/{id}/milestones", auth(s.handleSetMilestones))
+	mux.HandleFunc("POST /api/jobs/{id}/followup", auth(s.handleFollowup))
+	mux.HandleFunc("GET /api/jobs/saved", auth(s.handleSavedJobs))
+	mux.HandleFunc("GET /api/saved-ids", auth(s.handleSavedIDs))
+	mux.HandleFunc("POST /api/jobs/{id}/save", auth(s.handleSaveJob))
+	mux.HandleFunc("DELETE /api/jobs/{id}/save", auth(s.handleUnsaveJob))
 	mux.HandleFunc("GET /api/admin/disputes", auth(s.handleAdminDisputes))
 	mux.HandleFunc("GET /api/files/{id}", s.handleGetFile)
 
@@ -98,12 +126,12 @@ func main() {
 		}()
 	}
 
-	s := &Server{cfg: cfg, db: db, mailer: newMailer(cfg)}
+	s := &Server{cfg: cfg, db: db, mailer: newMailer(cfg), limiter: newLimiter()}
+	go s.runNotifier(context.Background()) // in-app notifications and reminders always run; email only with SMTP
 	if s.mailer != nil {
-		go s.runNotifier(context.Background())
-		log.Printf("Email notifications on (SMTP %s:%s)", cfg.SMTPHost, cfg.SMTPPort)
+		log.Printf("Email on (SMTP %s:%s)", cfg.SMTPHost, cfg.SMTPPort)
 	} else {
-		log.Println("SMTP_HOST not set: email notifications are off")
+		log.Println("SMTP_HOST not set: email is off (verification, resets and notification emails)")
 	}
 	if cfg.EscrowAddress != "" && cfg.RPCURL != "" {
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

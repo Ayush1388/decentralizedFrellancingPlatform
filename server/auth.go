@@ -30,23 +30,31 @@ type User struct {
 	WalletAddress *string `json:"walletAddress"`
 	IsAdmin       bool    `json:"isAdmin"`
 	NotifyEmail   bool    `json:"notifyEmail"`
+	EmailVerified bool    `json:"emailVerified"`
+	HasPassword   bool    `json:"hasPassword"`
 }
 
 type authBody struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	AcceptTerms bool   `json:"acceptTerms"`
+	Captcha     string `json:"captcha"`
 }
 
 func (s *Server) issueToken(uid int64) (string, error) {
-	claims := jwt.MapClaims{"id": uid, "exp": time.Now().Add(24 * time.Hour).Unix()}
+	var v int
+	s.db.QueryRow(`SELECT token_version FROM users WHERE id = ?`, uid).Scan(&v)
+	// "v" is the account's token version: changing the password or logging out everywhere bumps it,
+	// which makes every older token stop working.
+	claims := jwt.MapClaims{"id": uid, "v": v, "exp": time.Now().Add(24 * time.Hour).Unix()}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(s.cfg.JWTSecret)
 }
 
 func (s *Server) userByID(id int64) (User, error) {
 	var u User
-	err := s.db.QueryRow(`SELECT id, name, email, wallet_address, notify_email FROM users WHERE id = ?`, id).
-		Scan(&u.ID, &u.Name, &u.Email, &u.WalletAddress, &u.NotifyEmail)
+	err := s.db.QueryRow(`SELECT id, name, email, wallet_address, notify_email, email_verified, password_hash IS NOT NULL FROM users WHERE id = ? AND deleted_at IS NULL`, id).
+		Scan(&u.ID, &u.Name, &u.Email, &u.WalletAddress, &u.NotifyEmail, &u.EmailVerified, &u.HasPassword)
 	if u.Email != nil {
 		u.IsAdmin = s.cfg.AdminEmails[strings.ToLower(*u.Email)]
 	}
@@ -84,6 +92,13 @@ func (s *Server) uidFromRequest(r *http.Request) int64 {
 		return 0
 	}
 	id, _ := claims["id"].(float64)
+	v, _ := claims["v"].(float64)
+	var cur int
+	var banned, gone bool
+	if s.db.QueryRow(`SELECT token_version, banned_at IS NOT NULL, deleted_at IS NOT NULL FROM users WHERE id = ?`, int64(id)).Scan(&cur, &banned, &gone) != nil ||
+		cur != int(v) || banned || gone {
+		return 0
+	}
 	return int64(id)
 }
 
@@ -116,12 +131,22 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Password must be 8 to 72 characters")
 		return
 	}
+	if !b.AcceptTerms {
+		writeErr(w, 400, "Accept the terms and privacy policy to create an account")
+		return
+	}
+	if !s.captchaOK(b.Captcha, clientIP(r)) {
+		writeErr(w, 400, "Please complete the human check")
+		return
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(b.Password), bcrypt.DefaultCost)
 	if err != nil {
 		writeErr(w, 500, "could not hash password")
 		return
 	}
-	id, err := insertID(s.db, `INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)`, b.Name, b.Email, string(hash))
+	// With email delivery on, the address must be confirmed before the account can post or apply.
+	id, err := insertID(s.db, `INSERT INTO users (name, email, password_hash, email_verified, terms_accepted_at) VALUES (?, ?, ?, ?, now())`,
+		b.Name, b.Email, string(hash), s.mailer == nil)
 	if err != nil {
 		if isUnique(err) {
 			writeErr(w, 409, "An account with this email already exists")
@@ -129,6 +154,9 @@ func (s *Server) handleSignup(w http.ResponseWriter, r *http.Request) {
 		}
 		writeErr(w, 500, "could not create account")
 		return
+	}
+	if s.mailer != nil {
+		s.sendVerification(id, b.Email)
 	}
 	s.respondWithSession(w, 201, id)
 }
@@ -139,12 +167,22 @@ func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "invalid request body")
 		return
 	}
+	email := strings.ToLower(strings.TrimSpace(b.Email))
+	// Slow down guessing against one account, whatever address the guesses come from.
+	if email != "" && !s.rateOK(w, "login-email", email, 8, 15*time.Minute) {
+		return
+	}
 	var id int64
 	var hash sql.NullString
-	err := s.db.QueryRow(`SELECT id, password_hash FROM users WHERE email = ?`, strings.ToLower(strings.TrimSpace(b.Email))).Scan(&id, &hash)
+	var banned, gone bool
+	err := s.db.QueryRow(`SELECT id, password_hash, banned_at IS NOT NULL, deleted_at IS NOT NULL FROM users WHERE email = ?`, email).Scan(&id, &hash, &banned, &gone)
 	// Same response for unknown email and wrong password so accounts cannot be enumerated.
-	if err != nil || !hash.Valid || bcrypt.CompareHashAndPassword([]byte(hash.String), []byte(b.Password)) != nil {
+	if err != nil || gone || !hash.Valid || bcrypt.CompareHashAndPassword([]byte(hash.String), []byte(b.Password)) != nil {
 		writeErr(w, 401, "Invalid email or password")
+		return
+	}
+	if banned {
+		writeErr(w, 403, "This account has been suspended. Contact support if you think that is a mistake.")
 		return
 	}
 	s.respondWithSession(w, 200, id)

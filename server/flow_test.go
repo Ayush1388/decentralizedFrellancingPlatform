@@ -239,9 +239,7 @@ func TestRevisionReviewPrivacyAndCancel(t *testing.T) {
 		t.Fatalf("status %v", out["status"])
 	}
 
-	// Review: client only, once, and it sets the profile rating.
-	code, out = e.call("POST", fmt.Sprintf("/api/jobs/%d/review", jobID), dev, map[string]any{"rating": 5})
-	e.mustOK(code, out, 403)
+	// Review: each side once, and the client's sets the freelancer's profile rating.
 	code, out = e.call("POST", fmt.Sprintf("/api/jobs/%d/review", jobID), client, map[string]any{"rating": 4, "comment": "Solid work."})
 	out = e.mustOK(code, out, 200)
 	code, _ = e.call("POST", fmt.Sprintf("/api/jobs/%d/review", jobID), client, map[string]any{"rating": 5})
@@ -250,7 +248,7 @@ func TestRevisionReviewPrivacyAndCancel(t *testing.T) {
 	}
 	var rating float64
 	e.srv.db.QueryRow(`SELECT rating FROM developers WHERE user_id = ?`, devID).Scan(&rating)
-	if rating != 4 || out["review"].(map[string]any)["rating"].(float64) != 4 {
+	if rating != 4 || out["reviews"].([]any)[0].(map[string]any)["rating"].(float64) != 4 {
 		t.Fatalf("rating = %v", rating)
 	}
 	if len(out["events"].([]any)) < 8 {

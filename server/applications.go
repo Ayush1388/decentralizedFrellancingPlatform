@@ -103,6 +103,9 @@ func (s *Server) handleApply(w http.ResponseWriter, r *http.Request, uid int64) 
 		writeErr(w, 400, err.Error())
 		return
 	}
+	if !s.mustBeVerified(w, uid) {
+		return
+	}
 	// The form arrives as multipart when a resume is attached, JSON otherwise.
 	var in struct {
 		Cover        string  `json:"cover"`
@@ -328,18 +331,44 @@ func (s *Server) appThreadAccess(w http.ResponseWriter, r *http.Request, uid int
 }
 
 func (s *Server) handleListAppMessages(w http.ResponseWriter, r *http.Request, uid int64) {
-	if appID, _, ok := s.appThreadAccess(w, r, uid); ok {
-		s.writeMessages(w, `m.application_id = ?`, appID)
+	appID, jobID, ok := s.appThreadAccess(w, r, uid)
+	if !ok {
+		return
 	}
+	msgs, err := s.loadMessages(`m.application_id = ?`, appID)
+	if err != nil {
+		writeErr(w, 500, "could not load messages")
+		return
+	}
+	if n := len(msgs); n > 0 {
+		s.markRead(uid, appScope(appID), msgs[n-1].ID)
+		s.db.Exec(`UPDATE notifications SET read_at = now() WHERE user_id = ? AND job_id = ? AND kind = 'message' AND read_at IS NULL`, uid, jobID)
+	}
+	writeJSON(w, 200, msgs)
 }
 
 func (s *Server) handlePostAppMessage(w http.ResponseWriter, r *http.Request, uid int64) {
-	if appID, jobID, ok := s.appThreadAccess(w, r, uid); ok {
-		s.postMessage(w, r, uid, jobID, appID)
+	appID, jobID, ok := s.appThreadAccess(w, r, uid)
+	if !ok {
+		return
 	}
+	_, applicant, client, _, _, _ := s.applicationAccess(appID)
+	other := client
+	if uid == client {
+		other = applicant
+	}
+	s.postMessage(w, r, uid, jobID, appID, other)
 }
 
-// handleReview lets the client rate the freelancer once a contract is complete.
+// paidOut is how much of a job's money reached the freelancer: released milestones, and rulings that gave them a share.
+func (s *Server) paidOut(jobID int64) int64 {
+	var paid int64
+	s.db.QueryRow(`SELECT COALESCE(SUM(amount), 0) FROM milestones WHERE job_id = ? AND (status = 'released' OR (status = 'resolved' AND freelancer_bps > 0))`, jobID).Scan(&paid)
+	return paid
+}
+
+// handleReview records a rating once a contract is finished. The client rates the freelancer and the
+// freelancer rates the client, once each. A job that ended in refunds has nothing to rate.
 func (s *Server) handleReview(w http.ResponseWriter, r *http.Request, uid int64) {
 	id, err := pathID(r, "id")
 	if err != nil {
@@ -366,12 +395,21 @@ func (s *Server) handleReview(w http.ResponseWriter, r *http.Request, uid int64)
 		writeErr(w, 404, "job not found")
 		return
 	}
+	kind, subject := "client_to_freelancer", freelancer.Int64
 	switch {
-	case client != uid:
-		writeErr(w, 403, "Only the client can review this work")
+	case uid == client:
+	case freelancer.Valid && uid == freelancer.Int64:
+		kind, subject = "freelancer_to_client", client
+	default:
+		writeErr(w, 403, "Only the client and the freelancer can review this job")
 		return
+	}
+	switch {
 	case status != "completed" || !freelancer.Valid:
 		writeErr(w, 409, "You can leave a review once the job is completed")
+		return
+	case s.paidOut(id) == 0:
+		writeErr(w, 409, "No payment was made on this job, so there is nothing to review")
 		return
 	}
 	tx, err := s.db.Begin()
@@ -380,7 +418,8 @@ func (s *Server) handleReview(w http.ResponseWriter, r *http.Request, uid int64)
 		return
 	}
 	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT INTO reviews (job_id, reviewer_id, freelancer_id, rating, comment) VALUES (?,?,?,?,?)`, id, uid, freelancer.Int64, b.Rating, b.Comment); err != nil {
+	if _, err := tx.Exec(`INSERT INTO reviews (job_id, reviewer_id, freelancer_id, subject_id, kind, rating, comment) VALUES (?,?,?,?,?,?,?)`,
+		id, uid, freelancer.Int64, subject, kind, b.Rating, b.Comment); err != nil {
 		if isUnique(err) {
 			writeErr(w, 409, "You already reviewed this job")
 			return
@@ -388,14 +427,65 @@ func (s *Server) handleReview(w http.ResponseWriter, r *http.Request, uid int64)
 		writeErr(w, 500, "could not save review")
 		return
 	}
-	// The profile rating is the average of every review the freelancer has received.
-	tx.Exec(`UPDATE developers SET rating = (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE freelancer_id = ?) WHERE user_id = ?`, freelancer.Int64, freelancer.Int64)
-	logEvent(tx, id, uid, "reviewed", strconv.Itoa(b.Rating)+" stars")
+	if kind == "client_to_freelancer" {
+		// The profile rating is the average of every review the freelancer has received.
+		tx.Exec(`UPDATE developers SET rating = (SELECT ROUND(AVG(rating)::numeric, 1) FROM reviews WHERE subject_id = ? AND kind = 'client_to_freelancer') WHERE user_id = ?`, subject, subject)
+	}
+	logEventTo(tx, id, uid, subject, "reviewed", strconv.Itoa(b.Rating)+" stars")
 	if err := tx.Commit(); err != nil {
 		writeErr(w, 500, "could not save review")
 		return
 	}
 	s.writeJobDetail(w, 200, id, uid)
+}
+
+// handleReviewReply lets the person who was reviewed answer once, publicly.
+func (s *Server) handleReviewReply(w http.ResponseWriter, r *http.Request, uid int64) {
+	id, err := pathID(r, "id")
+	if err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
+	var b struct {
+		Reply string `json:"reply"`
+	}
+	if decodeJSON(r, &b) != nil {
+		writeErr(w, 400, "invalid request body")
+		return
+	}
+	b.Reply = strings.TrimSpace(b.Reply)
+	if len(b.Reply) < 2 || len(b.Reply) > 500 {
+		writeErr(w, 400, "Write a reply of up to 500 characters")
+		return
+	}
+	var reviewer int64
+	err = s.db.QueryRow(`UPDATE reviews SET reply = ?, reply_at = now() WHERE job_id = ? AND subject_id = ? AND reply = '' RETURNING reviewer_id`, b.Reply, id, uid).Scan(&reviewer)
+	if err != nil {
+		writeErr(w, 409, "There is no review of you on this job to reply to, or you already replied")
+		return
+	}
+	if tx, err := s.db.Begin(); err == nil {
+		logEventTo(tx, id, uid, reviewer, "review_reply", "")
+		tx.Commit()
+	}
+	s.writeJobDetail(w, 200, id, uid)
+}
+
+func (s *Server) jobReviews(jobID int64) []Review {
+	rows, err := s.db.Query(`SELECT r.kind, r.rating, r.comment, r.reply, r.created_at, u.id, u.name FROM reviews r JOIN users u ON u.id = r.reviewer_id
+		WHERE r.job_id = ? ORDER BY r.id`, jobID)
+	out := []Review{}
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var v Review
+		if rows.Scan(&v.Kind, &v.Rating, &v.Comment, &v.Reply, &v.CreatedAt, &v.Reviewer.ID, &v.Reviewer.Name) == nil {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 type DisputeItem struct {

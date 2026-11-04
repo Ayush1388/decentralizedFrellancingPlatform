@@ -50,7 +50,8 @@ func newEnv(t *testing.T) *env_ {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	s := &Server{cfg: cfg, db: db}
+	cfg.NoRateLimit = true
+	s := &Server{cfg: cfg, db: db, limiter: newLimiter(), syncMail: true}
 	return &env_{t: t, srv: s, h: s.routes()}
 }
 
@@ -71,7 +72,7 @@ func (e *env_) call(method, path, token string, body any) (int, map[string]any) 
 }
 
 func (e *env_) signup(name, email string) (string, int64) {
-	code, out := e.call("POST", "/api/auth/signup", "", map[string]string{"name": name, "email": email, "password": "password123"})
+	code, out := e.call("POST", "/api/auth/signup", "", map[string]any{"name": name, "email": email, "password": "password123", "acceptTerms": true})
 	if code != 201 {
 		e.t.Fatalf("signup %s: %d %v", email, code, out)
 	}
@@ -231,7 +232,7 @@ func TestWalletSignIn(t *testing.T) {
 func TestAuthBasics(t *testing.T) {
 	e := newEnv(t)
 	e.signup("Alice", "a@x.io")
-	code, out := e.call("POST", "/api/auth/signup", "", map[string]string{"name": "Alice", "email": "a@x.io", "password": "password123"})
+	code, out := e.call("POST", "/api/auth/signup", "", map[string]any{"name": "Alice", "email": "a@x.io", "password": "password123", "acceptTerms": true})
 	e.mustOK(code, out, 409)
 	code, out = e.call("POST", "/api/auth/login", "", map[string]string{"email": "a@x.io", "password": "wrongpass"})
 	e.mustOK(code, out, 401)

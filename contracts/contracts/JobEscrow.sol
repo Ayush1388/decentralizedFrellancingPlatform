@@ -27,6 +27,10 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 ///  - The arbiter can only split a disputed milestone between the two parties.
 ///  - The fee and both waiting windows are copied into each escrow when it is created, so the
 ///    owner can never change the terms of work that is already under way.
+///  - A disputed milestone can never be frozen forever: if the arbiter has not ruled after DISPUTE_TIMEOUT,
+///    either party can settle it 50/50 with resolveStale().
+///  - The final split of every settled milestone is stored on-chain (freelancerBps), so any off-chain
+///    index can be rebuilt from the contract alone.
 ///  - A client can send work back for changes at most MAX_REVISIONS times per milestone; after
 ///    that the only ways forward are approve, claim (after silence) or dispute.
 contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
@@ -46,8 +50,10 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         uint128 amount;
         Status status;
         uint8 revisions; // how many times the client sent the work back
+        uint16 freelancerBps; // share of the amount the freelancer got: 10000 released, 0 refunded, the ruling when resolved
         uint64 fundedAt; // restarts when changes are requested, so the freelancer gets a fresh refund window
         uint64 submittedAt;
+        uint64 disputedAt;
         bytes32 deliverable; // keccak256 of the deliverable link the freelancer submitted
     }
 
@@ -65,6 +71,7 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
     uint32 public constant MAX_WINDOW = 90 days;
     uint256 public constant MAX_MILESTONES = 20;
     uint8 public constant MAX_REVISIONS = 3;
+    uint32 public constant DISPUTE_TIMEOUT = 30 days;
 
     IERC20 public immutable token;
 
@@ -235,6 +242,7 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         if (block.timestamp < availableAt) revert TooEarly(availableAt);
 
         m.status = Status.Refunded;
+        m.freelancerBps = 0;
         withdrawable[e.client] += m.amount;
         emit MilestoneRefunded(escrowId, index, m.amount);
     }
@@ -247,6 +255,7 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
         if (m.status != Status.Funded && m.status != Status.Submitted) revert BadStatus(m.status);
 
         m.status = Status.Disputed;
+        m.disputedAt = uint64(block.timestamp);
         emit MilestoneDisputed(escrowId, index, msg.sender);
     }
 
@@ -255,15 +264,19 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
     function resolve(uint256 escrowId, uint256 index, uint16 freelancerBps) external {
         if (msg.sender != arbiter) revert NotArbiter();
         if (freelancerBps > 10_000) revert InvalidParams();
+        _settle(escrowId, index, freelancerBps);
+    }
+
+    /// @notice If the arbiter has not ruled within DISPUTE_TIMEOUT, either party can split the milestone 50/50
+    /// (the fee still comes out of the freelancer's half). This keeps funds from being frozen by an absent arbiter.
+    function resolveStale(uint256 escrowId, uint256 index) external {
         Escrow storage e = _escrow(escrowId);
+        if (msg.sender != e.client && msg.sender != e.freelancer) revert NotParty();
         Milestone storage m = _milestoneAt(escrowId, index);
         if (m.status != Status.Disputed) revert BadStatus(m.status);
-
-        m.status = Status.Resolved;
-        uint128 freelancerShare = uint128((uint256(m.amount) * freelancerBps) / 10_000);
-        uint128 clientShare = m.amount - freelancerShare;
-        uint128 fee = _credit(e, freelancerShare, clientShare);
-        emit MilestoneResolved(escrowId, index, freelancerBps, freelancerShare - fee, clientShare, fee);
+        uint256 availableAt = uint256(m.disputedAt) + DISPUTE_TIMEOUT;
+        if (block.timestamp < availableAt) revert TooEarly(availableAt);
+        _settle(escrowId, index, 5_000);
     }
 
     /// @notice Pull whatever has been credited to the caller.
@@ -316,10 +329,24 @@ contract JobEscrow is Ownable2Step, Pausable, ReentrancyGuard {
 
     // -------------------------------------------------------------- internals
 
+    function _settle(uint256 escrowId, uint256 index, uint16 freelancerBps) private {
+        Escrow storage e = _escrow(escrowId);
+        Milestone storage m = _milestoneAt(escrowId, index);
+        if (m.status != Status.Disputed) revert BadStatus(m.status);
+
+        m.status = Status.Resolved;
+        m.freelancerBps = freelancerBps;
+        uint128 freelancerShare = uint128((uint256(m.amount) * freelancerBps) / 10_000);
+        uint128 clientShare = m.amount - freelancerShare;
+        uint128 fee = _credit(e, freelancerShare, clientShare);
+        emit MilestoneResolved(escrowId, index, freelancerBps, freelancerShare - fee, clientShare, fee);
+    }
+
     function _release(Escrow storage e, uint256 escrowId, uint256 index) private {
         Milestone storage m = _milestoneAt(escrowId, index);
         if (m.status != Status.Submitted) revert BadStatus(m.status);
         m.status = Status.Released;
+        m.freelancerBps = 10_000;
         uint128 fee = _credit(e, m.amount, 0);
         emit MilestoneReleased(escrowId, index, m.amount - fee, fee);
     }

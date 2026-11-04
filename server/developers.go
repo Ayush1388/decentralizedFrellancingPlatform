@@ -133,6 +133,9 @@ func parseProfile(r *http.Request) (profileInput, string) {
 }
 
 func (s *Server) handleCreateDeveloper(w http.ResponseWriter, r *http.Request, uid int64) {
+	if !s.mustBeVerified(w, uid) {
+		return
+	}
 	r.Body = http.MaxBytesReader(w, r.Body, 3<<20)
 	if err := r.ParseMultipartForm(3 << 20); err != nil {
 		writeErr(w, 400, "invalid form data")

@@ -66,6 +66,7 @@ func (s *Server) runNotifier(ctx context.Context) {
 			return
 		case <-t.C:
 			s.sendPending()
+			s.sendReminders()
 		}
 	}
 }
@@ -76,12 +77,9 @@ type pendingEvent struct {
 	actorName                                    string
 }
 
-// sendPending emails events from the last few hours that have not been handled yet.
-// Older ones are skipped so turning email on later does not flood people with history.
+// sendPending turns recent job events into notifications (in the app, and by email when SMTP is set).
+// Events older than a few hours are skipped so turning email on later does not flood people with history.
 func (s *Server) sendPending() {
-	if s.mailer == nil {
-		return
-	}
 	rows, err := s.db.Query(`SELECT e.id, e.job_id, COALESCE(e.actor_id, 0), COALESCE(e.target_id, 0), e.kind, e.detail, j.title,
 			j.client_id, COALESCE(j.freelancer_id, 0), COALESCE(a.name, '')
 		FROM job_events e JOIN jobs j ON j.id = e.job_id LEFT JOIN users a ON a.id = e.actor_id
@@ -103,59 +101,118 @@ func (s *Server) sendPending() {
 	for _, e := range evs {
 		// Mark first: a failed send is logged, never retried in a loop.
 		s.db.Exec(`UPDATE job_events SET notified_at = now() WHERE id = ?`, e.id)
-		subject, body, ok := composeEmail(e, s.cfg.FrontendURL)
+		subject, line, ok := composeEmail(e)
 		if !ok {
 			continue
 		}
-		for _, to := range s.recipients(e) {
-			if err := s.mailer.Send(to, subject, body); err != nil {
-				log.Printf("notify: could not email %s about event %d: %v", to, e.id, err)
-			}
+		for _, uid := range s.recipients(e) {
+			s.deliver(uid, e.jobID, e.kind, subject, line)
+		}
+		if e.kind == "disputed" {
+			s.emailAdminsWithoutAccount(e.jobID, subject, line)
 		}
 	}
 }
 
-// recipients lists the email addresses that should hear about an event, never the person who caused it.
-func (s *Server) recipients(e pendingEvent) []string {
+// emailAdminsWithoutAccount reaches arbiter addresses from ADMIN_EMAILS that have not signed up yet.
+func (s *Server) emailAdminsWithoutAccount(jobID int64, subject, line string) {
+	if s.mailer == nil {
+		return
+	}
+	for addr := range s.cfg.AdminEmails {
+		var n int
+		s.db.QueryRow(`SELECT COUNT(*) FROM users WHERE email = ? AND deleted_at IS NULL`, addr).Scan(&n)
+		if n == 0 {
+			s.sendMail(addr, subject, line+"\n\n"+s.link(fmt.Sprintf("/jobs/%d", jobID)))
+		}
+	}
+}
+
+// deliver records an in-app notification and emails the person if they have email on.
+func (s *Server) deliver(uid, jobID int64, kind, subject, line string) {
+	var j any
+	if jobID != 0 {
+		j = jobID
+	}
+	s.db.Exec(`INSERT INTO notifications (user_id, job_id, kind, title, body) VALUES (?,?,?,?,?)`, uid, j, kind, subject, line)
+	s.emailUser(uid, jobID, subject, line)
+}
+
+// emailUser sends a notification email if the server can, and the person has an address and has not opted out.
+func (s *Server) emailUser(uid, jobID int64, subject, line string) {
+	if s.mailer == nil {
+		return
+	}
+	var email sql.NullString
+	var on bool
+	if s.db.QueryRow(`SELECT email, notify_email FROM users WHERE id = ? AND deleted_at IS NULL AND banned_at IS NULL`, uid).Scan(&email, &on) != nil || !email.Valid || !on {
+		return
+	}
+	path := "/dashboard"
+	if jobID != 0 {
+		path = fmt.Sprintf("/jobs/%d", jobID)
+	}
+	s.sendMail(email.String, subject, line+"\n\n"+s.link(path)+"\n\nYou get these emails because you have an account on Blockchain Freelance. Turn them off from your dashboard.")
+}
+
+// recipients lists the people who should hear about an event, never the person who caused it.
+func (s *Server) recipients(e pendingEvent) []int64 {
 	var ids []int64
 	switch e.kind {
 	case "applied", "withdrew", "submitted":
 		ids = []int64{e.client}
-	case "shortlisted", "declined", "hired":
+	case "shortlisted", "declined", "hired", "review_reply":
 		ids = []int64{e.target}
-	case "funded", "changes_requested", "approved", "refunded", "reviewed":
+	case "reviewed":
+		if e.target != 0 {
+			ids = []int64{e.target}
+		} else {
+			ids = []int64{e.freelancer}
+		}
+	case "funded", "changes_requested", "approved", "refunded", "scope_changed", "followup":
 		ids = []int64{e.freelancer}
 	case "claimed":
 		ids = []int64{e.client}
 	case "disputed", "resolved":
 		ids = []int64{e.client, e.freelancer}
-	}
-	var out []string
-	seen := map[string]bool{}
-	for _, id := range ids {
-		if id == 0 || id == e.actor {
-			continue
-		}
-		var email sql.NullString
-		var on bool
-		if s.db.QueryRow(`SELECT email, notify_email FROM users WHERE id = ?`, id).Scan(&email, &on) == nil && email.Valid && on && !seen[email.String] {
-			seen[email.String] = true
-			out = append(out, email.String)
-		}
-	}
-	if e.kind == "disputed" { // the arbiter always needs to know, whatever their personal setting
-		for addr := range s.cfg.AdminEmails {
-			if !seen[addr] {
-				seen[addr] = true
-				out = append(out, addr)
+	case "edited":
+		rows, err := s.db.Query(`SELECT user_id FROM applications WHERE job_id = ? AND status IN ('pending','shortlisted')`, e.jobID)
+		if err == nil {
+			for rows.Next() {
+				var id int64
+				rows.Scan(&id)
+				ids = append(ids, id)
 			}
+			rows.Close()
+		}
+	}
+	if e.kind == "disputed" { // the arbiter always needs to know
+		ids = append(ids, s.adminIDs()...)
+	}
+	var out []int64
+	seen := map[int64]bool{}
+	for _, id := range ids {
+		if id != 0 && id != e.actor && !seen[id] {
+			seen[id] = true
+			out = append(out, id)
 		}
 	}
 	return out
 }
 
-// composeEmail writes the subject and body for an event. ok is false for events nobody needs an email about.
-func composeEmail(e pendingEvent, base string) (subject, body string, ok bool) {
+func (s *Server) adminIDs() []int64 {
+	var ids []int64
+	for addr := range s.cfg.AdminEmails {
+		var id int64
+		if s.db.QueryRow(`SELECT id FROM users WHERE email = ? AND deleted_at IS NULL`, addr).Scan(&id) == nil {
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+// composeEmail writes the subject and the one-line message for an event. ok is false for events nobody needs to hear about.
+func composeEmail(e pendingEvent) (subject, line string, ok bool) {
 	who := e.actorName
 	if who == "" {
 		who = "Someone"
@@ -168,7 +225,6 @@ func composeEmail(e pendingEvent, base string) (subject, body string, ok bool) {
 	if i := strings.Index(item, ": "); i >= 0 {
 		item = item[:i]
 	}
-	var line string
 	switch e.kind {
 	case "applied":
 		subject, line = "New application: "+e.title, e.detail+" applied to \""+e.title+"\". Review their quote, resume and links."
@@ -195,11 +251,19 @@ func composeEmail(e pendingEvent, base string) (subject, body string, ok bool) {
 	case "disputed":
 		subject, line = "Dispute opened: "+item, who+" opened a dispute on \""+item+"\" on \""+e.title+"\". The funds are frozen until the arbiter rules."+note
 	case "resolved":
-		subject, line = "Dispute resolved: "+item, "The arbiter ruled on \""+item+"\" on \""+e.title+"\". Open the job for the result."
+		subject, line = "Dispute resolved: "+item, "The dispute on \""+item+"\" on \""+e.title+"\" is settled. Open the job for the result."
 	case "reviewed":
 		subject, line = "You received a review: "+e.title, who+" left you a "+e.detail+" review on \""+e.title+"\"."
+	case "review_reply":
+		subject, line = "Reply to your review: "+e.title, who+" replied to your review on \""+e.title+"\"."
+	case "edited":
+		subject, line = "Job updated: "+e.title, who+" changed the posting for \""+e.title+"\" you applied to. Take a look before they decide."
+	case "scope_changed":
+		subject, line = "Milestones changed: "+e.title, who+" changed the milestones and amounts on \""+e.title+"\" before any funding."
+	case "followup":
+		subject, line = "New work offered: "+e.title, who+" added a follow-up contract with you: \""+e.title+"\"."
 	default:
 		return "", "", false
 	}
-	return subject, fmt.Sprintf("%s\n\n%s/jobs/%d\n\nYou get these emails because you have an account on Blockchain Freelance. Turn them off from your dashboard.", line, strings.TrimRight(base, "/"), e.jobID), true
+	return subject, line, true
 }

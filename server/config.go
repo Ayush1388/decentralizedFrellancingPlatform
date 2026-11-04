@@ -30,6 +30,9 @@ type Config struct {
 	SMTPUser           string
 	SMTPPass           string
 	SMTPFrom           string
+	TurnstileSecret    string // Cloudflare Turnstile; empty turns the human check off
+	TurnstileSiteKey   string
+	NoRateLimit        bool // tests only
 }
 
 // loadDotEnv reads KEY=VALUE lines from path into the process environment
@@ -111,5 +114,7 @@ func loadConfig() Config {
 		SMTPUser:           os.Getenv("SMTP_USER"),
 		SMTPPass:           os.Getenv("SMTP_PASS"),
 		SMTPFrom:           env("SMTP_FROM", os.Getenv("SMTP_USER")),
+		TurnstileSecret:    os.Getenv("TURNSTILE_SECRET"),
+		TurnstileSiteKey:   os.Getenv("TURNSTILE_SITE_KEY"),
 	}
 }

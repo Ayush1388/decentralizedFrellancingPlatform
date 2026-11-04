@@ -125,7 +125,7 @@ try {
   await wait(usdc(arbiterSigner).mint(await clientSigner.getAddress(), USDC(10_000)));
 
   async function signup(name, email, signer) {
-    const s = await ok("POST", "/api/auth/signup", null, { name, email, password: "password123" });
+    const s = await ok("POST", "/api/auth/signup", null, { name, email, password: "password123", acceptTerms: true });
     const address = await signer.getAddress();
     const { message } = await ok("GET", `/api/auth/wallet/nonce?address=${address}`);
     const signature = await signer.signMessage(message);

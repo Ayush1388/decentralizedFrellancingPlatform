@@ -3,7 +3,7 @@ package main
 import (
 	"database/sql"
 	"errors"
-	"math"
+	"fmt"
 	"net/http"
 	"regexp"
 	"strings"
@@ -14,6 +14,9 @@ const usdcUnit = 1_000_000 // USDC has 6 decimals
 
 // maxRevisions mirrors JobEscrow.MAX_REVISIONS.
 const maxRevisions = 3
+
+// disputeDays mirrors JobEscrow.DISPUTE_TIMEOUT: after this long either party may settle a dispute 50/50.
+const disputeDays = 30
 
 type Party struct {
 	ID   int64  `json:"id"`
@@ -38,6 +41,8 @@ type Milestone struct {
 	FreelancerBps  *int    `json:"freelancerBps"`
 	ClaimableAt    *string `json:"claimableAt"`  // freelancer may claim after this if the client stays silent
 	RefundableAt   *string `json:"refundableAt"` // client may reclaim after this if nothing was submitted
+	DisputedAt     *string `json:"disputedAt"`
+	SettleAt       *string `json:"settleAt"` // either party may settle a stale dispute 50/50 from this time
 }
 
 type JobSummary struct {
@@ -57,6 +62,7 @@ type JobSummary struct {
 	ClosesAt    *string  `json:"closesAt"`
 	Duration    string   `json:"duration"`
 	Level       string   `json:"level"`
+	Category    string   `json:"category"`
 	ParentID    *int64   `json:"parentId"`
 }
 
@@ -73,10 +79,14 @@ type Event struct {
 	CreatedAt string `json:"createdAt"`
 }
 
+// Review is one rating on a finished job. Kind says who wrote it: client_to_freelancer or freelancer_to_client.
 type Review struct {
+	Kind      string `json:"kind"`
 	Rating    int    `json:"rating"`
 	Comment   string `json:"comment"`
+	Reply     string `json:"reply"`
 	CreatedAt string `json:"createdAt"`
+	Reviewer  Party  `json:"reviewer"`
 }
 
 type JobDetail struct {
@@ -87,7 +97,10 @@ type JobDetail struct {
 	MyApplication    *Application  `json:"myApplication,omitempty"`
 	Contracts        []Contract    `json:"contracts,omitempty"`
 	Events           []Event       `json:"events,omitempty"`
-	Review           *Review       `json:"review"`
+	Reviews          []Review      `json:"reviews"`
+	Attachments      []Attachment  `json:"attachments,omitempty"`
+	ClientRating     float64       `json:"clientRating"`
+	ClientReviews    int           `json:"clientReviews"`
 	ParentTitle      string        `json:"parentTitle,omitempty"`
 	EscrowID         *int64        `json:"escrowId"`
 	ClientWallet     *string       `json:"clientWallet,omitempty"`
@@ -104,7 +117,7 @@ SELECT j.id, j.title, j.description, j.skills, j.status, j.created_at,
        (SELECT COUNT(*) FROM applications WHERE job_id = j.id),
        c.is_demo, j.openings,
        (SELECT COUNT(*) FROM applications WHERE job_id = j.id AND status = 'accepted'),
-       j.closes_at, j.duration, j.level, j.parent_id
+       j.closes_at, j.duration, j.level, j.parent_id, j.category
 FROM jobs j
 JOIN users c ON c.id = j.client_id
 LEFT JOIN users f ON f.id = j.freelancer_id`
@@ -116,7 +129,7 @@ func scanJob(r rowScanner) (JobSummary, error) {
 	var fname sql.NullString
 	err := r.Scan(&j.ID, &j.Title, &j.Description, &skills, &j.Status, &j.CreatedAt,
 		&j.Client.ID, &j.Client.Name, &fid, &fname, &j.Total, &j.Applicants,
-		&j.Demo, &j.Openings, &j.Hired, &j.ClosesAt, &j.Duration, &j.Level, &j.ParentID)
+		&j.Demo, &j.Openings, &j.Hired, &j.ClosesAt, &j.Duration, &j.Level, &j.ParentID, &j.Category)
 	j.Skills = parseSkills(skills)
 	if fid.Valid {
 		j.Freelancer = &Party{ID: fid.Int64, Name: fname.String}
@@ -134,29 +147,6 @@ func acceptingApplications(status string, closesAt *string) bool {
 	}
 	t, err := time.Parse(time.RFC3339, *closesAt)
 	return err != nil || time.Now().Before(t)
-}
-
-func (s *Server) handleListJobs(w http.ResponseWriter, r *http.Request) {
-	q := jobSelect
-	var where []string
-	var args []any
-	if st := r.URL.Query().Get("status"); st != "" {
-		where = append(where, "j.status = ?")
-		args = append(args, st)
-		if st == "open" { // the public board only lists postings that still take applications
-			where = append(where, "(j.closes_at IS NULL OR j.closes_at > now())")
-		}
-	}
-	if term := strings.TrimSpace(r.URL.Query().Get("q")); term != "" {
-		like := "%" + term + "%"
-		where = append(where, "(j.title ILIKE ? OR j.description ILIKE ? OR j.skills::text ILIKE ?)")
-		args = append(args, like, like, like)
-	}
-	if len(where) > 0 {
-		q += " WHERE " + strings.Join(where, " AND ")
-	}
-	q += " ORDER BY j.created_at DESC, j.id DESC LIMIT 100"
-	s.writeJobList(w, q, args...)
 }
 
 func (s *Server) handleMyJobs(w http.ResponseWriter, r *http.Request, uid int64) {
@@ -183,102 +173,6 @@ func (s *Server) writeJobList(w http.ResponseWriter, q string, args ...any) {
 	writeJSON(w, 200, out)
 }
 
-type milestoneInput struct {
-	Title  string  `json:"title"`
-	Amount float64 `json:"amount"` // USDC
-}
-
-var (
-	durations = map[string]bool{"": true, "Less than a week": true, "1 to 4 weeks": true, "1 to 3 months": true, "More than 3 months": true}
-	levels    = map[string]bool{"": true, "Entry": true, "Intermediate": true, "Expert": true}
-)
-
-func (s *Server) handleCreateJob(w http.ResponseWriter, r *http.Request, uid int64) {
-	var b struct {
-		Title       string           `json:"title"`
-		Description string           `json:"description"`
-		Skills      []string         `json:"skills"`
-		Milestones  []milestoneInput `json:"milestones"`
-		Openings    int              `json:"openings"`
-		OpenDays    int              `json:"openDays"` // how long applications stay open
-		Duration    string           `json:"duration"`
-		Level       string           `json:"level"`
-	}
-	if decodeJSON(r, &b) != nil {
-		writeErr(w, 400, "invalid request body")
-		return
-	}
-	b.Title, b.Description = strings.TrimSpace(b.Title), strings.TrimSpace(b.Description)
-	if b.Openings == 0 {
-		b.Openings = 1
-	}
-	if b.OpenDays == 0 {
-		b.OpenDays = 14
-	}
-	switch {
-	case len(b.Title) < 5 || len(b.Title) > 120:
-		writeErr(w, 400, "Title must be 5 to 120 characters")
-		return
-	case len(b.Description) < 20 || len(b.Description) > 5000:
-		writeErr(w, 400, "Description must be 20 to 5000 characters")
-		return
-	case len(b.Milestones) < 1 || len(b.Milestones) > 10:
-		writeErr(w, 400, "Add between 1 and 10 milestones")
-		return
-	case b.Openings < 1 || b.Openings > 20:
-		writeErr(w, 400, "Openings must be between 1 and 20")
-		return
-	case b.OpenDays < 1 || b.OpenDays > 60:
-		writeErr(w, 400, "Applications can stay open for 1 to 60 days")
-		return
-	case !durations[b.Duration]:
-		writeErr(w, 400, "Pick one of the listed durations")
-		return
-	case !levels[b.Level]:
-		writeErr(w, 400, "Pick one of the listed experience levels")
-		return
-	}
-	amounts := make([]int64, len(b.Milestones))
-	for i, m := range b.Milestones {
-		m.Title = strings.TrimSpace(m.Title)
-		b.Milestones[i].Title = m.Title
-		if m.Title == "" || len(m.Title) > 100 {
-			writeErr(w, 400, "Every milestone needs a title under 100 characters")
-			return
-		}
-		if math.IsNaN(m.Amount) || m.Amount < 1 || m.Amount > 1_000_000 {
-			writeErr(w, 400, "Milestone amounts must be between 1 and 1,000,000 USDC")
-			return
-		}
-		amounts[i] = int64(math.Round(m.Amount * usdcUnit))
-	}
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		writeErr(w, 500, "could not create job")
-		return
-	}
-	defer tx.Rollback()
-	jobID, err := insertID(tx, `INSERT INTO jobs (client_id, title, description, skills, openings, closes_at, duration, level) VALUES (?,?,?,?::jsonb,?,?,?,?)`,
-		uid, b.Title, b.Description, skillsJSON(b.Skills), b.Openings, now().AddDate(0, 0, b.OpenDays), b.Duration, b.Level)
-	if err != nil {
-		writeErr(w, 500, "could not create job")
-		return
-	}
-	for i, m := range b.Milestones {
-		if _, err := tx.Exec(`INSERT INTO milestones (job_id, position, title, amount) VALUES (?,?,?,?)`, jobID, i+1, m.Title, amounts[i]); err != nil {
-			writeErr(w, 500, "could not create milestones")
-			return
-		}
-	}
-	logEvent(tx, jobID, uid, "posted", "")
-	if err := tx.Commit(); err != nil {
-		writeErr(w, 500, "could not create job")
-		return
-	}
-	s.writeJobDetail(w, 201, jobID, uid)
-}
-
 func (s *Server) handleGetJob(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r, "id")
 	if err != nil {
@@ -293,6 +187,9 @@ func (s *Server) loadJobDetail(id, viewer int64) (JobDetail, error) {
 	js, err := scanJob(s.db.QueryRow(jobSelect+" WHERE j.id = ?", id))
 	if err != nil {
 		return d, err
+	}
+	if js.Status == "draft" && viewer != js.Client.ID {
+		return d, sql.ErrNoRows // drafts are private to their author
 	}
 	d.JobSummary = js
 	d.FeeBps, d.ClaimDays, d.RefundDays = s.cfg.FeeBps, s.cfg.ClaimAfterDays, s.cfg.RefundAfterDays
@@ -310,7 +207,7 @@ func (s *Server) loadJobDetail(id, viewer int64) (JobDetail, error) {
 	insider := participant || (viewer != 0 && s.isAdminUser(viewer))
 
 	rows, err := s.db.Query(`SELECT id, position, title, amount, status, deliverable_url, submission_note, feedback, dispute_reason, revisions,
-		fund_tx, release_tx, funded_at, submitted_at, freelancer_bps
+		fund_tx, release_tx, funded_at, submitted_at, freelancer_bps, disputed_at
 		FROM milestones WHERE job_id = ? ORDER BY position`, id)
 	if err != nil {
 		return d, err
@@ -318,7 +215,7 @@ func (s *Server) loadJobDetail(id, viewer int64) (JobDetail, error) {
 	for rows.Next() {
 		var m Milestone
 		if err := rows.Scan(&m.ID, &m.Position, &m.Title, &m.Amount, &m.Status, &m.DeliverableURL, &m.SubmissionNote, &m.Feedback, &m.DisputeReason, &m.Revisions,
-			&m.FundTx, &m.ReleaseTx, &m.FundedAt, &m.SubmittedAt, &m.FreelancerBps); err != nil {
+			&m.FundTx, &m.ReleaseTx, &m.FundedAt, &m.SubmittedAt, &m.FreelancerBps, &m.DisputedAt); err != nil {
 			rows.Close()
 			return d, err
 		}
@@ -327,6 +224,9 @@ func (s *Server) loadJobDetail(id, viewer int64) (JobDetail, error) {
 		}
 		if m.Status == "funded" && m.FundedAt != nil {
 			m.RefundableAt = addDays(*m.FundedAt, s.cfg.RefundAfterDays)
+		}
+		if m.Status == "disputed" && m.DisputedAt != nil {
+			m.SettleAt = addDays(*m.DisputedAt, disputeDays)
 		}
 		if !insider { // the work itself and the conversation about it stay between the two parties
 			m.DeliverableURL, m.SubmissionNote, m.Feedback, m.DisputeReason = nil, "", "", ""
@@ -393,9 +293,11 @@ func (s *Server) loadJobDetail(id, viewer int64) (JobDetail, error) {
 		erow.Close()
 	}
 
-	var rv Review
-	if s.db.QueryRow(`SELECT rating, comment, created_at FROM reviews WHERE job_id = ?`, id).Scan(&rv.Rating, &rv.Comment, &rv.CreatedAt) == nil {
-		d.Review = &rv
+	d.Reviews = s.jobReviews(id)
+	s.db.QueryRow(`SELECT COALESCE(ROUND(AVG(rating)::numeric, 1), 0), COUNT(*) FROM reviews WHERE subject_id = ? AND kind = 'freelancer_to_client'`, d.Client.ID).
+		Scan(&d.ClientRating, &d.ClientReviews)
+	if viewer != 0 {
+		d.Attachments = s.jobAttachments(id)
 	}
 	return d, nil
 }
@@ -451,6 +353,7 @@ func (s *Server) handleHire(w http.ResponseWriter, r *http.Request, uid int64) {
 	}
 	var b struct {
 		ApplicationID int64 `json:"applicationId"`
+		UseQuote      bool  `json:"useQuote"` // hire at the applicant's quote instead of the posted budget
 	}
 	if decodeJSON(r, &b) != nil || b.ApplicationID == 0 {
 		writeErr(w, 400, "applicationId is required")
@@ -484,8 +387,10 @@ func (s *Server) handleHire(w http.ResponseWriter, r *http.Request, uid int64) {
 	}
 	var dev int64
 	var appStatus, devName string
-	if err := tx.QueryRow(`SELECT a.user_id, a.status, u.name FROM applications a JOIN users u ON u.id = a.user_id WHERE a.id = ? AND a.job_id = ?`, b.ApplicationID, id).
-		Scan(&dev, &appStatus, &devName); err != nil {
+	var bid sql.NullInt64
+	var devDemo bool
+	if err := tx.QueryRow(`SELECT a.user_id, a.status, u.name, a.bid, u.is_demo FROM applications a JOIN users u ON u.id = a.user_id WHERE a.id = ? AND a.job_id = ?`, b.ApplicationID, id).
+		Scan(&dev, &appStatus, &devName, &bid, &devDemo); err != nil {
 		writeErr(w, 404, "application not found")
 		return
 	}
@@ -493,11 +398,19 @@ func (s *Server) handleHire(w http.ResponseWriter, r *http.Request, uid int64) {
 		writeErr(w, 409, "This application is "+appStatus+", so it cannot be hired")
 		return
 	}
+	if b.UseQuote && !bid.Valid {
+		writeErr(w, 400, "This applicant did not send a quote")
+		return
+	}
 	if s.chainInfo != nil {
 		var wallet sql.NullString
 		tx.QueryRow(`SELECT wallet_address FROM users WHERE id = ?`, dev).Scan(&wallet)
+		if devDemo {
+			writeErr(w, 409, "This is a demo developer and cannot receive real payments. Create your own freelancer account to try a paid contract.")
+			return
+		}
 		if !wallet.Valid {
-			writeErr(w, 409, "This applicant has not linked a wallet yet, so they cannot be paid on-chain")
+			writeErr(w, 409, "This applicant has not linked a wallet yet, so they cannot be paid on-chain. Ask them to link one on the Box office page.")
 			return
 		}
 	}
@@ -507,6 +420,12 @@ func (s *Server) handleHire(w http.ResponseWriter, r *http.Request, uid int64) {
 	if openings <= 1 {
 		tx.Exec(`UPDATE applications SET status = 'declined' WHERE job_id = ? AND status IN ('pending','shortlisted')`, id)
 		tx.Exec(`UPDATE jobs SET freelancer_id = ?, status = 'in_progress' WHERE id = ?`, dev, id)
+		if b.UseQuote {
+			if err := scaleMilestones(tx, id, bid.Int64); err != nil {
+				writeErr(w, 409, err.Error())
+				return
+			}
+		}
 	} else {
 		cid, err := insertID(tx, `INSERT INTO jobs (client_id, freelancer_id, title, description, skills, status, openings, duration, level, parent_id)
 			VALUES (?,?,?,?,?::jsonb,'in_progress',1,?,?,?)`, uid, dev, title, desc, skills, dur, level, id)
@@ -517,6 +436,12 @@ func (s *Server) handleHire(w http.ResponseWriter, r *http.Request, uid int64) {
 		if _, err := tx.Exec(`INSERT INTO milestones (job_id, position, title, amount) SELECT ?, position, title, amount FROM milestones WHERE job_id = ? ORDER BY position`, cid, id); err != nil {
 			writeErr(w, 500, "could not create the contract")
 			return
+		}
+		if b.UseQuote {
+			if err := scaleMilestones(tx, cid, bid.Int64); err != nil {
+				writeErr(w, 409, err.Error())
+				return
+			}
 		}
 		logEvent(tx, cid, uid, "hired", devName)
 		var hired int
@@ -560,7 +485,7 @@ func (s *Server) handleCancelJob(w http.ResponseWriter, r *http.Request, uid int
 	var touched int
 	tx.QueryRow(`SELECT COUNT(*) FROM milestones WHERE job_id = ? AND status <> 'pending'`, id).Scan(&touched)
 	switch {
-	case status == "open" || status == "filled":
+	case status == "draft" || status == "open" || status == "filled":
 	case status == "in_progress" && touched == 0:
 	case status == "in_progress":
 		writeErr(w, 409, "Money has already moved on this job. Finish, refund or dispute the funded milestones instead.")
@@ -651,10 +576,11 @@ func (s *Server) handleMilestoneAction(w http.ResponseWriter, r *http.Request, u
 		freelancerID    sql.NullInt64
 		status, title   string
 		fundedAt, subAt sql.NullString
+		disputedAt      sql.NullString
 	)
-	err = tx.QueryRow(`SELECT m.job_id, m.status, m.title, m.funded_at, m.submitted_at, j.client_id, j.freelancer_id
+	err = tx.QueryRow(`SELECT m.job_id, m.status, m.title, m.funded_at, m.submitted_at, m.disputed_at, j.client_id, j.freelancer_id
 		FROM milestones m JOIN jobs j ON j.id = m.job_id WHERE m.id = ? FOR UPDATE OF m`, id).
-		Scan(&jobID, &status, &title, &fundedAt, &subAt, &clientID, &freelancerID)
+		Scan(&jobID, &status, &title, &fundedAt, &subAt, &disputedAt, &clientID, &freelancerID)
 	if err != nil {
 		writeErr(w, 404, "milestone not found")
 		return
@@ -766,8 +692,22 @@ func (s *Server) handleMilestoneAction(w http.ResponseWriter, r *http.Request, u
 			wrongState()
 			return
 		}
-		_, execErr = tx.Exec(`UPDATE milestones SET status='disputed', dispute_reason=? WHERE id=?`, b.Reason, id)
+		_, execErr = tx.Exec(`UPDATE milestones SET status='disputed', dispute_reason=?, disputed_at=? WHERE id=?`, b.Reason, now(), id)
 		detail = title + ": " + b.Reason
+	case "resolve-stale":
+		if !isClient && !isFreelancer {
+			deny(403, "Only the client or freelancer can settle a stale dispute")
+			return
+		}
+		if status != "disputed" {
+			wrongState()
+			return
+		}
+		if !elapsed(disputedAt, disputeDays) {
+			deny(409, fmt.Sprintf("The arbiter has %d days to rule before you can settle this 50/50", disputeDays))
+			return
+		}
+		_, execErr = tx.Exec(`UPDATE milestones SET status='resolved', resolved_at=?, freelancer_bps=5000 WHERE id=?`, now(), id)
 	case "resolve":
 		// Read inside the transaction: the pool has a single connection, so s.db would deadlock here.
 		var email sql.NullString
@@ -806,90 +746,5 @@ func (s *Server) handleMilestoneAction(w http.ResponseWriter, r *http.Request, u
 
 var eventKind = map[string]string{
 	"fund": "funded", "submit": "submitted", "revise": "changes_requested", "approve": "approved",
-	"claim": "claimed", "refund": "refunded", "dispute": "disputed", "resolve": "resolved",
-}
-
-// ---------- Job chat (client and hired freelancer) ----------
-
-type Message struct {
-	ID        int64  `json:"id"`
-	Sender    Party  `json:"sender"`
-	Body      string `json:"body"`
-	CreatedAt string `json:"createdAt"`
-}
-
-func (s *Server) isParticipant(jobID, uid int64) bool {
-	var n int
-	s.db.QueryRow(`SELECT COUNT(*) FROM jobs WHERE id = ? AND (client_id = ? OR freelancer_id = ?)`, jobID, uid, uid).Scan(&n)
-	return n > 0
-}
-
-func (s *Server) handleListMessages(w http.ResponseWriter, r *http.Request, uid int64) {
-	id, err := pathID(r, "id")
-	if err != nil {
-		writeErr(w, 400, err.Error())
-		return
-	}
-	if !s.isParticipant(id, uid) {
-		writeErr(w, 403, "Only the client and hired freelancer can read this chat")
-		return
-	}
-	s.writeMessages(w, `m.job_id = ? AND m.application_id IS NULL`, id)
-}
-
-func (s *Server) writeMessages(w http.ResponseWriter, where string, args ...any) {
-	rows, err := s.db.Query(`SELECT m.id, m.sender_id, u.name, m.body, m.created_at FROM messages m
-		JOIN users u ON u.id = m.sender_id WHERE `+where+` ORDER BY m.id`, args...)
-	if err != nil {
-		writeErr(w, 500, "could not load messages")
-		return
-	}
-	defer rows.Close()
-	out := []Message{}
-	for rows.Next() {
-		var m Message
-		if err := rows.Scan(&m.ID, &m.Sender.ID, &m.Sender.Name, &m.Body, &m.CreatedAt); err != nil {
-			writeErr(w, 500, "could not load messages")
-			return
-		}
-		out = append(out, m)
-	}
-	writeJSON(w, 200, out)
-}
-
-func (s *Server) handlePostMessage(w http.ResponseWriter, r *http.Request, uid int64) {
-	id, err := pathID(r, "id")
-	if err != nil {
-		writeErr(w, 400, err.Error())
-		return
-	}
-	if !s.isParticipant(id, uid) {
-		writeErr(w, 403, "Only the client and hired freelancer can post here")
-		return
-	}
-	s.postMessage(w, r, uid, id, nil)
-}
-
-func (s *Server) postMessage(w http.ResponseWriter, r *http.Request, uid, jobID int64, appID any) {
-	var b struct {
-		Body string `json:"body"`
-	}
-	if decodeJSON(r, &b) != nil {
-		writeErr(w, 400, "invalid request body")
-		return
-	}
-	b.Body = strings.TrimSpace(b.Body)
-	if b.Body == "" || len(b.Body) > 2000 {
-		writeErr(w, 400, "Message must be 1 to 2000 characters")
-		return
-	}
-	mid, err := insertID(s.db, `INSERT INTO messages (job_id, sender_id, body, application_id) VALUES (?,?,?,?)`, jobID, uid, b.Body, appID)
-	if err != nil {
-		writeErr(w, 500, "could not send message")
-		return
-	}
-	var m Message
-	s.db.QueryRow(`SELECT m.id, m.sender_id, u.name, m.body, m.created_at FROM messages m JOIN users u ON u.id = m.sender_id WHERE m.id = ?`, mid).
-		Scan(&m.ID, &m.Sender.ID, &m.Sender.Name, &m.Body, &m.CreatedAt)
-	writeJSON(w, 201, m)
+	"claim": "claimed", "refund": "refunded", "dispute": "disputed", "resolve": "resolved", "resolve-stale": "resolved",
 }

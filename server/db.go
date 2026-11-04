@@ -156,6 +156,95 @@ CREATE INDEX IF NOT EXISTS idx_events_job ON job_events(job_id, id);
 CREATE INDEX IF NOT EXISTS idx_events_unsent ON job_events(id) WHERE notified_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(application_id, id);
 CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_id);
+
+-- ---- accounts ----
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS banned_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS ban_reason TEXT NOT NULL DEFAULT '';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS email_tokens (
+	token_hash TEXT PRIMARY KEY,
+	user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind       TEXT NOT NULL CHECK (kind IN ('verify','reset')),
+	expires_at TIMESTAMPTZ NOT NULL,
+	used_at    TIMESTAMPTZ
+);
+
+-- ---- files: attachments on messages, files on job briefs ----
+ALTER TABLE files DROP CONSTRAINT IF EXISTS files_kind_check;
+ALTER TABLE files ADD CONSTRAINT files_kind_check CHECK (kind IN ('avatar','resume','attachment','brief'));
+ALTER TABLE files ADD COLUMN IF NOT EXISTS size INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS message_id BIGINT REFERENCES messages(id) ON DELETE CASCADE;
+ALTER TABLE files ADD COLUMN IF NOT EXISTS job_id BIGINT REFERENCES jobs(id) ON DELETE CASCADE;
+CREATE INDEX IF NOT EXISTS idx_files_message ON files(message_id) WHERE message_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_files_job ON files(job_id) WHERE job_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS chat_reads (
+	user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	scope   TEXT NOT NULL,
+	last_id BIGINT NOT NULL DEFAULT 0,
+	PRIMARY KEY (user_id, scope)
+);
+
+-- ---- in-app notifications and one-time reminders ----
+CREATE TABLE IF NOT EXISTS notifications (
+	id         BIGSERIAL PRIMARY KEY,
+	user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	job_id     BIGINT REFERENCES jobs(id) ON DELETE CASCADE,
+	kind       TEXT NOT NULL,
+	title      TEXT NOT NULL,
+	body       TEXT NOT NULL DEFAULT '',
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	read_at    TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, id DESC);
+CREATE TABLE IF NOT EXISTS reminders_sent (
+	kind   TEXT NOT NULL,
+	ref_id BIGINT NOT NULL,
+	PRIMARY KEY (kind, ref_id)
+);
+
+-- ---- jobs: drafts, categories, saved jobs ----
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT '';
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS open_days INTEGER NOT NULL DEFAULT 14;
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;
+ALTER TABLE jobs DROP CONSTRAINT IF EXISTS jobs_status_check;
+ALTER TABLE jobs ADD CONSTRAINT jobs_status_check CHECK (status IN ('draft','open','filled','in_progress','completed','cancelled'));
+CREATE TABLE IF NOT EXISTS saved_jobs (
+	user_id    BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	job_id     BIGINT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+	created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+	PRIMARY KEY (user_id, job_id)
+);
+ALTER TABLE milestones ADD COLUMN IF NOT EXISTS disputed_at TIMESTAMPTZ;
+
+-- ---- reviews in both directions, with a reply ----
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'client_to_freelancer';
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS subject_id BIGINT REFERENCES users(id);
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply TEXT NOT NULL DEFAULT '';
+ALTER TABLE reviews ADD COLUMN IF NOT EXISTS reply_at TIMESTAMPTZ;
+UPDATE reviews SET subject_id = freelancer_id WHERE subject_id IS NULL;
+ALTER TABLE reviews DROP CONSTRAINT IF EXISTS reviews_job_id_key;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_job_kind ON reviews(job_id, kind);
+CREATE INDEX IF NOT EXISTS idx_reviews_subject ON reviews(subject_id, kind);
+
+-- ---- abuse reports ----
+CREATE TABLE IF NOT EXISTS reports (
+	id          BIGSERIAL PRIMARY KEY,
+	reporter_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	kind        TEXT NOT NULL CHECK (kind IN ('job','user','message')),
+	target_id   BIGINT NOT NULL,
+	reason      TEXT NOT NULL,
+	created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+	resolved_at TIMESTAMPTZ,
+	resolved_by BIGINT REFERENCES users(id),
+	note        TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_reports_open ON reports(id) WHERE resolved_at IS NULL;
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_escrow ON jobs(escrow_id) WHERE escrow_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, id DESC);
 CREATE INDEX IF NOT EXISTS idx_milestones_job ON milestones(job_id);

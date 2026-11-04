@@ -331,6 +331,59 @@ describe("JobEscrow", () => {
     });
   });
 
+  describe("settlement record and the dispute timeout", () => {
+    it("stores the final split on-chain for released, refunded and resolved milestones", async () => {
+      const { escrow, client, freelancer, arbiter } = await loadFixture(withEscrow);
+      await escrow.connect(client).fund(1, 0);
+      await escrow.connect(freelancer).submit(1, 0, DELIVERABLE);
+      await escrow.connect(client).approve(1, 0);
+      expect((await escrow.getMilestone(1, 0)).freelancerBps).to.equal(10000);
+
+      await escrow.connect(client).fund(1, 1);
+      await time.increase(15 * DAY);
+      await escrow.connect(client).refund(1, 1);
+      expect((await escrow.getMilestone(1, 1)).freelancerBps).to.equal(0);
+
+      await escrow.connect(client).fund(1, 2);
+      await escrow.connect(client).dispute(1, 2);
+      await escrow.connect(arbiter).resolve(1, 2, 7000);
+      expect((await escrow.getMilestone(1, 2)).freelancerBps).to.equal(7000);
+    });
+
+    it("lets either party settle 50/50 after 30 days of arbiter silence, with the fee on the freelancer half", async () => {
+      const { escrow, client, freelancer, stranger, arbiter } = await loadFixture(withEscrow);
+      await escrow.connect(client).fund(1, 0); // 400 USDC
+      await escrow.connect(client).dispute(1, 0);
+
+      await expect(escrow.connect(freelancer).resolveStale(1, 0)).to.be.revertedWithCustomError(escrow, "TooEarly");
+      await time.increase(30 * DAY + 1);
+      await expect(escrow.connect(stranger).resolveStale(1, 0)).to.be.revertedWithCustomError(escrow, "NotParty");
+      await expect(escrow.connect(freelancer).resolveStale(1, 0))
+        .to.emit(escrow, "MilestoneResolved")
+        .withArgs(1, 0, 5000, USDC(196), USDC(200), USDC(4)); // freelancer 200 less 2% fee, client 200
+      const m = await escrow.getMilestone(1, 0);
+      expect(m.status).to.equal(S.Resolved);
+      expect(m.freelancerBps).to.equal(5000);
+      await expect(escrow.connect(client).resolveStale(1, 0)).to.be.revertedWithCustomError(escrow, "BadStatus");
+      await expect(escrow.connect(arbiter).resolve(1, 0, 1000)).to.be.revertedWithCustomError(escrow, "BadStatus");
+    });
+
+    it("the arbiter can still rule before and after the timeout while the milestone is disputed", async () => {
+      const { escrow, client, arbiter } = await loadFixture(withEscrow);
+      await escrow.connect(client).fund(1, 0);
+      await escrow.connect(client).dispute(1, 0);
+      await time.increase(40 * DAY);
+      await escrow.connect(arbiter).resolve(1, 0, 10000);
+      expect((await escrow.getMilestone(1, 0)).status).to.equal(S.Resolved);
+    });
+
+    it("cannot be used on a milestone that is not disputed", async () => {
+      const { escrow, client, freelancer } = await loadFixture(withEscrow);
+      await escrow.connect(client).fund(1, 0);
+      await expect(escrow.connect(freelancer).resolveStale(1, 0)).to.be.revertedWithCustomError(escrow, "BadStatus");
+    });
+  });
+
   describe("token that skims transfers", () => {
     it("refuses to fund rather than credit tokens that never arrived", async () => {
       const [, client, freelancer, arbiter, treasury] = await ethers.getSigners();
@@ -375,8 +428,13 @@ describe("JobEscrow", () => {
 
       for (let i = 0; i < amounts.length; i++) {
         await escrow.connect(client).fund(1, i);
-        const path = rnd(6);
-        if (path === 5) {
+        const path = rnd(7);
+        if (path === 6) {
+          // arbiter silent: either party settles 50/50 after the timeout
+          await escrow.connect(freelancer).dispute(1, i);
+          await time.increase(31 * DAY);
+          await escrow.connect(client).resolveStale(1, i);
+        } else if (path === 5) {
           // changes requested twice, then approved
           for (let r = 0; r < 2; r++) {
             await escrow.connect(freelancer).submit(1, i, DELIVERABLE);
