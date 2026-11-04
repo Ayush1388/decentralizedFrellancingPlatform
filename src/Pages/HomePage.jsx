@@ -214,9 +214,9 @@ export default function HomePage() {
       {/* The cast */}
       <Section aria-labelledby="cast-title">
         <BillHeader id="cast-title" title="The cast" note="developers available for hire" />
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-4 xl:grid-cols-2">
           {developers === null && Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} className="h-72" />)}
-          {developers?.slice(0, 6).map((d) => <DeveloperCard key={d.id} dev={d} isMine={user?.id === d.userId} />)}
+          {developers?.slice(0, 6).map((d, i) => <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={user?.id === d.userId} />)}
         </div>
         {developers?.length === 0 && (
           <EmptyState

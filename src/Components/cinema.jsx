@@ -70,10 +70,10 @@ export function Spec({ label, children }) {
   );
 }
 
-export function ReelTag({ n, children, dim, demo }) {
+export function ReelTag({ n, children, dim, demo, label = "Reel" }) {
   return (
     <p className={`flex flex-wrap items-center gap-3 font-mono text-[0.8rem] text-gold ${dim ? "opacity-70" : ""}`}>
-      <span className="border border-gold px-2 py-0.5">Reel Nº{n}</span>
+      <span className="border border-gold px-2 py-0.5">{label} Nº{n}</span>
       {children}
       {demo && <span className="border border-marker px-2 py-0.5 text-marker">Demo</span>}
     </p>

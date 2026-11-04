@@ -161,9 +161,9 @@ export default function Developers() {
 
       <ErrorNote>{error}</ErrorNote>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-busy={devs === null}>
+      <div className="grid gap-5 xl:grid-cols-2" aria-busy={devs === null}>
         {devs === null && !error && Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
-        {devs?.map((d) => <DeveloperCard key={d.id} dev={d} isMine={d.id === mine?.id} onEdit={setEditing} />)}
+        {devs?.map((d, i) => <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />)}
       </div>
 
       {devs?.length === 0 && (
