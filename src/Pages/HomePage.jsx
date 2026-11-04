@@ -9,6 +9,7 @@ import Carousel from "../Components/Carousel";
 import CastFilters from "../Components/CastFilters";
 import FilterChips from "../Components/FilterChips";
 import Hero from "../Components/Hero";
+import { HireScene, PayScene, PostScene } from "../Components/ActsScenes";
 import EscrowDemo from "../Components/EscrowDemo";
 import Testimonial from "../Components/Testimonial";
 import { BillHeader, ComingSoon, Hang, HouseRules, Reel } from "../Components/cinema";
@@ -40,61 +41,10 @@ const acts = [
   },
 ];
 
-// A small picture of each step as it looks on the site, so the cards show the thing instead of only describing it.
-const row = "flex items-center justify-between gap-3 rounded-lg bg-white/[0.04] px-3 py-2";
-const previews = [
-  <div key="post" className="space-y-1.5 text-sm">
-    <p className="text-xs text-muted">New job</p>
-    <p className="font-semibold">Token vesting dashboard</p>
-    {[
-      ["Design system", "$400"],
-      ["Wallet integration", "$900"],
-      ["Launch and handover", "$500"],
-    ].map(([t, v]) => (
-      <p key={t} className={row}>
-        <span className="truncate">{t}</span>
-        <span className="font-medium tabular-nums">{v}</span>
-      </p>
-    ))}
-  </div>,
-  <div key="hire" className="space-y-1.5 text-sm">
-    <p className="text-xs text-muted">2 applicants</p>
-    {[
-      ["/profile2.svg", "Lena Kovač", "$1,800, 3 weeks", true],
-      ["/profile1.svg", "Mei Tanaka", "$2,100, 2 weeks", false],
-    ].map(([img, name, quote, hired]) => (
-      <p key={name} className={row}>
-        <span className="flex min-w-0 items-center gap-2">
-          <img src={img} alt="" className="h-8 w-8 shrink-0 rounded-full bg-raised object-cover" style={{ objectPosition: "50% 18%" }} />
-          <span className="min-w-0">
-            <span className="block truncate font-medium">{name}</span>
-            <span className="block truncate text-xs text-muted">{quote}</span>
-          </span>
-        </span>
-        <span className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-semibold ${hired ? "bg-gold text-poster" : "bg-white/[0.08] text-ink-soft"}`}>{hired ? "Hire" : "Shortlist"}</span>
-      </p>
-    ))}
-  </div>,
-  <div key="pay" className="space-y-1.5 text-sm">
-    <p className="text-xs text-muted">Milestone 2 of 3</p>
-    <p className={row}>
-      <span className="flex items-center gap-2">
-        <Icon name="lock" size={15} className="text-gold" />
-        <span className="font-medium">In escrow</span>
-      </span>
-      <span className="font-semibold tabular-nums">$900</span>
-    </p>
-    <p className={row}>
-      <span className="text-ink-soft">Approved, paid out</span>
-      <span className="font-semibold tabular-nums text-gold">$882</span>
-    </p>
-    <p className="px-1 text-xs text-muted">2% fee, $18, taken only on payout</p>
-  </div>,
-];
-
 // One step: a numeral card that straightens when the step is pointed at, a picture of the step, and the way in.
 function Act({ a, i, last }) {
   const lift = useLift();
+  const Scene = [PostScene, HireScene, PayScene][i];
   return (
     <m.li {...lift} className="relative flex">
       <div className="flex w-full flex-col rounded-2xl border border-line bg-surface p-6 transition-colors duration-300 hover:border-[#4a3d38]">
@@ -113,8 +63,8 @@ function Act({ a, i, last }) {
           </h3>
         </div>
         <p className="mt-4 text-ink-soft">{a.text}</p>
-        <div aria-hidden="true" className="mt-5 rounded-xl border border-line bg-paper/70 p-4">
-          {previews[i]}
+        <div className="mt-5">
+          <Scene />
         </div>
         <Link to={a.to} className="mt-auto inline-flex min-h-11 items-center gap-1.5 pt-5 font-medium text-gold hover:underline">
           {a.cta}
@@ -183,11 +133,10 @@ export default function HomePage() {
   const kinds = useMemo(() => (jobs ? chipOptions(jobs, (j) => (j.category ? [j.category] : []), "All jobs") : []), [jobs]);
   const shownJobs = useMemo(() => (jobs || []).filter((j) => kind === "all" || j.category === kind), [jobs, kind]);
   const shownCast = useMemo(() => (developers ? filterCast(developers, cast) : []), [developers, cast]);
-  const genres = useMemo(() => [...new Set((jobs || []).map((j) => j.category).filter(Boolean))], [jobs]);
 
   return (
     <>
-      <Hero devCount={developers?.length} jobCount={jobs?.length} genres={genres} />
+      <Hero devCount={developers?.length} jobCount={jobs?.length} />
 
       <Section aria-labelledby="bill-title">
         <BillHeader id="bill-title" title="Now showing" note="Open jobs, newest first." action={jobs?.length > 0 && <SeeAll to="/jobs">See all jobs</SeeAll>} />

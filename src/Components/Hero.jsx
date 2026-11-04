@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { animate, m, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import { reelDate } from "../lib/cinema";
 import { Button } from "./ui";
-import { Bulbs, Poster } from "./cinema";
+import { Bulbs } from "./cinema";
 
 // The lobby: a projector beam with dust turning in it, the marquee running, the ticket under the light,
 // and posters for the kinds of work hanging either side. The ticket and the posters answer the pointer.
@@ -136,47 +135,11 @@ function Ticket({ devCount, jobCount, px, py }) {
   );
 }
 
-// Where the posters hang, relative to the ticket's edges, and how far each one drifts with the pointer.
-const spots = [
-  { side: "left", top: 40, gap: 64, tilt: -8, depth: 1.2 },
-  { side: "left", top: 330, gap: 28, tilt: 5, depth: 0.7 },
-  { side: "right", top: 70, gap: 64, tilt: 7, depth: 1 },
-  { side: "right", top: 350, gap: 28, tilt: -6, depth: 1.4 },
-];
-
-function HangingPoster({ genre, spot, i, px, py }) {
-  const x = useTransform(px, [-0.5, 0.5], [28 * spot.depth, -28 * spot.depth]);
-  const y = useTransform(py, [-0.5, 0.5], [18 * spot.depth, -18 * spot.depth]);
-  // 28rem is half the ticket's width and 8.5rem the poster's own.
-  const edge = `max(0.75rem, calc(50% - 28rem - 8.5rem - ${spot.gap}px))`;
-  const place = spot.side === "left" ? { left: edge } : { right: edge };
-  return (
-    <m.div className="pointer-events-auto absolute w-[8.5rem]" style={{ ...place, top: spot.top, x, y }}>
-      <m.div
-        initial={{ opacity: 0, y: 90, rotate: spot.tilt * 3, scale: 0.8 }}
-        animate={{ opacity: 1, y: 0, rotate: spot.tilt, scale: 1 }}
-        transition={{ ...settle, delay: 0.35 + i * 0.12 }}
-      >
-        <m.div animate={{ y: [0, -9, 0] }} transition={{ duration: 5.5 + i * 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.6 }}>
-          <m.div whileHover={{ rotate: -spot.tilt, scale: 1.07 }} transition={{ type: "spring", stiffness: 300, damping: 16 }}>
-            <Link to={`/jobs?category=${encodeURIComponent(genre)}`} tabIndex={-1} aria-hidden="true" title={`Browse ${genre.toLowerCase()} jobs`} className="block">
-              <Poster genre={genre} className="!max-w-none" />
-            </Link>
-          </m.div>
-        </m.div>
-      </m.div>
-    </m.div>
-  );
-}
-
-const fallback = ["Smart contracts", "Frontend", "Security and audits", "Design"];
-
-export default function Hero({ devCount, jobCount, genres = [] }) {
+export default function Hero({ devCount, jobCount }) {
   const px = useMotionValue(0);
   const py = useMotionValue(0);
   const sx = useSpring(px, { stiffness: 120, damping: 20, mass: 0.6 });
   const sy = useSpring(py, { stiffness: 120, damping: 20, mass: 0.6 });
-  const picks = [...new Set([...genres, ...fallback])].slice(0, 4);
 
   function track(e) {
     if (e.pointerType !== "mouse") return;
@@ -192,11 +155,6 @@ export default function Hero({ devCount, jobCount, genres = [] }) {
   return (
     <section onPointerMove={track} onPointerLeave={release} className="relative overflow-x-clip px-4 pb-6 pt-10 sm:pt-14" style={{ background: "radial-gradient(45% 60% at 50% 0%, rgb(242 194 48 / 0.14), transparent 70%)" }}>
       <Beam />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 hidden xl:block">
-        {picks.map((g, i) => (
-          <HangingPoster key={g} genre={g} spot={spots[i]} i={i} px={sx} py={sy} />
-        ))}
-      </div>
       <Bulbs count={36} className="relative mx-auto mb-5 max-w-4xl px-2" />
       <Ticket devCount={devCount} jobCount={jobCount} px={sx} py={sy} />
     </section>
