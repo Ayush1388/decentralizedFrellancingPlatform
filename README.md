@@ -6,25 +6,31 @@ the freelancer delivers, and the client approves it to release payment.
 **Live demo: https://decentralized-frellancing-platform.vercel.app**
 
 - API: https://freelance-api-7v0a.onrender.com (free tier: the first request after a quiet spell takes up to a minute)
-- Demo login: `demo@blockchainfreelance.dev` / `demo1234`, or click **Watch as the demo client** on the site.
+- Demo login: `demo@blockchainfreelance.dev` / `demo1234`, or click **Try it as the demo client** on the site.
   Jobs and developers stamped **DEMO** are sample data.
 - The live site runs in preview mode: milestones are tracked by the API and no real USDC moves.
   The escrow contract is deployed on Sepolia at
   [`0x80Ae7dBD4F4C8a8d675aaE6e176957D796605B6B`](https://sepolia.etherscan.io/address/0x80Ae7dBD4F4C8a8d675aaE6e176957D796605B6B)
   (Circle's test USDC). See [Sepolia testnet](#sepolia-testnet) to connect an API to it, and the [roadmap](#roadmap) for what is next.
 
-![Home: the admission ticket hero](docs/screenshots/home.jpg)
+![Home: the admission ticket under the projector beam](docs/screenshots/home.jpg)
 
 | | |
 |---|---|
 | ![Open jobs, each with a poster for its kind of work](docs/screenshots/jobs.jpg) | ![Developer profiles](docs/screenshots/developers.jpg) |
-| **Jobs:** budget, openings, applicants, closing date, duration and level | **Developers:** rate, completed jobs and rating from client reviews |
+| **Jobs:** filter by kind of work, four to a page, each with a poster for its category | **Developers:** filter by speciality, rating, rate and experience |
 | ![Reviewing applicants](docs/screenshots/applicants.jpg) | ![Client dashboard](docs/screenshots/dashboard.jpg) |
 | **Applicants:** quote vs budget, delivery estimate, GitHub, portfolio, resume, shortlist and pre-hire chat | **Dashboard:** money by milestone state, payments, what needs your action, conversations |
 
 ![A contract in progress](docs/screenshots/job.jpg)
 
 ## What it does
+
+- **The landing page shows how it works** instead of describing it: *In three acts* plays one job from start to finish in a small
+  window of the site (the form fills in and is published, applications arrive, a profile is opened and the developer hired, the
+  brief and files are sent in the job chat, the work is approved and paid), and *Follow the money* plays one milestone's
+  USDC from the client's wallet into escrow and out to the developer, with the 2% fee. Both are driven by a pointer that clicks the
+  buttons, have subtitles, a progress strip and Pause and Replay, and play only while on screen.
 
 - **Post a job:** milestones with USDC amounts, number of openings, how long applications stay open, expected duration and experience level.
   With several openings, each hire gets their own contract with its own copy of the milestones.
@@ -40,9 +46,12 @@ the freelancer delivers, and the client approves it to release payment.
   action: a new application, shortlisted or hired, work delivered, changes requested, payment released, a dispute. People can turn them
   off from their dashboard.
 - **Accounts:** email and password sign-up with terms acceptance, email confirmation and password reset (when SMTP is set), sign out
-  everywhere, change email or password, export your data, delete your account. Wallet sign-in works with MetaMask and other browser
-  wallets, Coinbase Wallet, and phone wallets through WalletConnect.
-- **Jobs:** categories, filters, sorting, drafts, editing, reposting, saved jobs, applicant comparison, and hiring at an agreed price.
+  everywhere, change email or password, export your data, delete your account. Sign in with Google, or with a wallet: connecting goes
+  straight to the browser extension you have installed (MetaMask, Phantom, Rabby, Brave and others, found by name), and the picker
+  lists them first when there are several. Coinbase Wallet and phone wallets (WalletConnect) are there too.
+- **Jobs:** kind-of-work chips (smart contracts, frontend, security and audits and more), search, sorting, more filters, drafts, editing,
+  reposting, saved jobs, applicant comparison, and hiring at an agreed price. Browse four at a time, swiping a page at a time, or as a list.
+- **Developers:** speciality chips, and filters for rating, hourly rate and experience, on the home page and the Developers page.
   Scope changes and follow-up work can be added as new milestones.
 - **Chat:** per-job chat and pre-hire messages with up to 3 attachments per message (10 MB each), unread badges, and a reminder email
   when a message sits unread.
@@ -57,9 +66,24 @@ the freelancer delivers, and the client approves it to release payment.
 - Every job has an activity log and a "next step" hint. Deliverables are visible only to the two parties and the arbiter.
   Resumes open only for the applicant and the client they applied to.
 
+## Design
+
+A dark auditorium with one gold spotlight. Printed things carry the boldness: the admission ticket, one-sheet posters coloured by
+kind of work, rubber stamps for demo data, sharp corners and a tilt. The interface around them is quiet: soft corners, sentence case,
+and gold only for actions.
+
+- **Type:** Anton for page titles, the ticket and posters; Jost for everything else; a serif and typewriter face for the footer's
+  closing credits only. Plain labels (Jobs, Developers, Wallet, Dashboard).
+- **Motion:** [Motion for React](https://motion.dev) (`motion`): gliding chip and tab highlights, cards that reflow when a filter
+  changes, posters that straighten on hover or focus, the ticket's tilt and foil sheen, the two walkthroughs. A film-grain flicker and
+  a projector beam are the only ambient effects. Everything stops for `prefers-reduced-motion`, and the walkthroughs then show finished
+  states you step through by hand.
+- **Accessibility:** keyboard-visible focus, 40px or larger tap targets, one `h1` per page, a skip link, text at 4.5:1 or better,
+  carousels with arrow-key and button control, and no horizontal scroll from 390px up.
+
 ## Stack
 
-- `src/` React 19 + Vite + Tailwind 4 frontend, wagmi/viem for the Ethereum wallet
+- `src/` React 19 + Vite + Tailwind 4 frontend, wagmi/viem for the Ethereum wallet, Motion for animation
 - `server/` Go API (stdlib `net/http`, PostgreSQL via pgx): auth (email, Google, Sign-In with Ethereum), developers, jobs,
   applications, milestones, chat, reviews. Uploaded files are stored in Postgres.
 - `contracts/` Solidity escrow (`JobEscrow.sol`) with Hardhat tests, and [security notes](contracts/SECURITY.md)
@@ -116,7 +140,8 @@ To start with sample data and the demo login, set `SEED_DEMO=true` in `server/.e
 `server/.env.example`).
 
 Other scripts: `npm run db` (database only), `npm run api` (API only), `npm run web` (frontend only),
-`npm run lint`, `npm run build`.
+`npm run lint`, `npm run build`. The first start after installing downloads and optimises the front-end dependencies, which can take a
+minute.
 
 ### With a local blockchain
 
@@ -223,6 +248,8 @@ node scripts/e2e.mjs          # real chain + real contract + real API + Postgres
 4. **Mainnet or an L2**, once the review is done.
 
 ## Limits
+
+- Phantom connects through its Ethereum account, not Solana, and shows Sepolia only with Testnet Mode on.
 
 - The contract is not audited. Get a professional review before putting real funds through it.
 - The live demo runs in preview mode; no real USDC moves until a contract is connected.

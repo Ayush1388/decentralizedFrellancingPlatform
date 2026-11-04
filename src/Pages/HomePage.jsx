@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { castDefaults, chipOptions, filterCast } from "../lib/cast";
 import DeveloperCard from "../Components/DeveloperCard";
@@ -43,9 +43,6 @@ function RowSkeleton() {
 }
 
 export default function HomePage() {
-  // /?fonts=classic previews the original typefaces on this page only.
-  const [params] = useSearchParams();
-  const classic = params.get("fonts") === "classic";
   const { user, openLogin } = useAuth();
   const [developers, setDevelopers] = useState(null);
   const [jobs, setJobs] = useState(null);
@@ -72,7 +69,7 @@ export default function HomePage() {
   const shownCast = useMemo(() => (developers ? filterCast(developers, cast) : []), [developers, cast]);
 
   return (
-    <div className={classic ? "classic-type" : undefined}>
+    <>
       <Hero devCount={developers?.length} jobCount={jobs?.length} />
 
       <Section aria-labelledby="bill-title">
@@ -182,14 +179,6 @@ export default function HomePage() {
           ))}
         </div>
       </Section>
-      {classic && (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-gold/40 bg-[#221c15] py-2 pl-4 pr-2 text-sm shadow-2xl">
-          <span>Preview: the original fonts</span>
-          <Link to="/" className="rounded-full bg-gold px-3 py-1.5 font-semibold text-poster">
-            Show current fonts
-          </Link>
-        </div>
-      )}
-    </div>
+    </>
   );
 }
