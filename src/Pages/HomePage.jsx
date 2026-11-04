@@ -9,6 +9,7 @@ import Carousel from "../Components/Carousel";
 import CastFilters from "../Components/CastFilters";
 import FilterChips from "../Components/FilterChips";
 import Hero from "../Components/Hero";
+import EscrowDemo from "../Components/EscrowDemo";
 import Testimonial from "../Components/Testimonial";
 import { BillHeader, ComingSoon, Hang, HouseRules, Reel } from "../Components/cinema";
 import { Button, CardSkeleton, EmptyState, Icon, Section } from "../Components/ui";
@@ -66,6 +67,14 @@ function Act({ a, i }) {
     </m.li>
   );
 }
+
+const faq = [
+  ["Do I need a crypto wallet?", "Only to move money. You can browse, post, apply and message with just an email account. To fund a milestone, be hired or withdraw, link a wallet such as MetaMask or Phantom."],
+  ["What stops a client from not paying?", "The money is in escrow before any work starts. After you deliver, the client has 7 days to approve or ask for changes; if they say nothing, you can claim the payment yourself."],
+  ["What if the developer never delivers?", "If a funded milestone gets no delivery for 14 days, the client can take the money back from the job page."],
+  ["What does it cost?", "Posting and applying are free. A 2% fee comes out of the developer's share when a milestone is paid, and nothing else."],
+  ["What happens in a dispute?", "Either side can open one with a reason. The money stays frozen until the arbiter splits it, and if nobody rules within 30 days it is split evenly."],
+];
 
 function SeeAll({ to, children }) {
   return (
@@ -139,6 +148,13 @@ export default function HomePage() {
         </ol>
       </Section>
 
+      <Section aria-labelledby="money-title">
+        <BillHeader id="money-title" title="Follow the money" note="One milestone, from the client's wallet, through escrow, to the developer's." />
+        <div className="mt-8">
+          <EscrowDemo />
+        </div>
+      </Section>
+
       <Section aria-labelledby="cast-title">
         <BillHeader
           id="cast-title"
@@ -203,6 +219,21 @@ export default function HomePage() {
 
       <Section>
         <HouseRules />
+      </Section>
+
+      <Section aria-labelledby="faq-title">
+        <BillHeader id="faq-title" title="Questions" note="What people ask before their first job." action={<SeeAll to="/help">All answers</SeeAll>} />
+        <div className="mt-8 divide-y divide-line rounded-xl border border-line">
+          {faq.map(([q, a]) => (
+            <details key={q} className="group">
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 px-5 py-3 font-semibold [&::-webkit-details-marker]:hidden">
+                {q}
+                <Icon name="plus" size={18} className="shrink-0 text-gold transition-transform duration-200 group-open:rotate-45" />
+              </summary>
+              <p className="max-w-[68ch] px-5 pb-5 text-ink-soft">{a}</p>
+            </details>
+          ))}
+        </div>
       </Section>
     </>
   );
