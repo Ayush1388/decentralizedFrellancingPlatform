@@ -60,7 +60,7 @@ export default function DeveloperProfile() {
           </div>
           <h1 className="poster-title mt-3 text-5xl text-ink sm:text-6xl">{dev.name}</h1>
           <p className="mt-2 text-xl text-ink-soft">{dev.title}</p>
-          {dev.ratingCount > 0 ? (
+          {dev.rating > 0 ? (
             <dl className="mt-6 grid max-w-md grid-cols-2 gap-6 border-t border-line pt-5">
               <div>
                 <dt className="stat-label">Rating</dt>
@@ -70,8 +70,8 @@ export default function DeveloperProfile() {
                 </dd>
               </div>
               <div>
-                <dt className="stat-label">Reviews</dt>
-                <dd className="mt-0.5 text-xl font-semibold tabular-nums">{dev.ratingCount}</dd>
+                <dt className="stat-label">Jobs done</dt>
+                <dd className="mt-0.5 text-xl font-semibold tabular-nums">{dev.jobsDone || 0}</dd>
               </div>
             </dl>
           ) : (

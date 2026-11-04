@@ -1,4 +1,6 @@
+import { useId } from "react";
 import { Link } from "react-router-dom";
+import { LayoutGroup, m } from "motion/react";
 import { imageUrl } from "../lib/api";
 
 // ---------- Icons (inline SVG, 24px grid, 1.8 stroke) ----------
@@ -246,23 +248,27 @@ export function Section({ children, className = "", ...props }) {
   );
 }
 
-// Underlined tabs: the current one carries a gold rule, the others recede. Scrolls sideways on narrow screens.
+// Underlined tabs: the gold rule glides to the current tab, the others recede. Scrolls sideways on narrow screens.
 export function Tabs({ tabs, value, onChange, label, className = "" }) {
+  const group = useId();
   return (
-    <div role="tablist" aria-label={label} className={`no-scrollbar flex gap-6 overflow-x-auto shadow-[inset_0_-1px_0_var(--color-line)] ${className}`}>
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          role="tab"
-          aria-selected={value === t.id}
-          onClick={() => onChange(t.id)}
-          className={`min-h-11 shrink-0 whitespace-nowrap border-b-2 pb-2 font-medium transition-colors ${value === t.id ? "border-gold text-ink" : "border-transparent text-muted hover:text-ink"}`}
-        >
-          {t.label}
-          {t.count != null && <span className="ml-1.5 tabular-nums text-muted">{t.count}</span>}
-        </button>
-      ))}
-    </div>
+    <LayoutGroup id={group}>
+      <div role="tablist" aria-label={label} className={`no-scrollbar flex gap-6 overflow-x-auto shadow-[inset_0_-1px_0_var(--color-line)] ${className}`}>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={value === t.id}
+            onClick={() => onChange(t.id)}
+            className={`relative min-h-11 shrink-0 whitespace-nowrap pb-2 font-medium transition-colors ${value === t.id ? "text-ink" : "text-muted hover:text-ink"}`}
+          >
+            {t.label}
+            {t.count != null && <span className="ml-1.5 tabular-nums text-muted">{t.count}</span>}
+            {value === t.id && <m.span layoutId="tab" className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-gold" transition={{ type: "spring", stiffness: 420, damping: 36 }} />}
+          </button>
+        ))}
+      </div>
+    </LayoutGroup>
   );
 }

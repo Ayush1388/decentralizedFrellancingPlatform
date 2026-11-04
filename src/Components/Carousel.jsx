@@ -1,41 +1,56 @@
-import { Children, useCallback, useEffect, useRef, useState } from "react";
+import { Children, useCallback, useEffect, useId, useRef, useState } from "react";
+import { AnimatePresence, LayoutGroup, m } from "motion/react";
 import { Icon } from "./ui";
 
 export function ViewToggle({ mode, onChange, label = "Layout" }) {
+  const group = useId();
   const options = [
-    ["swipe", "Swipe", "arrow"],
-    ["list", "List", "menu"],
+    ["swipe", "Swipe"],
+    ["list", "List"],
   ];
   return (
-    <div role="group" aria-label={label} className="inline-flex gap-1 rounded-lg border border-line bg-surface p-1">
-      {options.map(([id, text]) => (
-        <button
-          key={id}
-          type="button"
-          aria-pressed={mode === id}
-          onClick={() => onChange(id)}
-          className={`min-h-9 rounded-md px-3.5 text-sm font-medium transition-colors ${mode === id ? "bg-white/10 text-ink" : "text-muted hover:text-ink"}`}
-        >
-          {text}
-        </button>
-      ))}
-    </div>
+    <LayoutGroup id={group}>
+      <div role="group" aria-label={label} className="inline-flex gap-1 rounded-lg border border-line bg-surface p-1">
+        {options.map(([id, text]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={mode === id}
+            onClick={() => onChange(id)}
+            className={`relative min-h-9 rounded-md px-3.5 text-sm font-medium transition-colors ${mode === id ? "text-ink" : "text-muted hover:text-ink"}`}
+          >
+            {mode === id && <m.span layoutId="view" className="absolute inset-0 rounded-md bg-white/10" transition={{ type: "spring", stiffness: 420, damping: 34 }} />}
+            <span className="relative">{text}</span>
+          </button>
+        ))}
+      </div>
+    </LayoutGroup>
   );
 }
 
+// Slide widths for one, two or four cards in view. Several in view: two on phones, three on tablets.
+const widths = {
+  1: "w-[88%] snap-center sm:w-[640px] lg:w-[760px]",
+  2: "w-[88%] snap-start sm:w-[640px] lg:w-[calc(50%-0.5rem)]",
+  4: "w-[calc(50%-0.5rem)] snap-start sm:w-[calc(33.333%-0.667rem)] lg:w-[calc(25%-0.75rem)]",
+};
+const slideIn = { type: "spring", stiffness: 380, damping: 32 };
+
 // Cards in a row you move through sideways: swipe on a phone, drag with a mouse, or use the arrows or the arrow keys.
-// With twoUp, two cards sit side by side on wide screens (one per view on narrower ones).
 // "lead" and "tools" put the page's own summary and controls on the same row as the arrows.
-export default function Carousel({ children, label = "Cards", twoUp = false, lead, tools }) {
+// "resetKey" changes when a filter changes the set, so the row returns to its start.
+export default function Carousel({ children, label = "Cards", perView = 1, twoUp = false, lead, tools, resetKey }) {
+  const per = twoUp ? 2 : perView;
   const items = Children.toArray(children);
   const track = useRef(null);
   const drag = useRef(null);
   const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(1);
   const [edge, setEdge] = useState({ start: true, end: false });
 
   const slides = () => [...(track.current?.children || [])];
 
-  // One card per view: the card closest to the middle. Two per view: the one closest to the left edge.
+  // One card per view: the card closest to the middle. Several per view: the one closest to the left edge.
   const nearest = useCallback(() => {
     const el = track.current;
     if (!el) return 0;
@@ -43,14 +58,14 @@ export default function Carousel({ children, label = "Cards", twoUp = false, lea
     let best = 0;
     let bestDist = Infinity;
     [...el.children].forEach((s, i) => {
-      const d = twoUp ? Math.abs(s.offsetLeft - el.scrollLeft) : Math.abs(s.offsetLeft + s.offsetWidth / 2 - mid);
+      const d = per > 1 ? Math.abs(s.offsetLeft - el.scrollLeft) : Math.abs(s.offsetLeft + s.offsetWidth / 2 - mid);
       if (d < bestDist) {
         best = i;
         bestDist = d;
       }
     });
     return best;
-  }, [twoUp]);
+  }, [per]);
 
   const update = useCallback(() => {
     const el = track.current;
@@ -58,25 +73,41 @@ export default function Carousel({ children, label = "Cards", twoUp = false, lea
     const start = el.scrollLeft <= 2;
     const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
     setEdge((e) => (e.start === start && e.end === end ? e : { start, end }));
-    // At the far end the last card counts as the current one, even when two cards are in view.
-    setIndex(end ? el.children.length - 1 : nearest());
+    const first = el.children[0];
+    const vis = first ? Math.max(1, Math.round(el.clientWidth / (first.offsetWidth + 16))) : 1;
+    setVisible(vis);
+    // At the far end the last cards count as the current ones, even when several are in view.
+    setIndex(end ? Math.max(0, el.children.length - vis) : nearest());
   }, [nearest]);
 
   useEffect(() => {
     update();
   }, [items.length, update]);
 
+  useEffect(() => {
+    const el = track.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [update]);
+
+  // A new filter shows a new set: start from the beginning.
+  useEffect(() => {
+    track.current?.scrollTo({ left: 0, behavior: "smooth" });
+  }, [resetKey]);
+
   function go(to) {
     const list = slides();
     const target = list[Math.max(0, Math.min(list.length - 1, to))];
     if (!target || !track.current) return;
     const el = track.current;
-    const left = twoUp ? target.offsetLeft : target.offsetLeft - (el.clientWidth - target.offsetWidth) / 2;
+    const left = per > 1 ? target.offsetLeft : target.offsetLeft - (el.clientWidth - target.offsetWidth) / 2;
     el.scrollTo({ left, behavior: "smooth" });
   }
 
-  // Steps are taken from where the row actually is, so they still work at the far end where the counter shows the last card.
-  const step = (dir) => go(nearest() + dir);
+  // Arrows move a whole page of cards; steps are taken from where the row actually is.
+  const step = (dir) => go(nearest() + dir * (per > 1 ? visible : 1));
 
   function onKeyDown(e) {
     if (e.key === "ArrowRight") (e.preventDefault(), step(1));
@@ -120,7 +151,6 @@ export default function Carousel({ children, label = "Cards", twoUp = false, lea
       go(target);
       setTimeout(() => {
         el.style.scrollSnapType = "";
-        el.style.scrollBehavior = "";
         update();
       }, 450);
       // The click that follows a drag would open a card, so swallow it once.
@@ -131,44 +161,35 @@ export default function Carousel({ children, label = "Cards", twoUp = false, lea
   }
 
   if (items.length === 0) return null;
+  const many = per > 1 && visible > 1 && items.length > 1;
+  const shown = many ? `${index + 1}–${Math.min(index + visible, items.length)} of ${items.length}` : `${index + 1} of ${items.length}`;
+  const pages = per > 1 ? Math.ceil(items.length / visible) : items.length;
+  const page = per > 1 ? Math.min(pages - 1, Math.ceil(index / visible)) : index;
+  const counter = (
+    <p className="px-1 text-sm tabular-nums text-muted" aria-live="polite">
+      {shown}
+    </p>
+  );
+  const arrow = "flex h-11 w-11 items-center justify-center rounded-lg border border-[#3d3332] text-ink-soft transition-colors hover:border-[#6a5a55] hover:text-ink disabled:opacity-30 disabled:hover:border-[#3d3332] disabled:hover:text-ink-soft";
   return (
     <section aria-roledescription="carousel" aria-label={label} className="relative">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-        {lead ?? (
-          <p className="text-sm tabular-nums text-muted" aria-live="polite">
-            {index + 1} of {items.length}
-          </p>
-        )}
+        {lead ?? counter}
         <div className="flex items-center gap-2">
           {tools}
-          {lead && (
-            <p className="px-1 text-sm tabular-nums text-muted" aria-live="polite">
-              {index + 1} of {items.length}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={() => step(-1)}
-            disabled={edge.start}
-            aria-label="Previous card"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#3d3332] text-ink-soft transition-colors hover:border-[#6a5a55] hover:text-ink disabled:opacity-30 disabled:hover:border-[#3d3332] disabled:hover:text-ink-soft"
-          >
+          {lead && counter}
+          <button type="button" onClick={() => step(-1)} disabled={edge.start} aria-label="Previous cards" className={arrow}>
             <Icon name="arrow" size={16} className="rotate-180" />
           </button>
-          <button
-            type="button"
-            onClick={() => step(1)}
-            disabled={edge.end}
-            aria-label="Next card"
-            className="flex h-11 w-11 items-center justify-center rounded-lg border border-[#3d3332] text-ink-soft transition-colors hover:border-[#6a5a55] hover:text-ink disabled:opacity-30 disabled:hover:border-[#3d3332] disabled:hover:text-ink-soft"
-          >
+          <button type="button" onClick={() => step(1)} disabled={edge.end} aria-label="Next cards" className={arrow}>
             <Icon name="arrow" size={16} />
           </button>
         </div>
       </div>
 
-      <div
+      <m.div
         ref={track}
+        layoutScroll
         tabIndex={0}
         onKeyDown={onKeyDown}
         onScroll={update}
@@ -178,24 +199,31 @@ export default function Carousel({ children, label = "Cards", twoUp = false, lea
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onPointerLeave={endDrag}
-        className="no-scrollbar flex cursor-grab snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth py-2 rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
+        className="no-scrollbar relative flex cursor-grab snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth rounded-xl py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold"
       >
-        {items.map((child, i) => (
-          <div
-            key={child.key ?? i}
-            role="group"
-            aria-roledescription="slide"
-            aria-label={`${i + 1} of ${items.length}`}
-            className={`flex shrink-0 [&>*]:min-w-0 [&>*]:flex-1 ${twoUp ? "w-[88%] snap-start sm:w-[640px] lg:w-[calc(50%-0.5rem)]" : "w-[88%] snap-center sm:w-[640px] lg:w-[760px]"}`}
-          >
-            {child}
-          </div>
-        ))}
-      </div>
+        <AnimatePresence initial={false} mode="popLayout">
+          {items.map((child, i) => (
+            <m.div
+              key={child.key ?? i}
+              layout="position"
+              initial={{ opacity: 0, scale: 0.94, y: 14 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.18 } }}
+              transition={slideIn}
+              role="group"
+              aria-roledescription="slide"
+              aria-label={`${i + 1} of ${items.length}`}
+              className={`flex shrink-0 [&>*]:min-w-0 [&>*]:flex-1 ${widths[per] || widths[1]}`}
+            >
+              {child}
+            </m.div>
+          ))}
+        </AnimatePresence>
+      </m.div>
 
       <div className="mt-3 flex justify-center gap-1.5" aria-hidden="true">
-        {items.slice(0, 12).map((_, i) => (
-          <span key={i} className={`h-1.5 rounded-full transition-all ${i === index ? "w-6 bg-gold" : "w-1.5 bg-white/20"}`} />
+        {Array.from({ length: Math.min(pages, 12) }).map((_, i) => (
+          <span key={i} className={`h-1.5 rounded-full transition-all duration-300 ${i === page ? "w-6 bg-gold" : "w-1.5 bg-white/20"}`} />
         ))}
       </div>
     </section>

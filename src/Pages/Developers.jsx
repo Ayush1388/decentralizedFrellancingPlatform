@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../context/useAuth";
-import DeveloperCard from "../Components/DeveloperCard";
+import { castDefaults, filterCast } from "../lib/cast";
+import DeveloperCard, { CastCard } from "../Components/DeveloperCard";
+import CastFilters from "../Components/CastFilters";
 import Carousel, { ViewToggle } from "../Components/Carousel";
 import { useViewMode } from "../lib/useViewMode";
 import { Button, CardSkeleton, EmptyState, ErrorNote, Field, Icon, PageHeader } from "../Components/ui";
@@ -89,6 +91,7 @@ export default function Developers() {
   const [debounced, setDebounced] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [cast, setCast] = useState(castDefaults);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q.trim()), 250);
@@ -113,10 +116,12 @@ export default function Developers() {
   }, [load]);
 
   const mine = user && devs?.find((d) => d.userId === user.id);
-  const summary = devs && (
+  const shown = useMemo(() => (devs ? filterCast(devs, cast) : null), [devs, cast]);
+  const narrowed = debounced || JSON.stringify(cast) !== JSON.stringify(castDefaults);
+  const summary = shown && (
     <p className="text-sm text-muted" aria-live="polite">
-      {devs.length} developer{devs.length === 1 ? "" : "s"}
-      {debounced && " match your search"}
+      {shown.length} developer{shown.length === 1 ? "" : "s"}
+      {narrowed && " match"}
     </p>
   );
   const toggle = <ViewToggle mode={view} onChange={setView} label="How to browse developers" />;
@@ -167,26 +172,46 @@ export default function Developers() {
         <input id="dev-search" type="search" placeholder="Search by name, skill or title" value={q} onChange={(e) => setQ(e.target.value)} className="input !pl-11" />
       </div>
 
+      {devs?.length > 0 && (
+        <div className="mb-6">
+          <CastFilters devs={devs} value={cast} onChange={setCast} idPrefix="devs" />
+        </div>
+      )}
+
       <ErrorNote>{error}</ErrorNote>
 
-      {devs?.length > 0 && view !== "swipe" && (
+      {shown?.length > 0 && view !== "swipe" && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           {summary}
           {toggle}
         </div>
       )}
 
-      {view === "swipe" && devs?.length > 0 ? (
-        <Carousel label="Developers" lead={summary} tools={toggle}>
-          {devs.map((d, i) => (
-            <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />
+      {view === "swipe" && shown?.length > 0 ? (
+        <Carousel label="Developers" perView={4} lead={summary} tools={toggle} resetKey={JSON.stringify(cast) + debounced}>
+          {shown.map((d, i) => (
+            <CastCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />
           ))}
         </Carousel>
       ) : (
         <div className="grid gap-5 xl:grid-cols-2" aria-busy={devs === null}>
           {devs === null && !error && Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
-          {devs?.map((d, i) => <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />)}
+          {shown?.map((d, i) => <DeveloperCard key={d.id} dev={d} n={i + 1} isMine={d.id === mine?.id} onEdit={setEditing} />)}
         </div>
+      )}
+
+      {devs?.length > 0 && shown?.length === 0 && (
+        <EmptyState
+          icon="user"
+          title="Nobody matches these filters"
+          action={
+            <Button variant="secondary" onClick={() => setCast(castDefaults)}>
+              Clear filters
+            </Button>
+          }
+        >
+          Try a wider rate, fewer stars or another speciality.
+        </EmptyState>
       )}
 
       {devs?.length === 0 && (

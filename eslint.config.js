@@ -23,7 +23,8 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // JSX use is invisible to this rule: components are capitalised, and `m` is Motion's component namespace.
+      'no-unused-vars': ['error', { varsIgnorePattern: '^([A-Z_]|m$)' }],
     },
   },
 ])

@@ -1,21 +1,19 @@
 import { Link } from "react-router-dom";
+import { m } from "motion/react";
 import { closesIn, plural, timeAgo, usdc } from "../lib/format";
 import { houseRules, posterStock } from "../lib/cinema";
 import { useSaved } from "../lib/useSaved";
+import { useLift } from "../lib/useLift";
 import { Badge, Button, Icon, SkillChip } from "./ui";
 
 // The printed side of the Picture House: marquee bulbs, one-sheet posters, the rubber stamp.
 
-// Marquee bulbs that come on one after another when the lobby opens, then stay lit.
+// Marquee bulbs running a chase, the way a cinema front announces the show.
 export function Bulbs({ count = 42, className = "" }) {
   return (
-    <div aria-hidden="true" className={`flex justify-between ${className}`}>
+    <div aria-hidden="true" className={`marquee flex justify-between ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
-        <span
-          key={i}
-          className="bulb h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2"
-          style={{ background: "#ffe9a8", boxShadow: "0 0 8px 2px rgb(255 200 80 / 0.55)", animationDelay: `${120 + i * 22}ms` }}
-        />
+        <span key={i} className="bulb h-1.5 w-1.5 rounded-full sm:h-2 sm:w-2" style={{ "--i": i % 6 }} />
       ))}
     </div>
   );
@@ -49,19 +47,18 @@ function Silhouette({ stock }) {
 }
 
 // A one-sheet for a job. The poster names the kind of work, on that kind's own stock; the title lives in the card.
-export function Poster({ genre, tilt = 2, demo, small = false, className = "" }) {
+// Its type is sized from the poster's own width, so it prints the same at any size.
+export function Poster({ genre, tilt = 0, demo, small = false, className = "" }) {
   const stock = posterStock(genre);
   return (
     <div
-      className={`relative flex aspect-[3/4] shrink-0 flex-col self-start overflow-hidden border-poster text-poster shadow-[0_18px_36px_-14px_rgb(0_0_0/0.85)] ${small ? "w-20 border-2 p-2 sm:w-28" : "w-full max-w-[11rem] border-[3px] p-3"} ${className}`}
-      style={{ background: stock, transform: `rotate(${tilt}deg)` }}
+      className={`@container relative flex aspect-[3/4] shrink-0 flex-col self-start overflow-hidden border-poster text-poster shadow-[0_18px_36px_-14px_rgb(0_0_0/0.85)] ${small ? "w-20 border-2 p-2 sm:w-28" : "w-full max-w-[11rem] border-[3px] p-3"} ${className}`}
+      style={{ background: stock, transform: tilt ? `rotate(${tilt}deg)` : undefined }}
     >
-      {!small && (
-        <p aria-hidden="true" className="text-[0.5rem] font-semibold uppercase tracking-[0.12em] opacity-80">
-          The Blockchain Picture Company presents
-        </p>
-      )}
-      <p className={`poster-title line-clamp-3 !leading-none ${small ? "text-[0.85rem] sm:text-[1.05rem]" : "mt-1.5 text-[1.6rem]"}`}>
+      <p aria-hidden="true" className="hidden text-[4.4cqw] font-semibold uppercase tracking-[0.12em] opacity-80 @[7.5rem]:block">
+        The Blockchain Picture Company presents
+      </p>
+      <p className="poster-title mt-[3cqw] line-clamp-3 text-[14.5cqw] !leading-none">
         {genre ? (
           <>
             <span className="sr-only">Category: </span>
@@ -72,7 +69,36 @@ export function Poster({ genre, tilt = 2, demo, small = false, className = "" })
         )}
       </p>
       <Silhouette stock={stock} />
-      {demo && <DemoStamp className="absolute right-2 top-[46%] bg-ticket/85" />}
+      {demo && <DemoStamp className="absolute right-[6%] top-[46%] bg-ticket/85 !text-[9cqw]" />}
+    </div>
+  );
+}
+
+const hang = { type: "spring", stiffness: 260, damping: 18 };
+
+// Holds a poster at its tilt; when the card it belongs to is hovered or focused, the poster straightens and rises.
+export function Hang({ tilt = 2, className = "", children }) {
+  return (
+    <m.div className={className} variants={{ rest: { rotate: tilt, y: 0, scale: 1 }, lift: { rotate: 0, y: -6, scale: 1.035 } }} transition={hang}>
+      {children}
+    </m.div>
+  );
+}
+
+// The wall a poster hangs on: a pool of light from above that warms when the poster is lifted.
+export function LitWall({ tilt, children }) {
+  return (
+    <div className="relative flex justify-center px-[15%] pb-3 pt-6">
+      <m.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "radial-gradient(62% 78% at 50% 0%, rgb(242 194 48 / 0.2), transparent 72%)" }}
+        variants={{ rest: { opacity: 0.55 }, lift: { opacity: 1 } }}
+        transition={{ duration: 0.35 }}
+      />
+      <Hang tilt={tilt} className="relative w-full max-w-[11rem]">
+        {children}
+      </Hang>
     </div>
   );
 }
@@ -105,12 +131,46 @@ export function SaveButton({ jobId, className = "" }) {
   );
 }
 
+// A job on the lobby wall: a lit poster, then the few facts that decide a click. Four fit across a wide screen.
+export function PosterCard({ job, n = 1 }) {
+  const lift = useLift();
+  return (
+    <m.article {...lift} className="relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface transition-colors duration-300 hover:border-[#4a3d38]">
+      <LitWall tilt={n % 2 ? -3 : 3}>
+        <Poster genre={job.category} demo={job.demo} className="!max-w-none" />
+      </LitWall>
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+        <p className="truncate text-xs text-muted sm:text-sm">
+          {job.client.name}, {timeAgo(job.createdAt)}
+        </p>
+        <h3 className="mt-1 line-clamp-2 font-semibold leading-snug text-ink sm:text-lg">
+          <Link to={`/jobs/${job.id}`} className="hover:text-gold">
+            {job.title}
+          </Link>
+        </h3>
+        <p className="mt-2 text-lg font-semibold tabular-nums">{usdc(job.total)}</p>
+        <p className="text-xs text-muted sm:text-sm">
+          {applicantsLabel(job)}
+          {job.closesAt && `, ${closesIn(job.closesAt).toLowerCase()}`}
+        </p>
+        <div className="mt-auto flex items-center gap-2 pt-4">
+          <Button to={`/jobs/${job.id}`} size="sm" className="!min-h-10 flex-1 !px-3">
+            View job
+          </Button>
+          <SaveButton jobId={job.id} />
+        </div>
+      </div>
+    </m.article>
+  );
+}
+
 const applicantsLabel = (job) => (job.openings > 1 ? `${job.applicants} for ${job.openings} openings` : plural(job.applicants, "applicant"));
 
 // A job on the board. "stacked" is for narrow slots (two to a row): a smaller poster beside the title,
 // the details full width underneath.
 export function Reel({ job, n = 1, stacked = false }) {
   const tilt = n % 2 ? -2 : 2;
+  const lift = useLift();
   // Demo data is marked once: a stamp on the big poster, or a badge where the poster is too small to carry one.
   const description = <p className="line-clamp-2 text-ink-soft">{job.description}</p>;
   const head = (
@@ -156,18 +216,22 @@ export function Reel({ job, n = 1, stacked = false }) {
 
   if (stacked)
     return (
-      <article className="relative flex flex-col gap-5 rounded-xl border border-line bg-surface p-5">
+      <m.article {...lift} className="relative flex flex-col gap-5 rounded-xl border border-line bg-surface p-5">
         <div className="flex items-start gap-5">
-          <Poster genre={job.category} tilt={tilt} small />
+          <Hang tilt={tilt}>
+            <Poster genre={job.category} small />
+          </Hang>
           {head}
         </div>
         {body}
-      </article>
+      </m.article>
     );
 
   return (
-    <article className="relative flex flex-col gap-6 rounded-xl border border-line bg-surface p-5 sm:flex-row sm:p-6">
-      <Poster genre={job.category} tilt={tilt} demo={job.demo} className="sm:!w-40" />
+    <m.article {...lift} className="relative flex flex-col gap-6 rounded-xl border border-line bg-surface p-5 sm:flex-row sm:p-6">
+      <Hang tilt={tilt} className="w-full max-w-[11rem] self-start sm:w-40">
+        <Poster genre={job.category} demo={job.demo} className="!max-w-none" />
+      </Hang>
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className="flex items-start gap-4">
           {head}
@@ -175,27 +239,34 @@ export function Reel({ job, n = 1, stacked = false }) {
         </div>
         {body}
       </div>
-    </article>
+    </m.article>
   );
 }
 
-// The last slot on the board: an invitation to post.
+// The last slot on the board: an invitation to post, hung on the same lit wall as the jobs.
 export function ComingSoon() {
+  const lift = useLift();
   return (
-    <article className="flex flex-col items-start justify-center gap-4 rounded-xl border border-dashed border-[#3d3332] p-6">
-      <div
-        aria-hidden="true"
-        className="poster-title flex aspect-[3/4] w-20 -rotate-2 items-center justify-center border border-white/10 text-4xl text-white/30"
-        style={{ background: "repeating-linear-gradient(135deg, #201a19 0 8px, #191414 8px 16px)" }}
-      >
-        ?
+    <m.article {...lift} className="flex h-full flex-col overflow-hidden rounded-xl border border-dashed border-[#3d3332]">
+      <LitWall tilt={-3}>
+        <div
+          aria-hidden="true"
+          className="poster-title flex aspect-[3/4] w-full items-center justify-center border-[3px] border-white/10 text-6xl text-white/30"
+          style={{ background: "repeating-linear-gradient(135deg, #201a19 0 8px, #191414 8px 16px)" }}
+        >
+          ?
+        </div>
+      </LitWall>
+      <div className="flex flex-1 flex-col px-4 pb-4 pt-2">
+        <h3 className="font-semibold leading-snug text-ink sm:text-lg">Your job could be next</h3>
+        <p className="mt-1 text-sm text-ink-soft">Split the budget into milestones. The money waits in escrow until you approve each one.</p>
+        <div className="mt-auto pt-4">
+          <Button to="/jobs/new" variant="secondary" size="sm" className="!min-h-10 w-full">
+            Post a job
+          </Button>
+        </div>
       </div>
-      <h3 className="text-xl font-semibold text-ink">Your job could be next</h3>
-      <p className="max-w-sm text-ink-soft">Split the budget into milestones. The money waits in escrow until you approve each one.</p>
-      <Button to="/jobs/new" variant="secondary" size="sm" className="!min-h-10 !px-4">
-        Post a job
-      </Button>
-    </article>
+    </m.article>
   );
 }
 

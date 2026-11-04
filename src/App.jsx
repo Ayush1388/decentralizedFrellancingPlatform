@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WagmiProvider } from "wagmi";
+import { LazyMotion, MotionConfig, domMax } from "motion/react";
 import { config } from "./lib/wagmi";
 import { AuthProvider } from "./context/AuthContext";
 import { ChainConfigProvider } from "./context/ChainConfigContext";
@@ -51,6 +52,9 @@ function ScrollToTop() {
 export default function App() {
   return (
     <WagmiProvider config={config}>
+      {/* Motion is loaded once for the whole app; anyone who asks their system for less motion gets none. */}
+      <LazyMotion features={domMax} strict>
+      <MotionConfig reducedMotion="user">
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <ChainConfigProvider>
@@ -105,6 +109,8 @@ export default function App() {
           </ChainConfigProvider>
         </AuthProvider>
       </QueryClientProvider>
+      </MotionConfig>
+      </LazyMotion>
     </WagmiProvider>
   );
 }

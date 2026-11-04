@@ -5,7 +5,8 @@ import { jobStatus } from "../lib/jobStatus";
 import { useAuth } from "../context/useAuth";
 import { timeAgo, usdc } from "../lib/format";
 import { useSiteConfig } from "../lib/siteConfig";
-import { Reel } from "../Components/cinema";
+import { PosterCard, Reel } from "../Components/cinema";
+import FilterChips from "../Components/FilterChips";
 import Carousel, { ViewToggle } from "../Components/Carousel";
 import { useViewMode } from "../lib/useViewMode";
 import { Badge, Button, CardSkeleton, EmptyState, ErrorNote, Icon, PageHeader, SkillChip, Tabs } from "../Components/ui";
@@ -69,7 +70,13 @@ function Filters({ params, setParam, clear, activeCount }) {
   const select = "input text-[0.9375rem]";
   return (
     <section aria-label="Filters" className="mb-6 space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_14rem_13rem_auto]">
+      <FilterChips
+        label="Kind of work"
+        options={[{ id: "", label: "All jobs" }, ...categories.map((c) => ({ id: c, label: c }))]}
+        value={params.get("category") || ""}
+        onChange={(c) => setParam({ category: c })}
+      />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_13rem_auto]">
         <div className="relative sm:col-span-2 lg:col-span-1">
           <Icon name="search" className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" size={18} />
           <label htmlFor="job-search" className="sr-only">
@@ -77,15 +84,6 @@ function Filters({ params, setParam, clear, activeCount }) {
           </label>
           <input id="job-search" type="search" placeholder="Search by title, description or skill" value={q} onChange={(e) => setQ(e.target.value)} className="input !pl-11" />
         </div>
-        <label className="sr-only" htmlFor="f-category">
-          Category
-        </label>
-        <select id="f-category" className={select} value={params.get("category") || ""} onChange={(e) => setParam({ category: e.target.value })}>
-          <option value="">All categories</option>
-          {categories.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
         <label className="sr-only" htmlFor="f-sort">
           Sort by
         </label>
@@ -258,9 +256,9 @@ export default function Jobs() {
 
       {tab !== "mine" && view === "swipe" && jobs?.length > 0 ? (
         <div role="tabpanel">
-          <Carousel label="Jobs" lead={summary} tools={toggle}>
+          <Carousel label="Jobs" perView={4} lead={summary} tools={toggle} resetKey={query}>
             {jobs.map((j, i) => (
-              <Reel key={j.id} job={j} n={(page - 1) * PAGE + i + 1} />
+              <PosterCard key={j.id} job={j} n={(page - 1) * PAGE + i + 1} />
             ))}
           </Carousel>
         </div>
