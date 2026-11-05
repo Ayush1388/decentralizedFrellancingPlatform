@@ -15,7 +15,7 @@
   --font-serif: "Bodoni Moda", Didot, Georgia, serif;
   --font-typewriter: "Courier Prime", "Courier New", ui-monospace, monospace;
   /* Only for wallet addresses and hashes, where every character must be unambiguous. */
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-mono: "Courier Prime", "Courier New", ui-monospace, monospace;
 
   --color-ink: #f3ece2;
   --color-ink-soft: #cfc5b8;
@@ -131,14 +131,16 @@
   }
   /* A small plain label. Sentence case: tracked capitals were shouting on every screen. */
   .eyebrow {
-    font-size: 0.8125rem;
-    font-weight: 500;
-    letter-spacing: 0;
-    text-transform: none;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
   }
   .stat-label {
-    font-size: 0.8125rem;
-    font-weight: 400;
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
     color: var(--color-muted);
   }
   .stat-value {
@@ -307,4 +309,40 @@
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* The original type style, site-wide: poster-face titles, a Bodoni italic tagline, typewriter figures and small print,
+   and tracked capitals on labels and buttons. */
+h2,
+h3 {
+  font-family: var(--font-poster);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  font-size: 1.75rem;
+}
+h1 + p {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 1.3rem;
+}
+p.text-muted,
+.text-muted.text-sm,
+dd,
+.tabular-nums {
+  font-family: var(--font-mono);
+}
+dt {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+:is(a, button).rounded-lg.whitespace-nowrap,
+:is(a, button).rounded-full.whitespace-nowrap {
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
 }

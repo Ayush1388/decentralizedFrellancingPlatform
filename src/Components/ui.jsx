@@ -71,7 +71,7 @@ export function Icon({ name, size = 20, className = "" }) {
 // ---------- Buttons ----------
 // Interface controls are soft and sentence case; only printed things (posters, the ticket) are sharp.
 const base =
-  "inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-lg text-[0.9375rem] font-medium whitespace-nowrap transition-[filter,background-color,color,border-color] duration-150 disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 min-h-11 px-5 rounded-lg text-[0.72rem] font-semibold uppercase tracking-[0.2em] whitespace-nowrap transition-[filter,background-color,color,border-color] duration-150 disabled:opacity-50 disabled:pointer-events-none";
 const variants = {
   primary: "bg-gold text-poster font-semibold hover:brightness-110",
   secondary: "border border-[#463a38] text-ink hover:border-[#6a5a55] hover:bg-white/[0.04]",

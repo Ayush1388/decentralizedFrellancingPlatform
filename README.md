@@ -69,11 +69,12 @@ the freelancer delivers, and the client approves it to release payment.
 ## Design
 
 A dark auditorium with one gold spotlight. Printed things carry the boldness: the admission ticket, one-sheet posters coloured by
-kind of work, rubber stamps for demo data, sharp corners and a tilt. The interface around them is quiet: soft corners, sentence case,
-and gold only for actions.
+kind of work, rubber stamps for demo data, sharp corners and a tilt. The interface around them has soft corners, and gold is used
+for actions.
 
-- **Type:** Anton for page titles, the ticket and posters; Jost for everything else; a serif and typewriter face for the footer's
-  closing credits only. Plain labels (Jobs, Developers, Wallet, Dashboard).
+- **Type:** the original theatre style: Anton poster-face titles in capitals, Courier Prime typewriter for figures and small print,
+  a Bodoni italic tagline under page titles, Jost for body text, and tracked capitals on labels and buttons. Nav labels are plain
+  (Jobs, Developers, Wallet, Dashboard).
 - **Motion:** [Motion for React](https://motion.dev) (`motion`): gliding chip and tab highlights, cards that reflow when a filter
   changes, posters that straighten on hover or focus, the ticket's tilt and foil sheen, the two walkthroughs. A film-grain flicker and
   a projector beam are the only ambient effects. Everything stops for `prefers-reduced-motion`, and the walkthroughs then show finished
