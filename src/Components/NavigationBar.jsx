@@ -8,11 +8,11 @@ import { useUnread } from "../lib/useUnread";
 import { Icon, IconButton } from "./ui";
 import NotificationBell from "./NotificationBell";
 
-// Plain names: the theatre lives in the look, not in words people have to decode.
+// Theatre names first, plain names underneath so nobody has to guess.
 const baseLinks = [
-  { to: "/jobs", label: "Jobs" },
-  { to: "/developers", label: "Developers" },
-  { to: "/wallet", label: "Wallet" },
+  { to: "/jobs", label: "Programme", hint: "Jobs" },
+  { to: "/developers", label: "The cast", hint: "Developers" },
+  { to: "/wallet", label: "Box office", hint: "Wallet" },
 ];
 
 function WalletButton() {
@@ -24,7 +24,7 @@ function WalletButton() {
       <button
         onClick={() => disconnect()}
         title="Disconnect wallet"
-        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#3d3332] px-3 font-mono text-xs text-ink-soft hover:border-[#6a5a55] hover:text-ink"
+        className="inline-flex min-h-10 items-center gap-2 border border-[#3a3733] px-3 font-mono text-xs hover:border-gold hover:text-gold"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
         {shortAddr(address)}
@@ -74,42 +74,42 @@ function AccountMenu({ user, onSignOut }) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Account menu for ${user.name}`}
-        className="flex h-10 w-10 items-center justify-center rounded-full bg-gold text-sm font-semibold text-poster hover:brightness-110"
+        className="flex h-10 w-10 items-center justify-center border border-gold bg-gold/10 font-mono text-xs font-bold text-gold hover:bg-gold/20"
       >
         {initials(user.name)}
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 z-50 mt-2 w-60 overflow-hidden rounded-xl border border-line bg-surface py-1 shadow-[0_24px_48px_-12px_rgb(0_0_0/0.7)]">
-          <p className="truncate border-b border-line px-4 py-3 text-sm font-semibold">{user.name}</p>
+        <div role="menu" className="absolute right-0 z-50 mt-2 w-60 border border-gold/40 bg-surface py-1 shadow-2xl">
+          <p className="truncate border-b border-white/10 px-4 py-3 text-sm font-semibold">{user.name}</p>
           <button role="menuitem" className={item} onClick={() => go("/dashboard")}>
-            <Icon name="grid" size={16} className="text-muted" /> Dashboard
+            <Icon name="grid" size={16} className="text-gold" /> My seat
           </button>
           <button role="menuitem" className={item} onClick={() => go("/jobs?tab=saved")}>
-            <Icon name="bookmark" size={16} className="text-muted" /> Saved jobs
+            <Icon name="bookmark" size={16} className="text-gold" /> Saved jobs
           </button>
           <button role="menuitem" className={item} onClick={() => go("/jobs/new")}>
-            <Icon name="plus" size={16} className="text-muted" /> Post a job
+            <Icon name="plus" size={16} className="text-gold" /> Post a job
           </button>
           {user.isAdmin && (
             <button role="menuitem" className={item} onClick={() => go("/admin")}>
-              <Icon name="shield" size={16} className="text-muted" /> Admin
+              <Icon name="shield" size={16} className="text-gold" /> Admin
             </button>
           )}
           <button role="menuitem" className={item} onClick={() => go("/settings")}>
-            <Icon name="sliders" size={16} className="text-muted" /> Settings
+            <Icon name="sliders" size={16} className="text-gold" /> Settings
           </button>
           <button role="menuitem" className={item} onClick={() => go("/help")}>
-            <Icon name="chat" size={16} className="text-muted" /> Help
+            <Icon name="chat" size={16} className="text-gold" /> Help
           </button>
           <button
             role="menuitem"
-            className={`${item} border-t border-line`}
+            className={`${item} border-t border-white/10`}
             onClick={() => {
               setOpen(false);
               onSignOut();
             }}
           >
-            <Icon name="logout" size={16} className="text-muted" /> Log out
+            <Icon name="logout" size={16} className="text-gold" /> Log out
           </button>
         </div>
       )}
@@ -121,32 +121,30 @@ export default function NavigationBar() {
   const { user, ready, openLogin, signOut } = useAuth();
   const unread = useUnread();
   const [open, setOpen] = useState(false);
-  const links = user ? [...baseLinks, { to: "/dashboard", label: "Dashboard", dot: unread.messages > 0 }] : baseLinks;
+  const links = user ? [...baseLinks, { to: "/dashboard", label: "My seat", hint: "Dashboard", dot: unread.messages > 0 }] : baseLinks;
 
-  // The current page gets a gold rule under its name, like the lit sign over the screen that is showing.
   const linkCls = ({ isActive }) =>
-    `relative flex h-16 items-center text-[0.9375rem] font-medium transition-colors ${isActive ? "text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-gold" : "text-ink-soft hover:text-ink"}`;
+    `group flex flex-col items-center px-1 py-1 transition-colors ${isActive ? "text-gold" : "text-ink-soft hover:text-gold"}`;
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-paper/90 backdrop-blur">
       <nav className="container-page flex h-16 items-center justify-between gap-4" aria-label="Main">
-        <Link to="/" className="flex min-h-11 items-center gap-2.5" aria-label="Blockchain Picture House, home">
-          <img src="/favicon.svg" alt="" width="26" height="26" />
-          <span className="poster-title text-xl tracking-wide text-ink">
-            <span className="hidden sm:inline">Blockchain </span>Picture House
+        <Link to="/" className="flex items-center gap-2 text-gold" aria-label="Blockchain Picture House, home">
+          <Icon name="shield" size={18} />
+          <span className="eyebrow !tracking-[0.26em]">
+            Blockchain<span className="hidden sm:inline"> Picture House</span>
           </span>
         </Link>
 
-        <ul className="hidden items-center gap-8 md:flex">
+        <ul className="hidden items-center gap-7 md:flex">
           {links.map((l) => (
             <li key={l.to}>
               <NavLink to={l.to} className={linkCls}>
-                {l.label}
-                {l.dot && (
-                  <span className="ml-1.5 h-2 w-2 rounded-full bg-marker" title="Unread messages">
-                    <span className="sr-only">, unread messages</span>
-                  </span>
-                )}
+                <span className="eyebrow relative">
+                  {l.label}
+                  {l.dot && <span className="absolute -right-2.5 -top-1 h-2 w-2 rounded-full bg-marker" title="Unread messages" />}
+                </span>
+                <span className="font-mono text-[0.62rem] text-muted group-hover:text-gold/80">{l.hint}</span>
               </NavLink>
             </li>
           ))}
@@ -161,7 +159,7 @@ export default function NavigationBar() {
                 <AccountMenu user={user} onSignOut={signOut} />
               </>
             ) : (
-              <button onClick={openLogin} className="inline-flex min-h-10 items-center rounded-lg bg-gold px-4 text-[0.9375rem] font-semibold text-poster hover:brightness-110">
+              <button onClick={openLogin} className="eyebrow inline-flex min-h-10 items-center bg-gold px-4 text-poster hover:brightness-110">
                 Log in
               </button>
             ))}
@@ -178,11 +176,12 @@ export default function NavigationBar() {
           <ul className="divide-y divide-white/5">
             {links.map((l) => (
               <li key={l.to}>
-                <NavLink to={l.to} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-center justify-between py-3.5 text-lg font-medium ${isActive ? "text-gold" : "text-ink"}`}>
-                  <span>
+                <NavLink to={l.to} onClick={() => setOpen(false)} className={({ isActive }) => `flex items-baseline justify-between py-3.5 ${isActive ? "text-gold" : "text-ink"}`}>
+                  <span className="poster-title text-3xl">
                     {l.label}
-                    {l.dot && <span className="ml-2 inline-block h-2 w-2 rounded-full bg-marker align-middle" aria-label="unread messages" />}
+                    {l.dot && <span className="ml-2 inline-block h-2.5 w-2.5 rounded-full bg-marker align-middle" />}
                   </span>
+                  <span className="font-mono text-xs text-muted">{l.hint}</span>
                 </NavLink>
               </li>
             ))}
@@ -212,9 +211,9 @@ export default function NavigationBar() {
                   setOpen(false);
                   signOut();
                 }}
-                className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-[#3d3332] px-4 text-[0.9375rem] font-medium"
+                className="eyebrow inline-flex min-h-10 items-center gap-2 border border-[#3a3733] px-4"
               >
-                <Icon name="logout" size={16} /> Log out
+                <Icon name="logout" size={14} /> Log out ({user.name})
               </button>
             ) : (
               <button
@@ -222,7 +221,7 @@ export default function NavigationBar() {
                   setOpen(false);
                   openLogin();
                 }}
-                className="inline-flex min-h-10 items-center rounded-lg bg-gold px-4 text-[0.9375rem] font-semibold text-poster"
+                className="eyebrow inline-flex min-h-10 items-center bg-gold px-4 text-poster"
               >
                 Log in
               </button>
